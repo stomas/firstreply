@@ -2,22 +2,21 @@ import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary";
 type Size = "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-[14px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:cursor-not-allowed disabled:opacity-70";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
+  primary: "bg-brand text-white shadow-cta hover:bg-brand-hover",
   secondary:
-    "bg-white text-ink border border-slate-200 hover:border-slate-300 hover:bg-slate-50",
-  ghost: "bg-transparent text-ink-soft hover:text-ink hover:bg-slate-100",
+    "bg-white text-ink border border-line hover:bg-line-soft",
 };
 
 const sizes: Record<Size, string> = {
-  md: "h-11 px-5 text-sm",
-  lg: "h-12 px-6 text-base",
+  md: "px-5 py-[11px] text-[15px]",
+  lg: "px-7 py-[15px] text-base",
 };
 
 type CommonProps = {
@@ -32,9 +31,7 @@ type ButtonAsButton = CommonProps &
     href?: undefined;
   };
 
-type ButtonAsLink = CommonProps & {
-  href: string;
-};
+type ButtonAsLink = CommonProps & { href: string };
 
 type ButtonProps = ButtonAsButton | ButtonAsLink;
 

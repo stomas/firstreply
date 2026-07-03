@@ -1,27 +1,37 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Standard section wrapper. `tone="tint"` renders the muted panel background
+ * with top/bottom hairlines used throughout the design.
+ */
 export function Section({
   id,
   children,
   className,
-  containerClassName,
+  innerClassName,
+  tone = "plain",
+  maxWidth = "1100px",
 }: {
   id?: string;
   children: ReactNode;
   className?: string;
-  containerClassName?: string;
+  innerClassName?: string;
+  tone?: "plain" | "tint";
+  maxWidth?: string;
 }) {
   return (
     <section
       id={id}
-      className={cn("scroll-mt-24 py-16 sm:py-20 lg:py-24", className)}
+      className={cn(
+        "scroll-mt-20 px-6 py-[clamp(64px,9vw,110px)]",
+        tone === "tint" && "border-y border-line bg-line-soft",
+        className,
+      )}
     >
       <div
-        className={cn(
-          "mx-auto w-full max-w-content px-4 sm:px-6 lg:px-8",
-          containerClassName,
-        )}
+        className={cn("mx-auto w-full", innerClassName)}
+        style={{ maxWidth }}
       >
         {children}
       </div>
@@ -29,29 +39,47 @@ export function Section({
   );
 }
 
+export function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-xs font-bold uppercase tracking-[0.08em] text-brand">
+      {children}
+    </div>
+  );
+}
+
 export function SectionHeading({
   eyebrow,
   title,
   subtitle,
-  centered = true,
+  centered = false,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   centered?: boolean;
+  className?: string;
 }) {
   return (
-    <div className={cn("max-w-2xl", centered && "mx-auto text-center")}>
-      {eyebrow ? (
-        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand-600">
-          {eyebrow}
-        </p>
-      ) : null}
-      <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+    <div
+      className={cn(
+        centered ? "mx-auto max-w-[56ch] text-center" : "max-w-[680px]",
+        className,
+      )}
+    >
+      {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+      <h2 className="mt-3 text-[clamp(28px,4vw,44px)] font-extrabold leading-[1.12] tracking-[-0.02em] text-ink">
         {title}
       </h2>
       {subtitle ? (
-        <p className="mt-4 text-lg leading-relaxed text-ink-soft">{subtitle}</p>
+        <p
+          className={cn(
+            "mt-4 text-[17px] leading-relaxed text-ink-soft",
+            centered && "mx-auto",
+          )}
+        >
+          {subtitle}
+        </p>
       ) : null}
     </div>
   );

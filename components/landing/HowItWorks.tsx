@@ -3,29 +3,29 @@ import { HOW_IT_WORKS } from "@/lib/constants";
 
 export function HowItWorks() {
   return (
-    <Section id="kaip-veikia">
+    <Section id="kaip-veikia" maxWidth="760px">
       <SectionHeading
-        eyebrow="Kaip veikia"
-        title="Nuo užklausos iki atsakymo — septyni žingsniai"
-        subtitle="Aiškus, nuspėjamas kelias. Jūs matote kiekvieną etapą ir kontroliuojate, kas siunčiama automatiškai."
+        eyebrow={HOW_IT_WORKS.eyebrow}
+        title={HOW_IT_WORKS.title}
+        subtitle={HOW_IT_WORKS.intro}
+        centered
       />
 
-      <ol className="mx-auto mt-12 max-w-3xl space-y-4">
-        {HOW_IT_WORKS.map((item) => (
+      <ol className="mt-11 flex flex-col gap-[14px]">
+        {HOW_IT_WORKS.steps.map((step) => (
           <li
-            key={item.step}
-            className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-card"
+            key={step.num}
+            className="flex items-start gap-[18px] rounded-2xl border border-line bg-white px-[22px] py-5 shadow-cardsoft"
           >
-            <span
-              aria-hidden
-              className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white"
-            >
-              {item.step}
+            <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-brand font-display text-base font-extrabold text-white">
+              {step.num}
             </span>
             <div>
-              <h3 className="font-semibold text-ink">{item.title}</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                {item.text}
+              <h3 className="text-[18px] font-bold tracking-[-0.01em] text-ink">
+                {step.title}
+              </h3>
+              <p className="mt-[5px] text-[15px] leading-[1.55] text-ink-soft">
+                {step.text}
               </p>
             </div>
           </li>

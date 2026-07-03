@@ -6,6 +6,7 @@
 
 export const SITE = {
   name: "FirstReply",
+  domain: "firstreply.lt",
   shortDescription:
     "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas su orientacine kaina, trūkstama informacija ir preliminariu darbų pradžios langu.",
   email: "labas@firstreply.lt",
@@ -20,305 +21,399 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const HERO = {
+  badge: "Nepraraskite užklausų vien todėl, kad nespėjote atrašyti tą pačią dieną.",
   headline: "Pirmas atsakymas klientui — per kelias minutes",
   subheadline:
     "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas: klientas gauna orientacinę kainą, sužino, ko trūksta tikslesniam pasiūlymui, ir mato preliminarų darbų pradžios langą.",
   primaryCta: "Gauti demo",
   secondaryCta: "Žiūrėti pavyzdžius",
   riskReversal: "Galutinę sąmatą ir terminą visada tvirtinate jūs.",
-  salesAngle:
-    "Nepraraskite užklausų vien todėl, kad nespėjote atrašyti tą pačią dieną.",
+  priceLine: "Starter: €149 setup + €99/mėn. · iki 50 užklausų įskaičiuota",
+  // Hero "mini UI" card.
+  demoCard: {
+    source: "Paslaugos.lt",
+    title: "Nauja užklausa",
+    inquiryLabel: "Kliento užklausa",
+    inquiry:
+      "„Domina 30 m² terasa iš termo medienos. Kiek kainuotų ir kada galėtumėte pradėti?“",
+    replyLabel: "FirstReply atsakymas klientui",
+    reply:
+      "Sveiki! Ačiū už užklausą. 30 m² termo medienos terasa preliminariai kainuotų apie €90–130/m². Kad pateiktume tikslų pasiūlymą, atsiųskite kelias pagrindo nuotraukas. Preliminariai galėtume pradėti maždaug po 3 savaičių.",
+    // The three things FirstReply figured out from the inquiry.
+    outputs: [
+      { label: "Orientacinė kaina", value: "€90–130 / m²" },
+      { label: "Ko dar trūksta", value: "Pagrindo nuotraukų" },
+      { label: "Galimas startas", value: "~3 savaitės" },
+    ],
+    statusPill: "Paruošta peržiūrai",
+    statusNote: "Prieš išsiunčiant atsakymą patvirtinate jūs.",
+  },
 } as const;
 
-export const PROBLEMS = [
-  {
-    title: "Klientas rašo ne vienam",
-    text: "Ta pati užklausa dažniausiai išsiunčiama keliems rangovams vienu metu. Laimi tas, kuris atsako pirmas ir konkrečiai.",
-  },
-  {
-    title: "Atsakote tik vakare",
-    text: "Kol baigiate darbus objekte ir grįžtate prie telefono, klientas jau gali būti pasirinkęs kitą.",
-  },
-  {
-    title: "Rašote tą patį iš naujo",
-    text: "Kiekvienai užklausai ranka aiškinate tuos pačius dalykus: kaina priklauso nuo…, dar reikia sužinoti…, galėtume pradėti…",
-  },
-  {
-    title: "Klausimai kartojasi",
-    text: "Kaina, trūkstama informacija ir laisvi terminai — tie patys klausimai sukasi ratu kiekvieną savaitę.",
-  },
-] as const;
-
-export const SOLUTION = {
-  title: "Sistema paruošia arba išsiunčia atsakymą už jus",
-  intro:
-    "Kai ateina užklausa, sistema pagal jūsų taisykles paruošia aiškų, dalykišką atsakymą. Saugiais atvejais gali išsiųsti automatiškai, rizikingus — palieka jums patvirtinti.",
-  points: [
+export const PROBLEM = {
+  eyebrow: "Problema",
+  title: "Užklausas dažniausiai laimi tas, kuris atsako pirmas",
+  items: [
     {
-      title: "Orientacinė kaina",
-      text: "Kainos rėžis pagal jūsų patvirtintas taisykles — ne prasimanytas skaičius.",
+      title: "Klientas rašo ne vienam",
+      text: "Klientas dažnai parašo keliems tiekėjams vienu metu. Laimi tas, kuris pirmas aiškiai atsako.",
     },
     {
-      title: "Trūkstami klausimai",
-      text: "Sistema paklausia to, ko trūksta tikslesniam pasiūlymui: matmenų, pagrindo, nuotraukų.",
+      title: "Atsakote tik vakare",
+      text: "Jei atsakote tik vakare, klientas jau gali būti pasirinkęs kitą tiekėją.",
     },
     {
-      title: "Preliminarus terminas",
-      text: "„Galime nuo…“ tekstas pagal jūsų užimtumo lentą, be įsipareigojančios datos.",
+      title: "Rašote tą patį iš naujo",
+      text: "Kaina, trūkstama informacija ir terminai kartojasi, bet vis tiek rašomi ranka.",
     },
     {
-      title: "Follow-up",
-      text: "Jei klientas neatsako, sistema mandagiai primena vieną kartą.",
-    },
-    {
-      title: "Rankinis patikrinimas",
-      text: "Skubios, nestandartinės ar didelės užklausos keliauja jums peržiūrėti.",
+      title: "Klausimai kartojasi",
+      text: "Tie patys klausimai apie plotą, miestą, nuotraukas ir terminą kartojasi kiekvieną savaitę.",
     },
   ],
 } as const;
 
-export const HOW_IT_WORKS = [
-  {
-    step: 1,
-    title: "Ateina užklausa",
-    text: "Užklausa ateina iš web formos arba Paslaugos.lt.",
+export const SOLUTION = {
+  eyebrow: "Sprendimas",
+  title: "FirstReply paruošia arba išsiunčia atsakymą pagal jūsų taisykles",
+  intro:
+    "Saugiuose atvejuose atsakymas gali būti siunčiamas automatiškai. Rizikingi ar nestandartiniai atvejai paliekami jūsų peržiūrai.",
+  items: [
+    {
+      title: "Orientacinė kaina",
+      text: "Klientas iškart mato kainos rėžį pagal jūsų patvirtintas taisykles.",
+    },
+    {
+      title: "Trūkstami klausimai",
+      text: "Sistema paprašo informacijos, kurios reikia tikslesniam pasiūlymui.",
+    },
+    {
+      title: "Preliminarus terminas",
+      text: "Parodomas atsargus „galime nuo“ darbų pradžios langas.",
+    },
+    {
+      title: "Follow-up",
+      text: "Jei klientas neatsako, išsiunčiamas vienas mandagus priminimas.",
+    },
+    {
+      title: "Rankinis patikrinimas",
+      text: "Rizikingi ar nestandartiniai atvejai paliekami jūsų peržiūrai.",
+    },
+  ],
+  // Product preview mock.
+  preview: {
+    label: "Valdymo sritis",
+    title: "Jūsų valdymo sritis — viskas vienoje vietoje",
+    intro:
+      "Visos web formos ir Paslaugos.lt užklausos suplaukia į vieną lentą. Matote kiekvieną leadą su siūloma kaina ir laisvus užimtumo langus — jums lieka peržiūrėti paruoštus atsakymus ir patvirtinti, kas siunčiama.",
   },
-  {
-    step: 2,
-    title: "Suprantama esmė",
-    text: "Sistema supranta, ko klientas klausia.",
-  },
-  {
-    step: 3,
-    title: "Nustatomas kainos rėžis",
-    text: "Pagal jūsų taisykles nustato kainos rėžį.",
-  },
-  {
-    step: 4,
-    title: "Patikrinama, ko trūksta",
-    text: "Patikrina, kokios informacijos trūksta pasiūlymui.",
-  },
-  {
-    step: 5,
-    title: "Patikrinama užimtumo lenta",
-    text: "Patikrina užimtumo lentą ir preliminarų laisvą langą.",
-  },
-  {
-    step: 6,
-    title: "Paruošiamas atsakymas",
-    text: "Paruošia arba išsiunčia saugų atsakymą.",
-  },
-  {
-    step: 7,
-    title: "Padaromas follow-up",
-    text: "Jei klientas neatsako, sistema padaro follow-up.",
-  },
-] as const;
+  leads: [
+    {
+      name: "J. Petrauskas",
+      service: "Terasa 30 m² · Vilnius",
+      status: "Auto-send",
+      price: "€90–130/m²",
+      tone: "brand" as const,
+    },
+    {
+      name: "UAB Statyba",
+      service: "Tvora 45 m · Kaunas",
+      status: "Auto-send",
+      price: "€55–80/m",
+      tone: "brand" as const,
+    },
+    {
+      name: "M. Kazlauskas",
+      service: "Stoginė 6×6 m · skubu",
+      status: "Peržiūra",
+      price: "Tikslinama",
+      tone: "warn" as const,
+    },
+    {
+      name: "R. Jonaitis",
+      service: "Vartai · laukiam atsakymo",
+      status: "Follow-up",
+      price: "€—",
+      tone: "neutral" as const,
+    },
+  ],
+  weeks: [
+    { label: "Sav. 1", state: "Užimta", free: false },
+    { label: "Sav. 2", state: "Užimta", free: false },
+    { label: "Sav. 3", state: "Laisva", free: true },
+    { label: "Sav. 4", state: "Laisva", free: true },
+  ],
+} as const;
 
-export const SEGMENTS = [
-  {
-    title: "Terasos",
-    text: "Termo mediena, kompozitas, pagrindas ir poliai — kainos rėžis pagal jūsų taisykles.",
-  },
-  {
-    title: "Tvoros",
-    text: "Segmentinės, dažytos ar medinės tvoros, stulpai, varteliai — su trūkstamais klausimais.",
-  },
-  {
-    title: "Stoginės",
-    text: "Automobilių stoginės ir pavėsinės — greitas orientacinis atsakymas.",
-  },
-  {
-    title: "Vartai",
-    text: "Kiemo ir įvažiavimo vartai, automatika — su preliminariu terminu.",
-  },
-  {
-    title: "Standartiniai montavimo darbai",
-    text: "Pasikartojantys montavimo darbai, kur klausimai ir kaina panašūs kiekvieną kartą.",
-  },
-] as const;
+export const HOW_IT_WORKS = {
+  eyebrow: "Kaip veikia",
+  title: "Aiškus, nuspėjamas kelias — nuo užklausos iki follow-up",
+  intro:
+    "Aiškus, nuspėjamas kelias. Jūs matote kiekvieną etapą ir kontroliuojate, kas siunčiama automatiškai.",
+  steps: [
+    {
+      num: 1,
+      title: "Ateina užklausa",
+      text: "Web forma arba Paslaugos.lt pranešimas patenka į vieną vietą.",
+    },
+    {
+      num: 2,
+      title: "Suprantama esmė",
+      text: "Ištraukiama paslauga, plotas, miestas ir kiti svarbūs duomenys.",
+    },
+    {
+      num: 3,
+      title: "Nustatomas kainos rėžis",
+      text: "Pagal jūsų patvirtintas taisykles priskiriamas orientacinis rėžis.",
+    },
+    {
+      num: 4,
+      title: "Patikrinama, ko trūksta",
+      text: "Suformuluojami tikslūs klausimai tikslesniam pasiūlymui.",
+    },
+    {
+      num: 5,
+      title: "Patikrinama užimtumo lenta",
+      text: "Nustatomas preliminarus „galime nuo“ langas.",
+    },
+    {
+      num: 6,
+      title: "Paruošiamas atsakymas",
+      text: "Saugiais atvejais siunčiama automatiškai, kitaip — jūsų peržiūrai.",
+    },
+    {
+      num: 7,
+      title: "Padaromas follow-up",
+      text: "Jei klientas neatsako, išsiunčiamas vienas priminimas.",
+    },
+  ],
+} as const;
+
+export const SEGMENTS = {
+  eyebrow: "Kam skirta",
+  title: "Sukurta paslaugų ir montavimo verslams",
+  items: [
+    {
+      icon: "terrace" as const,
+      name: "Terasos",
+      question:
+        "„Kiek kainuotų 30 m² terasa ir kada galėtumėte pradėti?“",
+      help: "FirstReply gali paprašyti informacijos apie pagrindą, medieną, laiptus, turėklus, miestą ir nuotraukas.",
+    },
+    {
+      icon: "fence" as const,
+      name: "Tvoros",
+      question: "„Kiek kainuotų 45 m segmentinės tvoros montavimas?“",
+      help: "Pasitikslina tvoros tipą, stulpus, sklypo reljefą, vartų poreikį ir miestą.",
+    },
+    {
+      icon: "carport" as const,
+      name: "Stoginės",
+      question: "„Ar galite pastatyti stoginę dviem automobiliams?“",
+      help: "Pasitikslina matmenis, dangą, pagrindą ir pageidaujamą terminą.",
+    },
+    {
+      icon: "gate" as const,
+      name: "Vartai",
+      question: "„Kiek kainuotų automatiniai kiemo vartai?“",
+      help: "Paklausia apie plotį, automatiką, medžiagą ir įvažiavimo tipą.",
+    },
+    {
+      icon: "tools" as const,
+      name: "Standartiniai montavimo darbai",
+      question: "„Ar imatės standartinių montavimo darbų?“",
+      help: "Surenka pagrindinę informaciją ir priskiria kainos rėžį pagal jūsų taisykles.",
+    },
+  ],
+} as const;
 
 export type DemoStatus = "auto" | "review";
 
-export const DEMOS: Array<{
-  id: string;
-  service: string;
-  status: DemoStatus;
-  statusLabel: string;
-  inquiry: string;
-  reply: string[];
-}> = [
-  {
-    id: "demo-terasa",
-    service: "Terasa",
-    status: "auto",
-    statusLabel: "Saugus automatinis atsakymas",
-    inquiry:
-      "Sveiki, domina 30 m² terasa iš termo medienos prie namo Vilniaus rajone. Kiek maždaug kainuotų ir kada galėtumėt pradėti?",
-    reply: [
-      "Sveiki, ačiū už užklausą!",
-      "30 m² terasos iš termo medienos orientacinė kaina priklauso nuo pagrindo (ar reikia polių / rėmo), papildomų elementų ir objekto vietos. Preliminariai tokio ploto terasos kaina būtų nuo … iki … Eur, tačiau tikslią sumą pateiksime turėdami daugiau informacijos.",
-      "Kad pasiūlymas būtų tikslesnis, praverstų sužinoti: ar reikia įrengti pagrindą / polius? Ar bus laiptų, turėklų? Ar yra aukščių skirtumų sklype? Jei galite, atsiųskite kelias vietos nuotraukas.",
-      "Pagal esamą užimtumą tokius darbus preliminariai galėtume pradėti nuo artimiausių kelių savaičių — tikslų langą suderinsime atskirai.",
-      "Tai orientacinis atsakymas, o ne galutinė sąmata. Galutinę kainą ir terminą patvirtinsime įvertinę detales.",
-    ],
-  },
-  {
-    id: "demo-tvora",
-    service: "Tvora",
-    status: "auto",
-    statusLabel: "Saugus automatinis atsakymas",
-    inquiry:
-      "Reikia apie 45 m segmentinės tvoros Kaune. Domina montavimas su medžiagomis. Sklypas lygus, bet nežinau, kokių stulpų reikia. Kokia būtų kaina?",
-    reply: [
-      "Sveiki, ačiū, kad kreipėtės!",
-      "45 m segmentinės tvoros kaina priklauso nuo ilgio, aukščio, stulpų tipo, ar reikės vartų / vartelių ir objekto sąlygų. Preliminariai su medžiagomis ir montavimu tokio ilgio tvora kainuotų nuo … iki … Eur.",
-      "Kad pasiūlymas būtų tikslesnis, paklausime: kokio aukščio tvorą norite? Ar reikės vartų ir vartelių, kiek? Ar yra pageidavimų dėl spalvos / segmentų tipo? Dėl stulpų pasiūlysime tinkamą variantą — čia rūpintis nereikia.",
-      "Preliminariai darbus galėtume suplanuoti artimiausiu metu pagal užimtumą — konkretų laiką suderinsime papildomai.",
-      "Tai orientacinis įvertinimas, ne galutinė sąmata ir ne garantuotas terminas.",
-    ],
-  },
-  {
-    id: "demo-stogine",
-    service: "Stoginė",
-    status: "review",
-    statusLabel: "Rankinis patikrinimas",
-    inquiry:
-      "Sveiki, norime stoginės dviem automobiliams, apie 6x6 m. Reikia kuo greičiau, geriausia per artimiausias 2 savaites. Ar galite padaryti ir kiek kainuotų?",
-    reply: [
-      "Ši užklausa pažymėta kaip reikalaujanti rankinio patikrinimo — sistema jos automatiškai neatsako.",
-      "Kodėl: klientas prašo konkretaus, skubaus termino (2 savaitės), tai didesnis, individualus darbas (6×6 m stoginė), o toks atvejis neturi būti patvirtinamas automatiškai.",
-      "Sistema paruošia atsakymo juodraštį su orientaciniu kainos rėžiu ir trūkstamais klausimais, bet galutinį atsakymą, kainą ir terminą patvirtinate jūs.",
-      "Taip išvengiama automatinio pažado dėl skubaus termino, kurio galbūt negalėsite įvykdyti.",
-    ],
-  },
-];
+export const DEMOS = {
+  eyebrow: "Demo pavyzdžiai",
+  title: "Kaip atrodo tikras atsakymas",
+  items: [
+    {
+      id: "demo-terasa",
+      label: "Terasa",
+      status: "auto" as DemoStatus,
+      statusLabel: "Auto-send saugu",
+      inquiry:
+        "Sveiki, domina 30 m² terasa iš termo medienos prie namo Vilniaus rajone. Kiek maždaug kainuotų ir kada galėtumėt pradėti?",
+      reply:
+        "Ačiū už užklausą! Orientacinė kaina termo medienos terasai priklauso nuo pagrindo ir polių tipo. Tikslesniam pasiūlymui reikėtų kelių nuotraukų pagrindo bei informacijos, ar reikia laiptų ir turėklų.",
+      price: "Kaina: €90–130 / m²",
+      availability: "Galime nuo ~3 sav.",
+      note: "",
+    },
+    {
+      id: "demo-tvora",
+      label: "Tvora",
+      status: "auto" as DemoStatus,
+      statusLabel: "Auto-send saugu",
+      inquiry:
+        "Reikia apie 45 m segmentinės tvoros Kaune. Domina montavimas su medžiagomis. Sklypas lygus, bet nežinau, kokių stulpų reikia. Kokia būtų kaina?",
+      reply:
+        "Dėkojame! Orientacinę kainą galime pateikti iš karto. Kad pasiūlymas būtų tikslesnis, praverstų tvoros aukštis, ar reikia vartų, bei kelios sklypo nuotraukos — stulpų tipą parinksime patys.",
+      price: "Kaina: €55–80 / m",
+      availability: "Galime nuo ~2 sav.",
+      note: "",
+    },
+    {
+      id: "demo-stogine",
+      label: "Stoginė",
+      status: "review" as DemoStatus,
+      statusLabel: "Manual review",
+      inquiry:
+        "Sveiki, norime stoginės dviem automobiliams, apie 6x6 m. Reikia kuo greičiau, geriausia per artimiausias 2 savaites. Ar galite padaryti ir kiek kainuotų?",
+      reply:
+        "Ačiū už užklausą! Paruošėme orientacinę kainą, tačiau prašomas konkretus greitas terminas — jį patvirtinsime individualiai. Susisieksime dėl matmenų, dangos ir pageidaujamos datos.",
+      price: "Kaina: nuo €2 800",
+      availability: "Terminas tikslinamas",
+      note: "Ši užklausa keliauja žmogaus peržiūrai, nes prašomas konkretus terminas ir darbas nestandartinis.",
+    },
+  ],
+} as const;
 
 export const PRICING = {
+  eyebrow: "Kaina",
+  title: "Aiški kaina, matoma iš karto",
   starter: {
     name: "Starter",
-    badge: "Aktyvus",
-    setup: "149 €",
-    monthly: "99 €",
+    badge: "Aktyvus planas",
+    monthly: "€99",
     monthlyNote: "/mėn.",
-    setupNote: "vienkartinis paleidimas",
-    highlight:
-      "Iki 50 užklausų/mėn. įskaičiuota. Papildomos užklausos — €1/vnt.",
+    setupNote: "+ €149 vienkartinis setup",
+    highlight: "Iki 50 užklausų/mėn. įskaičiuota. Papildomos — €1/vnt.",
     cta: "Gauti demo",
     features: [
       "Web forma + Paslaugos.lt",
-      "Iki 50 užklausų/mėn. įskaičiuota",
-      "Papildomos užklausos — €1/vnt.",
       "Iki 2 paslaugų tipų",
-      "Neribotai kainodaros taisyklių įtrauktoms paslaugoms",
-      "Neribotai sprendimų taisyklių įtrauktoms paslaugoms",
-      "AI paruoštas atsakymas",
-      "Saugus automatinis siuntimas tik mažos rizikos atvejais",
-      "Rankinis patikrinimas rizikingiems atvejams",
+      "Neribotos taisyklės įtrauktoms paslaugoms",
       "Užimtumo lenta",
-      "Preliminarus „galime nuo“ tekstas",
+      "AI paruoštas atsakymas",
+      "Auto-send saugiais atvejais",
+      "Manual review rizikingiems atvejams",
       "1 follow-up seka",
-      "Paprasta užklausų lenta",
+      "Paprasta leadų lenta",
       "Mėnesio suvestinė",
-      "Iki 30 min. pakeitimų per mėnesį",
+      "Iki 30 min. pakeitimų/mėn.",
     ],
   },
   pro: {
     name: "Pro",
     badge: "Greit bus",
-    monthly: "nuo 199 €",
+    monthly: "nuo €199",
     monthlyNote: "/mėn.",
-    positioning:
-      "Augančioms įmonėms, kurios gauna daugiau užklausų, turi kelias paslaugų kryptis ir nori daugiau automatizacijos.",
+    subtitle: "Daugiau apimties ir integracijų",
+    ctaLabel: "Netrukus",
     features: [
-      "Daugiau užklausų šaltinių",
+      "Daugiau source’ų",
       "Daugiau paslaugų tipų",
-      "Daugiau užklausų per mėnesį",
+      "Daugiau užklausų",
       "Kelios follow-up sekos",
       "CRM integracijos",
-      "Gmail / Microsoft pašto integracija",
-      "Keli naudotojai",
-      "Išplėstinės ataskaitos",
-      "Pažangesnė užimtumo logika",
+      "Gmail / Microsoft integracija",
+      "Keli vartotojai",
+      "Išsamesnės ataskaitos",
     ],
   },
 } as const;
 
 export const SAFETY = {
-  title: "Kur sistemos ribos — ir kodėl tai gerai",
-  intro:
-    "Sistema sukurta taip, kad padėtų greičiau atsakyti, bet neprisiimtų įsipareigojimų už jus.",
-  points: [
+  eyebrow: "Kontrolė",
+  title: "AI nepriima komercinių sprendimų už jus",
+  intro: "FirstReply padeda atsakyti greičiau, bet kontrolė lieka jums.",
+  items: [
     {
+      icon: "check" as const,
+      tone: "brand" as const,
       title: "AI nesugalvoja kainų",
-      text: "Kainos neprasimanomos — jos skaičiuojamos tik pagal jūsų patvirtintas taisykles.",
+      text: "Kainos imamos tik iš jūsų patvirtintų taisyklių.",
     },
     {
-      title: "Kainos iš patvirtintų taisyklių",
-      text: "Jūs nustatote kainodaros ir sprendimų taisykles; sistema jų laikosi.",
+      icon: "shield" as const,
+      tone: "brand" as const,
+      title: "Galutinė sąmata — su jūsų patvirtinimu",
+      text: "Sistema gali pajudinti užklausą į priekį, bet nepriima galutinio įsipareigojimo.",
     },
     {
-      title: "Galutinę sąmatą tvirtina savininkas",
-      text: "Klientui siunčiamas orientacinis atsakymas, o galutinį pasiūlymą tvirtinate jūs.",
+      icon: "clock" as const,
+      tone: "warn" as const,
+      title: "Terminai komunikuojami atsargiai",
+      text: "Naudojamas preliminarus „galime nuo“, o ne konkretus pažadas.",
     },
     {
-      title: "Datos negarantuojamos automatiškai",
-      text: "Siunčiamas tik preliminarus „galime nuo“ langas — jokių automatinių garantuotų terminų.",
-    },
-    {
-      title: "Rizikingi atvejai — rankiniam patikrinimui",
-      text: "Skubios, nestandartinės ar didelės individualios užklausos visada keliauja jums peržiūrėti.",
+      icon: "pause" as const,
+      tone: "warn" as const,
+      title: "Rizikingi atvejai stabdomi",
+      text: "Skubios, nestandartinės ar neaiškios užklausos keliauja į manual review.",
     },
   ],
 } as const;
 
-export const FAQ = [
-  {
-    q: "Ar sistema pati siunčia galutinę sąmatą?",
-    a: "Ne. Sistema siunčia tik orientacinį atsakymą su kainos rėžiu, trūkstamais klausimais ir preliminariu terminu. Galutinę sąmatą visada tvirtinate ir siunčiate jūs.",
-  },
-  {
-    q: "Ar AI pats sugalvoja kainas?",
-    a: "Ne. Kainos skaičiuojamos tik pagal jūsų patvirtintas kainodaros taisykles. Sistema nieko neprasimano — jei taisyklės nepadengia atvejo, užklausa keliauja rankiniam patikrinimui.",
-  },
-  {
-    q: "Kas nutinka, jei užklausa nestandartinė?",
-    a: "Skubios, didelės, individualios ar neaiškios užklausos pažymimos kaip „rankinis patikrinimas“. Sistema paruošia juodraštį, bet galutinį atsakymą tvirtinate jūs.",
-  },
-  {
-    q: "Ar veikia su Paslaugos.lt?",
-    a: "Taip. Starter plane įtrauktos ir web formos, ir Paslaugos.lt užklausos. Abu šaltiniai patenka į tą pačią užklausų lentą.",
-  },
-  {
-    q: "Kas, jei viršysiu 50 užklausų per mėnesį?",
-    a: "Iki 50 užklausų/mėn. įskaičiuota. Papildomos užklausos kainuoja €1/vnt. — nieko nereikia keisti, tiesiog matysite tai mėnesio suvestinėje.",
-  },
-  {
-    q: "Ar reikia CRM?",
-    a: "Ne. Starter plane yra paprasta užklausų lenta, kurios pakanka pradžiai. CRM integracijos numatytos Pro plane, kai jų prireiks.",
-  },
-  {
-    q: "Ar galima pradėti tik su viena paslauga?",
-    a: "Taip. Starter palaiko iki 2 paslaugų tipų, bet galite pradėti ir nuo vienos — pavyzdžiui, vien terasų ar vien tvorų.",
-  },
-  {
-    q: "Kiek laiko trunka setup?",
-    a: "Paleidimas apima jūsų kainodaros ir sprendimų taisyklių bei užimtumo lentos suderinimą. Paprastai tai užtrunka kelias dienas — konkretų laiką suderiname per demo.",
-  },
-] as const;
+export const FAQ = {
+  eyebrow: "DUK",
+  title: "Dažniausiai užduodami klausimai",
+  items: [
+    {
+      q: "Ar FirstReply pati siunčia galutinę sąmatą?",
+      a: "Ne. FirstReply gali paruošti arba saugiais atvejais išsiųsti pirmą atsakymą su orientacine kaina ir trūkstamais klausimais. Galutinę sąmatą ir terminą visada tvirtinate jūs.",
+    },
+    {
+      q: "Ar AI pats sugalvoja kainas?",
+      a: "Ne. Kainos imamos tik iš jūsų patvirtintų taisyklių: kainų rėžių, „nuo“ kainų, išimčių ir saugių formuluočių.",
+    },
+    {
+      q: "Kas nutinka, jei užklausa nestandartinė?",
+      a: "Tokia užklausa keliauja į manual review. Sistema paruošia draftą, bet jo automatiškai nesiunčia.",
+    },
+    {
+      q: "Ar veikia su Paslaugos.lt?",
+      a: "Taip, Starter plane Paslaugos.lt yra vienas iš pagrindinių source’ų kartu su web forma.",
+    },
+    {
+      q: "Kas, jei viršysiu 50 užklausų per mėnesį?",
+      a: "Iki 50 užklausų per mėnesį įskaičiuota. Papildomos užklausos kainuoja €1/vnt. Jei stabiliai viršijate limitą, rekomenduosime Pro planą.",
+    },
+    {
+      q: "Ar reikia CRM?",
+      a: "Ne. Starter plane pakanka paprastos leadų lentos. CRM integracijos planuojamos Pro plane.",
+    },
+    {
+      q: "Ar galima pradėti tik su viena paslauga?",
+      a: "Taip. Dažnai net geriau pradėti nuo vienos paslaugos, pvz. terasų arba tvorų, ir tik tada plėsti taisykles.",
+    },
+    {
+      q: "Kiek laiko trunka setup?",
+      a: "Įprastai 3–5 darbo dienas po to, kai gauname kelias realias užklausas, kainų taisykles ir informaciją apie užimtumą.",
+    },
+  ],
+} as const;
 
 export const FINAL_CTA = {
-  headline: "Norite pamatyti, kaip tai atrodytų su jūsų užklausomis?",
-  cta: "Gauti demo",
+  headline: "Norite pamatyti, kaip FirstReply atrodytų su jūsų užklausomis?",
   subtext:
-    "Per demo pereisime jūsų tipinę užklausą ir parodysime, koks atsakymas būtų paruoštas.",
+    "Atsiųskite kelias tipines užklausas arba palikite kontaktą — parodysime, kokį atsakymą FirstReply paruoštų jūsų verslui.",
+  cta: "Gauti demo",
+  disclaimer:
+    "Be įsipareigojimo. Galutinį pasiūlymą pateiksime tik įvertinę jūsų situaciją.",
+  successTitle: "Ačiū! Gavome jūsų užklausą.",
+  successText:
+    "Susisieksime artimiausiu metu ir parodysime, kokį atsakymą FirstReply paruoštų jūsų verslui.",
 } as const;
 
 export const FOOTER = {
   description:
     "FirstReply — pirmo atsakymo sistema web formos ir Paslaugos.lt užklausoms.",
-  links: [
+  nav: [
+    { href: "#kaip-veikia", label: "Kaip veikia" },
+    { href: "#kaina", label: "Kaina" },
+    { href: "#demo", label: "Demo" },
+    { href: "#duk", label: "DUK" },
+  ],
+  legal: [
     { href: "/privatumas", label: "Privatumo politika" },
-    { href: "/salygos", label: "Naudojimosi sąlygos" },
+    { href: "/salygos", label: "Sąlygos" },
   ],
 } as const;

@@ -1,51 +1,21 @@
 import { LeadForm } from "@/components/landing/LeadForm";
-import { Section } from "@/components/ui/Section";
 import { FINAL_CTA } from "@/lib/constants";
 
 export function FinalCTA() {
   return (
-    <Section id="demo">
-      <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
-        <div className="lg:pt-6">
-          <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            {FINAL_CTA.headline}
-          </h2>
-          <p className="mt-4 text-lg leading-relaxed text-ink-soft">
-            {FINAL_CTA.subtext}
-          </p>
+    <section id="cta" className="px-6 py-[clamp(64px,9vw,110px)]">
+      <div className="mx-auto max-w-[820px] text-center">
+        <h2 className="text-[clamp(28px,4vw,44px)] font-extrabold leading-[1.12] tracking-[-0.02em] text-ink [text-wrap:balance]">
+          {FINAL_CTA.headline}
+        </h2>
+        <p className="mx-auto mt-4 max-w-[60ch] text-[17px] leading-relaxed text-ink-soft">
+          {FINAL_CTA.subtext}
+        </p>
+      </div>
 
-          <ul className="mt-8 space-y-3">
-            {[
-              "Pereisime jūsų tipinę užklausą kartu",
-              "Parodysime, koks atsakymas būtų paruoštas",
-              "Aptarsime kainodaros ir sprendimų taisykles",
-              "Be įsipareigojimų — tiesiog pasižiūrėsite, kaip veikia",
-            ].map((point) => (
-              <li key={point} className="flex items-start gap-2.5">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                  className="mt-0.5 flex-none text-brand-600"
-                >
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-                <span className="text-sm leading-relaxed text-ink-soft">
-                  {point}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
+      <div className="mx-auto mt-10 max-w-[720px] rounded-[24px] border border-line bg-white p-[clamp(24px,4vw,40px)] shadow-[0_20px_50px_-28px_rgba(16,32,27,0.3)]">
         <LeadForm />
       </div>
-    </Section>
+    </section>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/Button";
+import { FINAL_CTA } from "@/lib/constants";
 import {
   LEAD_SOURCES,
   leadSchema,
@@ -18,14 +18,16 @@ const initialValues: LeadInput = {
   phone: "",
   website: "",
   message: "",
-  source: "web-forma",
+  source: "abu",
   companyWebsite: "",
 };
 
-const labelClass = "block text-sm font-medium text-ink";
+const labelClass =
+  "flex flex-col gap-[7px] text-[13px] font-semibold text-ink";
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-ink-muted focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30";
-const errorClass = "mt-1 text-xs font-medium text-red-600";
+  "rounded-xl border border-line bg-page px-[14px] py-3 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-muted focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/15";
+const optionalClass = "font-medium text-ink-muted";
+const errorClass = "text-xs font-medium text-red-600";
 
 export function LeadForm() {
   const [values, setValues] = useState<LeadInput>(initialValues);
@@ -50,7 +52,6 @@ export function LeadForm() {
     e.preventDefault();
     setServerError(null);
 
-    // Client-side validation with the shared schema.
     const parsed = leadSchema.safeParse(values);
     if (!parsed.success) {
       setErrors(fieldErrors(parsed.error));
@@ -67,7 +68,6 @@ export function LeadForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
       });
-
       const data: {
         ok: boolean;
         error?: string;
@@ -93,52 +93,32 @@ export function LeadForm() {
 
   if (status === "success") {
     return (
-      <div
-        role="status"
-        className="rounded-2xl border border-brand-200 bg-brand-50 p-8 text-center"
-      >
-        <span
-          aria-hidden
-          className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 6 9 17l-5-5" />
+      <div role="status" className="px-2 py-6 text-center">
+        <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full border border-brand-tintborder bg-brand-tint">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 6L9 17l-5-5" />
           </svg>
-        </span>
-        <h3 className="mt-4 text-xl font-bold text-ink">
-          Ačiū! Užklausa gauta.
+        </div>
+        <h3 className="mt-[18px] font-display text-[22px] font-extrabold text-ink">
+          {FINAL_CTA.successTitle}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          Susisieksime su jumis el. paštu ir suderinsime demo laiką. Paprastai
-          atsakome per 1 darbo dieną.
+        <p className="mt-[10px] text-base leading-relaxed text-ink-soft">
+          {FINAL_CTA.successText}
         </p>
-        <Button
-          variant="secondary"
-          className="mt-6"
+        <button
+          type="button"
           onClick={() => setStatus("idle")}
+          className="mt-6 rounded-xl border border-line bg-white px-5 py-[11px] text-[15px] font-bold text-ink transition-colors hover:bg-line-soft"
         >
           Siųsti dar vieną
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card sm:p-8"
-    >
-      {/* Honeypot — visually hidden, off screen, ignored by real users. */}
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[18px]">
+      {/* Honeypot — off-screen, ignored by real users. */}
       <div className="absolute left-[-9999px]" aria-hidden>
         <label htmlFor="companyWebsite">Įmonės svetainė (nepildyti)</label>
         <input
@@ -152,141 +132,88 @@ export function LeadForm() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="name" className={labelClass}>
-            Vardas <span className="text-red-500">*</span>
-          </label>
+      <div className="grid gap-[18px] [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+        <label className={labelClass}>
+          Vardas
           <input
-            id="name"
-            name="name"
             type="text"
             required
             autoComplete="name"
             className={inputClass}
-            placeholder="Vardas Pavardė"
             value={values.name}
             onChange={(e) => update("name", e.target.value)}
             aria-invalid={!!errors.name}
-            aria-describedby={errors.name ? "name-error" : undefined}
           />
-          {errors.name && (
-            <p id="name-error" className={errorClass}>
-              {errors.name}
-            </p>
-          )}
-        </div>
+          {errors.name && <span className={errorClass}>{errors.name}</span>}
+        </label>
 
-        <div>
-          <label htmlFor="company" className={labelClass}>
-            Įmonė <span className="text-red-500">*</span>
-          </label>
+        <label className={labelClass}>
+          Įmonė
           <input
-            id="company"
-            name="company"
             type="text"
-            required
             autoComplete="organization"
             className={inputClass}
-            placeholder="Jūsų įmonės pavadinimas"
             value={values.company}
             onChange={(e) => update("company", e.target.value)}
             aria-invalid={!!errors.company}
-            aria-describedby={errors.company ? "company-error" : undefined}
           />
           {errors.company && (
-            <p id="company-error" className={errorClass}>
-              {errors.company}
-            </p>
+            <span className={errorClass}>{errors.company}</span>
           )}
-        </div>
+        </label>
 
-        <div>
-          <label htmlFor="email" className={labelClass}>
-            El. paštas <span className="text-red-500">*</span>
-          </label>
+        <label className={labelClass}>
+          El. paštas
           <input
-            id="email"
-            name="email"
             type="email"
             required
             autoComplete="email"
             className={inputClass}
-            placeholder="jus@imone.lt"
             value={values.email}
             onChange={(e) => update("email", e.target.value)}
             aria-invalid={!!errors.email}
-            aria-describedby={errors.email ? "email-error" : undefined}
           />
-          {errors.email && (
-            <p id="email-error" className={errorClass}>
-              {errors.email}
-            </p>
-          )}
-        </div>
+          {errors.email && <span className={errorClass}>{errors.email}</span>}
+        </label>
 
-        <div>
-          <label htmlFor="phone" className={labelClass}>
-            Telefonas{" "}
-            <span className="font-normal text-ink-muted">(nebūtina)</span>
-          </label>
+        <label className={labelClass}>
+          <span className="whitespace-nowrap">
+            Telefonas <span className={optionalClass}>(nebūtina)</span>
+          </span>
           <input
-            id="phone"
-            name="phone"
             type="tel"
             autoComplete="tel"
             className={inputClass}
-            placeholder="+370 6xx xxxxx"
             value={values.phone}
             onChange={(e) => update("phone", e.target.value)}
             aria-invalid={!!errors.phone}
-            aria-describedby={errors.phone ? "phone-error" : undefined}
           />
-          {errors.phone && (
-            <p id="phone-error" className={errorClass}>
-              {errors.phone}
-            </p>
-          )}
-        </div>
+          {errors.phone && <span className={errorClass}>{errors.phone}</span>}
+        </label>
 
-        <div className="sm:col-span-2">
-          <label htmlFor="website" className={labelClass}>
-            Svetainė{" "}
-            <span className="font-normal text-ink-muted">(nebūtina)</span>
-          </label>
+        <label className={labelClass}>
+          <span className="whitespace-nowrap">
+            Svetainė <span className={optionalClass}>(nebūtina)</span>
+          </span>
           <input
-            id="website"
-            name="website"
             type="text"
             autoComplete="url"
             className={inputClass}
-            placeholder="https://jusu-svetaine.lt"
             value={values.website}
             onChange={(e) => update("website", e.target.value)}
             aria-invalid={!!errors.website}
-            aria-describedby={errors.website ? "website-error" : undefined}
           />
           {errors.website && (
-            <p id="website-error" className={errorClass}>
-              {errors.website}
-            </p>
+            <span className={errorClass}>{errors.website}</span>
           )}
-        </div>
+        </label>
 
-        <div className="sm:col-span-2">
-          <label htmlFor="source" className={labelClass}>
-            Iš kur šiuo metu gaunate užklausas?{" "}
-            <span className="text-red-500">*</span>
-          </label>
+        <label className={labelClass}>
+          Iš kur ateina užklausos
           <select
-            id="source"
-            name="source"
-            required
             className={inputClass}
             value={values.source}
             onChange={(e) => update("source", e.target.value)}
-            aria-invalid={!!errors.source}
-            aria-describedby={errors.source ? "source-error" : undefined}
           >
             {LEAD_SOURCES.map((s) => (
               <option key={s.value} value={s.value}>
@@ -294,58 +221,41 @@ export function LeadForm() {
               </option>
             ))}
           </select>
-          {errors.source && (
-            <p id="source-error" className={errorClass}>
-              {errors.source}
-            </p>
-          )}
-        </div>
-
-        <div className="sm:col-span-2">
-          <label htmlFor="message" className={labelClass}>
-            Žinutė <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            required
-            rows={4}
-            className={inputClass}
-            placeholder="Trumpai aprašykite savo veiklą ir kokias užklausas gaunate."
-            value={values.message}
-            onChange={(e) => update("message", e.target.value)}
-            aria-invalid={!!errors.message}
-            aria-describedby={errors.message ? "message-error" : undefined}
-          />
-          {errors.message && (
-            <p id="message-error" className={errorClass}>
-              {errors.message}
-            </p>
-          )}
-        </div>
+        </label>
       </div>
+
+      <label className={labelClass}>
+        Žinutė
+        <textarea
+          rows={4}
+          className={`${inputClass} resize-y`}
+          placeholder="Trumpai apie jūsų paslaugas arba įklijuokite kelias tipines užklausas"
+          value={values.message}
+          onChange={(e) => update("message", e.target.value)}
+          aria-invalid={!!errors.message}
+        />
+        {errors.message && <span className={errorClass}>{errors.message}</span>}
+      </label>
 
       {serverError && status === "error" && (
         <p
           role="alert"
-          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
           {serverError}
         </p>
       )}
 
-      <Button
+      <button
         type="submit"
-        size="lg"
-        className="mt-6 w-full"
         disabled={status === "submitting"}
+        className="mt-1 rounded-[14px] bg-brand py-4 text-base font-bold text-white shadow-cta transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {status === "submitting" ? "Siunčiama…" : "Gauti demo"}
-      </Button>
+        {status === "submitting" ? "Siunčiama…" : FINAL_CTA.cta}
+      </button>
 
-      <p className="mt-3 text-center text-xs text-ink-muted">
-        Paspausdami „Gauti demo“ sutinkate, kad susisieksime dėl demo. Duomenų
-        trečiosioms šalims neperduodame.
+      <p className="text-center text-[13px] text-ink-muted">
+        {FINAL_CTA.disclaimer}
       </p>
     </form>
   );

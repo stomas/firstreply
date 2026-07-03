@@ -9,50 +9,74 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Single strong accent — a trustworthy, calm teal-green.
+        // Single strong accent — a calm, trustworthy green.
         brand: {
-          50: "#eefdf6",
-          100: "#d5f9e8",
-          200: "#aef1d4",
-          300: "#77e3ba",
-          400: "#3fce9c",
-          500: "#16a97c",
-          600: "#0d8a66",
-          700: "#0c6e53",
-          800: "#0d5744",
-          900: "#0c4839",
-          950: "#04291f",
+          DEFAULT: "#0F8F6A",
+          hover: "#0B7457",
+          tint: "#E8F7F1", // accent-light background
+          tintborder: "#BCE8D8", // accent-light border
+          reply: "#F6FBF9", // reply / positive surface
+          replyborder: "#E4F2EC",
         },
         ink: {
-          DEFAULT: "#0f172a",
-          soft: "#334155",
-          muted: "#64748b",
+          DEFAULT: "#10201B",
+          soft: "#51635D",
+          muted: "#7A8A85",
+        },
+        line: {
+          DEFAULT: "#DDE7E3",
+          soft: "#F1F5F3",
+          faint: "#EDF2F0",
+        },
+        page: "#F8FAF9",
+        tint2: "#FBFDFC",
+        warn: {
+          text: "#8A5A00",
+          bg: "#FFF7E6",
+          bg2: "#FFFBF2",
+          border: "#F3D08A",
+          border2: "#F3E4C4",
+        },
+        footer: {
+          bg: "#10201B",
+          text: "#B9C9C2",
+          soft: "#8FA69D",
+          faint: "#6E837B",
+          line: "#1E332B",
         },
       },
       fontFamily: {
         sans: [
           "var(--font-inter)",
-          "ui-sans-serif",
           "system-ui",
           "-apple-system",
           "Segoe UI",
           "Roboto",
-          "Helvetica Neue",
-          "Arial",
+          "sans-serif",
+        ],
+        display: [
+          "var(--font-manrope)",
+          "var(--font-inter)",
+          "system-ui",
           "sans-serif",
         ],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06)",
-        "card-hover":
-          "0 2px 4px rgba(15, 23, 42, 0.06), 0 16px 40px rgba(15, 23, 42, 0.10)",
-      },
-      borderRadius: {
-        xl: "0.875rem",
-        "2xl": "1.25rem",
+        card: "0 4px 18px -12px rgba(16,32,27,0.18)",
+        cardsoft: "0 3px 14px -10px rgba(16,32,27,0.16)",
+        lift: "0 20px 55px -30px rgba(16,32,27,0.32)",
+        hero: "0 24px 60px -28px rgba(16,32,27,0.35)",
+        pricing: "0 20px 50px -26px rgba(15,143,106,0.4)",
+        cta: "0 6px 18px rgba(15,143,106,0.25)",
       },
       maxWidth: {
-        content: "72rem",
+        content: "1200px",
+      },
+      keyframes: {
+        frFade: {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "none" },
+        },
       },
     },
   },

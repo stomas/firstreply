@@ -1,59 +1,50 @@
-import { Button } from "@/components/ui/Button";
+import { PRICING } from "@/lib/constants";
 
-const FEATURES = [
+const CHIPS = [
   "Web forma + Paslaugos.lt",
-  "Iki 2 paslaugų",
-  "Neribotos taisyklės įtrauktoms paslaugoms",
+  "Iki 2 paslaugų tipų",
+  "Neribotos taisyklės",
   "1 follow-up",
   "Užimtumo lenta",
 ];
 
 export function PricingTeaser() {
   return (
-    <section className="px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-3xl rounded-2xl border border-brand-200 bg-white p-6 shadow-card sm:p-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">
-                Starter
+    <section className="px-6 pb-[clamp(24px,4vw,40px)]">
+      <div className="mx-auto max-w-[1020px] overflow-hidden rounded-[22px] border border-line bg-white shadow-[0_12px_40px_-24px_rgba(16,32,27,0.28)]">
+        <div className="h-1 bg-brand" />
+        <div className="flex flex-wrap items-center justify-between gap-6 p-[clamp(22px,4vw,32px)]">
+          <div className="min-w-[260px] flex-1">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="font-display text-[15px] font-extrabold uppercase tracking-[0.06em] text-brand">
+                {PRICING.starter.name}
               </span>
-              <span className="text-xl font-bold text-ink sm:text-2xl">
+              <span className="font-display text-[clamp(24px,3.5vw,30px)] font-extrabold tracking-[-0.02em] text-ink">
                 €149 setup + €99/mėn.
               </span>
-            </p>
-            <p className="mt-2 text-sm font-medium text-brand-800">
+            </div>
+            <p className="mt-2 text-[15px] text-ink-soft">
               Iki 50 užklausų per mėnesį įskaičiuota. Papildomos užklausos —
               €1/vnt.
             </p>
+            <div className="mt-[14px] flex flex-wrap gap-2">
+              {CHIPS.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-lg bg-line-soft px-[11px] py-[6px] text-[13px] text-ink-soft"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
-
-          <Button href="#demo" className="w-full shrink-0 sm:w-auto">
+          <a
+            href="#cta"
+            className="flex-none rounded-[14px] bg-brand px-[30px] py-[15px] text-base font-bold text-white shadow-cta transition-colors hover:bg-brand-hover"
+          >
             Gauti demo
-          </Button>
+          </a>
         </div>
-
-        <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-sm text-ink-soft">
-          {FEATURES.map((feature) => (
-            <li key={feature} className="flex items-center gap-1.5">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-                className="flex-none text-brand-600"
-              >
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );

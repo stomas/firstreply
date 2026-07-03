@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Manrope } from "next/font/google";
 import { SITE } from "@/lib/constants";
 import { getSiteUrl } from "@/lib/utils";
 import "./globals.css";
@@ -8,6 +8,13 @@ const inter = Inter({
   subsets: ["latin", "latin-ext"],
   display: "swap",
   variable: "--font-inter",
+});
+
+const manrope = Manrope({
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+  weight: ["700", "800"],
+  variable: "--font-manrope",
 });
 
 const siteUrl = getSiteUrl();
@@ -76,7 +83,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="lt" className={inter.variable}>
+    <html lang="lt" className={`${inter.variable} ${manrope.variable}`}>
       {/*
         suppressHydrationWarning: some browser extensions (e.g. Grammarly,
         LastPass) inject attributes into <body> before React hydrates, which
@@ -84,7 +91,10 @@ export default function RootLayout({
         NOT hide mismatches from our own code — it only silences attribute
         differences on this single element.
       */}
-      <body className="min-h-screen antialiased" suppressHydrationWarning>
+      <body
+        className="min-h-screen bg-page font-sans text-ink antialiased"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>

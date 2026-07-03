@@ -5,47 +5,74 @@ export function Footer() {
   const year = 2026;
 
   return (
-    <footer className="border-t border-slate-200 bg-white">
-      <div className="mx-auto max-w-content px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-8 md:grid-cols-2">
-          <div className="max-w-md">
-            <div className="flex items-center gap-2 font-bold tracking-tight text-ink">
-              <span
-                aria-hidden
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white"
-              >
-                FR
-              </span>
-              <span>{SITE.name}</span>
-            </div>
-            <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-              {FOOTER.description}
-            </p>
+    <footer className="bg-footer-bg px-6 pb-10 pt-[clamp(48px,7vw,72px)] text-footer-text">
+      <div className="mx-auto grid max-w-content items-start gap-8 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+        <div className="max-w-[360px]">
+          <div className="flex items-center gap-[11px]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand font-display text-sm font-extrabold text-white">
+              FR
+            </span>
+            <span className="font-display text-[19px] font-extrabold tracking-[-0.02em] text-white">
+              {SITE.name}
+            </span>
           </div>
+          <p className="mt-4 text-[15px] leading-relaxed text-footer-soft">
+            {FOOTER.description}
+          </p>
+        </div>
 
-          <div className="flex flex-col gap-4 md:items-end">
-            <a
-              href={`mailto:${SITE.email}`}
-              className="text-sm font-medium text-ink-soft hover:text-ink"
-            >
-              {SITE.email}
-            </a>
-            <nav className="flex gap-6" aria-label="Poraštės nuorodos">
-              {FOOTER.links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="text-sm text-ink-muted hover:text-ink"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[0.08em] text-footer-faint">
+            Navigacija
+          </div>
+          <div className="mt-[14px] flex flex-col gap-[10px]">
+            {FOOTER.nav.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-[15px] text-footer-text hover:text-white"
+              >
+                {item.label}
+              </a>
+            ))}
           </div>
         </div>
 
-        <div className="mt-10 border-t border-slate-100 pt-6 text-sm text-ink-muted">
-          © {year} {SITE.name}. Visos teisės saugomos.
+        <div>
+          <div className="text-xs font-bold uppercase tracking-[0.08em] text-footer-faint">
+            Kontaktai
+          </div>
+          <div className="mt-[14px] flex flex-col gap-[10px]">
+            <a
+              href={`mailto:${SITE.email}`}
+              className="text-[15px] text-footer-text hover:text-white"
+            >
+              {SITE.email}
+            </a>
+            <a
+              href={`https://${SITE.domain}`}
+              className="text-[15px] text-footer-text hover:text-white"
+            >
+              {SITE.domain}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto mt-9 flex max-w-content flex-wrap items-center justify-between gap-4 border-t border-footer-line pt-6">
+        <span className="text-[13px] text-footer-faint">
+          © {year} {SITE.name} · {SITE.domain}
+        </span>
+        <div className="flex gap-5">
+          {FOOTER.legal.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-[13px] text-footer-soft hover:text-white"
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
       </div>
     </footer>

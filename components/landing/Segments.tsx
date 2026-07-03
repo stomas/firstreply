@@ -1,54 +1,93 @@
-import { Card } from "@/components/ui/Card";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { SEGMENTS } from "@/lib/constants";
 
-// A small, neutral line icon per segment — no cheesy robot imagery.
-const icons: Record<string, React.ReactNode> = {
-  Terasos: <path d="M3 10h18M5 10v10m14-10v10M3 20h18M4 10 12 4l8 6" />,
-  Tvoros: <path d="M4 20V8l3-3 3 3v12M14 20V8l3-3 3 3v12M2 12h20" />,
-  Stoginės: <path d="M3 10 12 4l9 6M5 10v10h14V10M3 20h18" />,
-  Vartai: <path d="M4 20V6h7v14M13 20V6h7v14M2 20h20M7 10v6m10-6v6" />,
-  "Standartiniai montavimo darbai": (
-    <path d="m14 7 3 3-8 8-3-3 8-8ZM14 7l2-2 3 3-2 2M5 19l-1 1" />
-  ),
-};
+type IconKey = (typeof SEGMENTS.items)[number]["icon"];
+
+function SegmentIcon({ icon }: { icon: IconKey }) {
+  const common = {
+    width: 22,
+    height: 22,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "#0F8F6A",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  switch (icon) {
+    case "terrace":
+      return (
+        <svg {...common}>
+          <line x1="3" y1="8" x2="21" y2="8" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="16" x2="21" y2="16" />
+          <line x1="3" y1="20" x2="21" y2="20" />
+          <line x1="8" y1="8" x2="8" y2="20" />
+          <line x1="16" y1="8" x2="16" y2="20" />
+        </svg>
+      );
+    case "fence":
+      return (
+        <svg {...common}>
+          <line x1="4" y1="10" x2="4" y2="20" />
+          <line x1="9" y1="10" x2="9" y2="20" />
+          <line x1="14" y1="10" x2="14" y2="20" />
+          <line x1="19" y1="10" x2="19" y2="20" />
+          <path d="M2 13h20" />
+          <path d="M4 10l1.5-2M9 10l1.5-2M14 10l1.5-2M19 10l1.5-2" />
+        </svg>
+      );
+    case "carport":
+      return (
+        <svg {...common}>
+          <path d="M3 11l9-6 9 6" />
+          <line x1="5" y1="11" x2="5" y2="20" />
+          <line x1="19" y1="11" x2="19" y2="20" />
+          <line x1="3" y1="20" x2="21" y2="20" />
+        </svg>
+      );
+    case "gate":
+      return (
+        <svg {...common}>
+          <rect x="3" y="8" width="8" height="11" rx="1" />
+          <rect x="13" y="8" width="8" height="11" rx="1" />
+          <path d="M3 12l8 4M13 16l8-4" />
+        </svg>
+      );
+    case "tools":
+      return (
+        <svg {...common}>
+          <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.3 2.3-2-2 2.3-2.3z" />
+        </svg>
+      );
+  }
+}
 
 export function Segments() {
   return (
-    <Section id="kam-skirta" className="bg-surface">
-      <SectionHeading
-        eyebrow="Kam skirta"
-        title="Sukurta konkretiems montavimo darbams"
-        subtitle="Pradedame nuo sričių, kur klausimai ir kainodara pasikartoja — ten automatinis atsakymas duoda daugiausiai naudos."
-      />
+    <Section id="kam-skirta">
+      <SectionHeading eyebrow={SEGMENTS.eyebrow} title={SEGMENTS.title} />
 
-      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {SEGMENTS.map((segment) => (
-          <Card key={segment.title} className="flex flex-col">
-            <span
-              aria-hidden
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {icons[segment.title]}
-              </svg>
-            </span>
-            <h3 className="mt-4 text-lg font-semibold text-ink">
-              {segment.title}
-            </h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-              {segment.text}
-            </p>
-          </Card>
+      <div className="mt-10 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+        {SEGMENTS.items.map((g) => (
+          <div
+            key={g.name}
+            className="flex flex-col gap-[14px] rounded-[20px] border border-line bg-white p-[26px] shadow-card"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-[44px] w-[44px] items-center justify-center rounded-xl border border-brand-tintborder bg-brand-tint">
+                <SegmentIcon icon={g.icon} />
+              </span>
+              <h3 className="text-[19px] font-bold tracking-[-0.01em] text-ink">
+                {g.name}
+              </h3>
+            </div>
+            <div className="rounded-xl bg-line-soft px-[14px] py-3 text-sm italic leading-[1.5] text-ink">
+              {g.question}
+            </div>
+            <p className="text-sm leading-relaxed text-ink-soft">{g.help}</p>
+          </div>
         ))}
       </div>
     </Section>

@@ -1,130 +1,88 @@
-import { Button } from "@/components/ui/Button";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { PRICING } from "@/lib/constants";
-
-function CheckItem({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2.5">
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-        className="mt-0.5 flex-none text-brand-600"
-      >
-        <path d="M20 6 9 17l-5-5" />
-      </svg>
-      <span className="text-sm leading-relaxed text-ink-soft">{children}</span>
-    </li>
-  );
-}
 
 export function Pricing() {
   const { starter, pro } = PRICING;
 
   return (
-    <Section id="kaina" className="bg-surface">
-      <SectionHeading
-        eyebrow="Kaina"
-        title="Aiški kaina, be paslėptų mokesčių"
-        subtitle="Pradėkite su Starter planu. Pro planas — augančioms įmonėms — jau ruošiamas."
-      />
+    <Section id="kaina" tone="tint" maxWidth="1000px">
+      <SectionHeading eyebrow={PRICING.eyebrow} title={PRICING.title} centered />
 
-      <div className="mx-auto mt-12 grid max-w-4xl gap-6 lg:grid-cols-2">
+      <div className="mt-11 grid items-start gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
         {/* Starter — active */}
-        <article className="relative flex flex-col rounded-2xl border-2 border-brand-500 bg-white p-7 shadow-card">
-          <span className="absolute -top-3 left-7 rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white">
-            {starter.badge}
-          </span>
-
-          <h3 className="text-2xl font-bold text-ink">{starter.name}</h3>
-
-          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
-            <div>
-              <span className="text-4xl font-bold text-ink">
-                {starter.monthly}
+        <article className="relative rounded-[24px] border-2 border-brand bg-white p-[clamp(26px,4vw,36px)] shadow-pricing">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-display text-2xl font-extrabold text-ink">
+              {starter.name}
+            </h3>
+            <span className="rounded-full border border-brand-tintborder bg-brand-tint px-[13px] py-[6px] text-xs font-bold text-brand">
+              {starter.badge}
+            </span>
+          </div>
+          <div className="mt-5">
+            <div className="font-display text-[clamp(30px,5vw,40px)] font-extrabold tracking-[-0.03em] text-ink">
+              {starter.monthly}
+              <span className="text-[18px] font-semibold text-ink-muted">
+                {starter.monthlyNote}
               </span>
-              <span className="text-ink-muted">{starter.monthlyNote}</span>
             </div>
-            <div className="text-sm text-ink-muted">
-              <span className="font-semibold text-ink">{starter.setup}</span>{" "}
+            <div className="mt-1 text-[15px] text-ink-soft">
               {starter.setupNote}
             </div>
           </div>
-
-          <p className="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800">
+          <p className="mt-[14px] text-sm leading-[1.55] text-ink-soft">
             {starter.highlight}
           </p>
-
-          <Button href="#demo" size="lg" className="mt-6 w-full">
+          <a
+            href="#cta"
+            className="mt-[22px] block rounded-[14px] bg-brand py-[15px] text-center text-base font-bold text-white shadow-cta transition-colors hover:bg-brand-hover"
+          >
             {starter.cta}
-          </Button>
-
-          <ul className="mt-7 space-y-3">
+          </a>
+          <div className="mt-6 flex flex-col gap-[11px] border-t border-line-soft pt-5">
             {starter.features.map((f) => (
-              <CheckItem key={f}>{f}</CheckItem>
+              <div key={f} className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-none" aria-hidden>
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <span>{f}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </article>
 
         {/* Pro — coming soon */}
-        <article className="relative flex flex-col rounded-2xl border border-slate-200 bg-white/70 p-7 shadow-card">
-          <span className="absolute -top-3 left-7 rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-white">
-            {pro.badge}
-          </span>
-
-          <h3 className="text-2xl font-bold text-ink">{pro.name}</h3>
-
-          <div className="mt-4">
-            <span className="text-4xl font-bold text-ink">{pro.monthly}</span>
-            <span className="text-ink-muted">{pro.monthlyNote}</span>
+        <article className="rounded-[24px] border border-line bg-page p-[clamp(26px,4vw,36px)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-display text-2xl font-extrabold text-ink-soft">
+              {pro.name}
+            </h3>
+            <span className="rounded-full border border-line bg-line-soft px-[13px] py-[6px] text-xs font-bold text-ink-muted">
+              {pro.badge}
+            </span>
           </div>
-
-          <p className="mt-4 text-sm leading-relaxed text-ink-soft">
-            {pro.positioning}
-          </p>
-
-          <Button
-            size="lg"
-            variant="secondary"
-            className="mt-6 w-full"
-            disabled
-          >
-            Greit bus
-          </Button>
-
-          <p className="mt-7 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-            Numatoma įtraukti
-          </p>
-          <ul className="mt-3 space-y-3">
+          <div className="mt-5">
+            <div className="font-display text-[clamp(30px,5vw,40px)] font-extrabold tracking-[-0.03em] text-ink-soft">
+              {pro.monthly}
+              <span className="text-[18px] font-semibold text-ink-muted">
+                {pro.monthlyNote}
+              </span>
+            </div>
+            <div className="mt-1 text-[15px] text-ink-muted">{pro.subtitle}</div>
+          </div>
+          <div className="mt-[22px] block cursor-not-allowed rounded-[14px] border border-line bg-line-soft py-[15px] text-center text-base font-bold text-ink-muted">
+            {pro.ctaLabel}
+          </div>
+          <div className="mt-6 flex flex-col gap-[11px] border-t border-line pt-5">
             {pro.features.map((f) => (
-              <li key={f} className="flex items-start gap-2.5">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                  className="mt-0.5 flex-none text-slate-400"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v8M8 12h8" />
+              <div key={f} className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink-soft">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7A8A85" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-none" aria-hidden>
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span className="text-sm leading-relaxed text-ink-soft">
-                  {f}
-                </span>
-              </li>
+                <span>{f}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </article>
       </div>
     </Section>
