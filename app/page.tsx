@@ -1,5 +1,6 @@
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
+import { PricingTeaser } from "@/components/landing/PricingTeaser";
 import { Problem } from "@/components/landing/Problem";
 import { Solution } from "@/components/landing/Solution";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -17,12 +18,13 @@ export default function HomePage() {
       <Header />
       <main>
         <Hero />
+        <PricingTeaser />
         <Problem />
         <Solution />
         <HowItWorks />
+        <Pricing />
         <Segments />
         <DemoExamples />
-        <Pricing />
         <Safety />
         <FAQ />
         <FinalCTA />

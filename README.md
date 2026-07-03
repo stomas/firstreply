@@ -1,8 +1,9 @@
-# Užklausų atsakytojas — landing page
+# FirstReply — landing page
 
-Production-ready landing page for **Užklausų atsakytojas**, a starter
-inquiry-response system for small Lithuanian service and installation
-businesses (terrace builders, fence installers, carport/canopy builders, gate
+Production-ready Lithuanian landing page for **FirstReply**
+([firstreply.lt](https://firstreply.lt)), a micro-SaaS that helps small
+Lithuanian service and installation businesses respond to written inquiries
+faster (terrace builders, fence installers, carport/canopy builders, gate
 installers, and standard installation providers).
 
 The system helps them reply faster to **website form** and **Paslaugos.lt**
@@ -151,7 +152,7 @@ Then create a repository on GitHub (empty, no README) and push:
 
 ```bash
 # Replace with your repo URL
-git remote add origin git@github.com:YOUR_USERNAME/uzklausu-atsakytojas.git
+git remote add origin git@github.com:YOUR_USERNAME/firstreply.git
 git branch -M main
 git push -u origin main
 ```

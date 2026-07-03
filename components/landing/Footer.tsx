@@ -14,7 +14,7 @@ export function Footer() {
                 aria-hidden
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white"
               >
-                UA
+                FR
               </span>
               <span>{SITE.name}</span>
             </div>

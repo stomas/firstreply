@@ -1,8 +1,8 @@
 {
-  "name": "uzklausu-atsakytojas",
+  "name": "firstreply-landing",
   "version": "0.1.0",
   "private": true,
-  "description": "Landing page for Užklausų atsakytojas — a starter inquiry-response system for small Lithuanian service and installation businesses.",
+  "description": "Landing page for FirstReply — a micro-SaaS that helps small Lithuanian service and installation businesses respond to written inquiries faster.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

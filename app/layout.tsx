@@ -15,11 +15,12 @@ const siteUrl = getSiteUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: `${SITE.name} — greitesni atsakymai į web ir Paslaugos.lt užklausas`,
+    default: `${SITE.name} — pirmas atsakymas klientui per kelias minutes`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.shortDescription,
   keywords: [
+    "FirstReply",
     "užklausų atsakymas",
     "Paslaugos.lt",
     "terasų montavimas",
@@ -38,8 +39,9 @@ export const metadata: Metadata = {
     locale: "lt_LT",
     url: siteUrl,
     siteName: SITE.name,
-    title: `${SITE.name} — greitesni atsakymai į užklausas`,
-    description: SITE.shortDescription,
+    title: `${SITE.name} — greitesni atsakymai į klientų užklausas`,
+    description:
+      "Pirmas atsakymas klientui per kelias minutes: orientacinė kaina, trūkstami klausimai, preliminarus terminas ir follow-up.",
     images: [
       {
         url: "/opengraph-image.svg",
@@ -51,8 +53,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE.name} — greitesni atsakymai į užklausas`,
-    description: SITE.shortDescription,
+    title: `${SITE.name} — greitesni atsakymai į klientų užklausas`,
+    description:
+      "Pirmas atsakymas klientui per kelias minutes: orientacinė kaina, trūkstami klausimai, preliminarus terminas ir follow-up.",
     images: ["/opengraph-image.svg"],
   },
   robots: {
@@ -74,7 +77,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="lt" className={inter.variable}>
-      <body className="min-h-screen antialiased">{children}</body>
+      {/*
+        suppressHydrationWarning: some browser extensions (e.g. Grammarly,
+        LastPass) inject attributes into <body> before React hydrates, which
+        would otherwise trigger a false-positive hydration mismatch. This does
+        NOT hide mismatches from our own code — it only silences attribute
+        differences on this single element.
+      */}
+      <body className="min-h-screen antialiased" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

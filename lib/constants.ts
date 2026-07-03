@@ -5,10 +5,10 @@
  */
 
 export const SITE = {
-  name: "Užklausų atsakytojas",
+  name: "FirstReply",
   shortDescription:
-    "Atsakykite į web formos ir Paslaugos.lt užklausas greičiau — su orientacine kaina, trūkstama informacija ir preliminariu darbų pradžios langu.",
-  email: "labas@uzklausu-atsakytojas.lt",
+    "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas su orientacine kaina, trūkstama informacija ir preliminariu darbų pradžios langu.",
+  email: "labas@firstreply.lt",
 } as const;
 
 export const NAV_ITEMS = [
@@ -20,9 +20,9 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const HERO = {
-  headline: "Atsakykite į web formos ir Paslaugos.lt užklausas greičiau",
+  headline: "Pirmas atsakymas klientui — per kelias minutes",
   subheadline:
-    "Klientas greitai gauna orientacinę kainą, sužino, ko trūksta tikslesniam pasiūlymui ir kada preliminariai galėtumėte pradėti.",
+    "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas: klientas gauna orientacinę kainą, sužino, ko trūksta tikslesniam pasiūlymui, ir mato preliminarų darbų pradžios langą.",
   primaryCta: "Gauti demo",
   secondaryCta: "Žiūrėti pavyzdžius",
   riskReversal: "Galutinę sąmatą ir terminą visada tvirtinate jūs.",
@@ -316,7 +316,7 @@ export const FINAL_CTA = {
 
 export const FOOTER = {
   description:
-    "Starter sistema mažoms Lietuvos paslaugų ir montavimo įmonėms — greitesni atsakymai į web formos ir Paslaugos.lt užklausas.",
+    "FirstReply — pirmo atsakymo sistema web formos ir Paslaugos.lt užklausoms.",
   links: [
     { href: "/privatumas", label: "Privatumo politika" },
     { href: "/salygos", label: "Naudojimosi sąlygos" },
