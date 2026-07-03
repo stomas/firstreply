@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f8fafc"/>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eefdf6"/>
+      <stop offset="0.35" stop-color="#f8fafc"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(90, 110)">
+    <rect width="64" height="64" rx="14" fill="#0d8a66"/>
+    <text x="32" y="43" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">UA</text>
+    <text x="84" y="42" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0f172a">Užklausų atsakytojas</text>
+  </g>
+  <text x="90" y="290" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#0f172a">Atsakykite į užklausas</text>
+  <text x="90" y="360" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#0d8a66">greičiau</text>
+  <text x="90" y="440" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#334155">Orientacinė kaina · trūkstama informacija · preliminarus terminas</text>
+  <text x="90" y="490" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#334155">Web forma + Paslaugos.lt</text>
+</svg>
