@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   };
 
   // Always log server-side so leads are never lost even without a webhook.
-  console.info("[lead] new demo request:", JSON.stringify(submission));
+  console.info("[lead] new offer request:", JSON.stringify(submission));
 
   // Optionally forward to a webhook (Make/Zapier/n8n/Slack/CRM).
   // LEAD_WEBHOOK_URL is a server-only secret — never exposed to the client.

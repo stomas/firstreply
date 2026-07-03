@@ -125,7 +125,7 @@ service **Variables** tab.
 
 ### How lead capture works
 
-The "Gauti demo" form posts to `POST /api/leads`. The route:
+The "Gauti pasiūlymą" form posts to `POST /api/leads`. The route:
 
 1. Validates the payload with the shared Zod schema.
 2. Rejects spam via a hidden honeypot field.

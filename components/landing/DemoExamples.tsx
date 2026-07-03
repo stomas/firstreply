@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 export function DemoExamples() {
   return (
-    <Section id="demo" tone="tint" maxWidth="1080px">
+    <Section id="pavyzdziai" tone="tint" maxWidth="1080px">
       <SectionHeading eyebrow={DEMOS.eyebrow} title={DEMOS.title} centered />
 
       <div className="mt-11 flex flex-col gap-6">
@@ -32,7 +32,7 @@ export function DemoExamples() {
               <div className="mt-[18px] grid gap-[18px] [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
                 <div>
                   <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
-                    Užklausa
+                    Pavyzdinė užklausa
                   </div>
                   <div className="rounded-[14px] bg-line-soft px-[17px] py-[15px] text-[14.5px] leading-[1.55] text-ink">
                     {d.inquiry}
@@ -40,7 +40,7 @@ export function DemoExamples() {
                 </div>
                 <div>
                   <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-brand">
-                    FirstReply atsakymas
+                    Pavyzdinis FirstReply atsakymas
                   </div>
                   <div
                     className={cn(

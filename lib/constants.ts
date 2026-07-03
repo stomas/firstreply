@@ -16,7 +16,7 @@ export const NAV_ITEMS = [
   { href: "#kaip-veikia", label: "Kaip veikia" },
   { href: "#kam-skirta", label: "Kam skirta" },
   { href: "#kaina", label: "Kaina" },
-  { href: "#demo", label: "Demo" },
+  { href: "/demo", label: "Pavyzdžiai" },
   { href: "#duk", label: "DUK" },
 ] as const;
 
@@ -25,9 +25,10 @@ export const HERO = {
   headline: "Pirmas atsakymas klientui — per kelias minutes",
   subheadline:
     "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas: klientas gauna orientacinę kainą, sužino, ko trūksta tikslesniam pasiūlymui, ir mato preliminarų darbų pradžios langą.",
-  primaryCta: "Gauti demo",
+  primaryCta: "Gauti pasiūlymą",
   secondaryCta: "Žiūrėti pavyzdžius",
-  riskReversal: "Galutinę sąmatą ir terminą visada tvirtinate jūs.",
+  riskReversal:
+    "Palikite kontaktą — susisieksime, užduosime kelis klausimus ir įvertinsime, ar Starter tinka jūsų įmonei.",
   priceLine: "Starter: €149 setup + €99/mėn. · iki 50 užklausų įskaičiuota",
   // Hero "mini UI" card.
   demoCard: {
@@ -230,8 +231,8 @@ export const SEGMENTS = {
 export type DemoStatus = "auto" | "review";
 
 export const DEMOS = {
-  eyebrow: "Demo pavyzdžiai",
-  title: "Kaip atrodo tikras atsakymas",
+  eyebrow: "Pavyzdžiai",
+  title: "Kaip atrodo pavyzdinis FirstReply atsakymas",
   items: [
     {
       id: "demo-terasa",
@@ -284,8 +285,9 @@ export const PRICING = {
     monthly: "€99",
     monthlyNote: "/mėn.",
     setupNote: "+ €149 vienkartinis setup",
-    highlight: "Iki 50 užklausų/mėn. įskaičiuota. Papildomos — €1/vnt.",
-    cta: "Gauti demo",
+    highlight:
+      "Starter kaina: €149 setup + €99/mėn. Iki 50 užklausų įskaičiuota, papildomos — €1/vnt. Galutinį pasiūlymą pateikiame įvertinę jūsų užklausų kanalus ir paslaugas.",
+    cta: "Gauti pasiūlymą",
     features: [
       "Web forma + Paslaugos.lt",
       "Iki 2 paslaugų tipų",
@@ -392,15 +394,21 @@ export const FAQ = {
 } as const;
 
 export const FINAL_CTA = {
-  headline: "Norite pamatyti, kaip FirstReply atrodytų su jūsų užklausomis?",
+  headline: "Norite sužinoti, ar FirstReply tinka jūsų įmonei?",
   subtext:
-    "Atsiųskite kelias tipines užklausas arba palikite kontaktą — parodysime, kokį atsakymą FirstReply paruoštų jūsų verslui.",
-  cta: "Gauti demo",
+    "Palikite kontaktą — susisieksime, paklausime apie jūsų užklausų kanalus, paslaugas, kainų taisykles ir paruošime pasiūlymą.",
+  cta: "Gauti pasiūlymą",
+  secondaryCta: "Žiūrėti pavyzdžius",
+  formTitle: "Gaukite pasiūlymą",
+  formSubtitle:
+    "Palikite kontaktą — susisieksime ir įvertinsime, kaip FirstReply galėtų veikti jūsų užklausoms.",
   disclaimer:
-    "Be įsipareigojimo. Galutinį pasiūlymą pateiksime tik įvertinę jūsų situaciją.",
-  successTitle: "Ačiū! Gavome jūsų užklausą.",
+    "Be įsipareigojimo. Pasiūlymą pateiksime tik įvertinę jūsų situaciją.",
+  successTitle: "Ačiū — gavome jūsų užklausą.",
   successText:
-    "Susisieksime artimiausiu metu ir parodysime, kokį atsakymą FirstReply paruoštų jūsų verslui.",
+    "Susisieksime ir užduosime kelis klausimus, kad galėtume paruošti tinkamą pasiūlymą.",
+  errorText:
+    "Nepavyko išsiųsti formos. Bandykite dar kartą arba parašykite mums el. paštu.",
 } as const;
 
 export const FOOTER = {
@@ -409,7 +417,7 @@ export const FOOTER = {
   nav: [
     { href: "#kaip-veikia", label: "Kaip veikia" },
     { href: "#kaina", label: "Kaina" },
-    { href: "#demo", label: "Demo" },
+    { href: "/demo", label: "Pavyzdžiai" },
     { href: "#duk", label: "DUK" },
   ],
   legal: [

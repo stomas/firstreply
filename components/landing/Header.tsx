@@ -48,7 +48,7 @@ export function Header() {
             href="#cta"
             className="hidden rounded-xl bg-brand px-5 py-[11px] text-[15px] font-bold text-white shadow-cta transition-colors hover:bg-brand-hover md:inline-flex"
           >
-            Gauti demo
+            Gauti pasiūlymą
           </a>
           <button
             type="button"
@@ -99,7 +99,7 @@ export function Header() {
             onClick={() => setOpen(false)}
             className="mt-2 rounded-xl bg-brand py-[14px] text-center text-base font-bold text-white"
           >
-            Gauti demo
+            Gauti pasiūlymą
           </a>
         </nav>
       </div>

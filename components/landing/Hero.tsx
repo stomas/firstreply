@@ -44,20 +44,32 @@ export function Hero() {
           <Button href="#cta" size="lg">
             {HERO.primaryCta}
           </Button>
-          <Button href="#demo" size="lg" variant="secondary">
+          <Button href="/demo" size="lg" variant="secondary">
             {HERO.secondaryCta}
           </Button>
         </div>
 
         <div className="mt-[22px] inline-flex items-center gap-2 text-sm text-ink-soft">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#0F8F6A"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <path d="M9 12l2 2 4-4" />
             <circle cx="12" cy="12" r="9" />
           </svg>
           <span>{HERO.riskReversal}</span>
         </div>
 
-        <p className="mx-auto mt-3 text-[13px] text-ink-muted">{HERO.priceLine}</p>
+        <p className="mx-auto mt-3 text-[13px] text-ink-muted">
+          {HERO.priceLine}
+        </p>
 
         {/* Hero mini UI */}
         <div className="mx-auto mt-[clamp(40px,6vw,56px)] max-w-[560px] overflow-hidden rounded-[22px] border border-line bg-white text-left shadow-hero">
@@ -83,7 +95,17 @@ export function Hero() {
             </div>
 
             <div className="mb-[7px] mt-4 flex items-center gap-[6px] text-[11px] font-bold uppercase tracking-[0.08em] text-brand">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#0F8F6A"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <path d="M20 6L9 17l-5-5" />
               </svg>
               {demoCard.replyLabel}
@@ -116,12 +138,24 @@ export function Hero() {
 
             <div className="mt-[14px] flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="inline-flex items-center gap-[6px] rounded-full border border-brand-tintborder bg-brand-tint px-3 py-[6px] text-xs font-bold text-brand">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0F8F6A"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
                 {demoCard.statusPill}
               </span>
-              <span className="text-xs text-ink-muted">{demoCard.statusNote}</span>
+              <span className="text-xs text-ink-muted">
+                {demoCard.statusNote}
+              </span>
             </div>
           </div>
         </div>

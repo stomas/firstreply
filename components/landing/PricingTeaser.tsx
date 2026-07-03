@@ -24,8 +24,8 @@ export function PricingTeaser() {
               </span>
             </div>
             <p className="mt-2 text-[15px] text-ink-soft">
-              Iki 50 užklausų per mėnesį įskaičiuota. Papildomos užklausos —
-              €1/vnt.
+              Iki 50 užklausų per mėnesį įskaičiuota, papildomos — €1/vnt.
+              Galutinį pasiūlymą pateikiame įvertinę jūsų situaciją.
             </p>
             <div className="mt-[14px] flex flex-wrap gap-2">
               {CHIPS.map((chip) => (
@@ -42,7 +42,7 @@ export function PricingTeaser() {
             href="#cta"
             className="flex-none rounded-[14px] bg-brand px-[30px] py-[15px] text-base font-bold text-white shadow-cta transition-colors hover:bg-brand-hover"
           >
-            Gauti demo
+            Gauti pasiūlymą
           </a>
         </div>
       </div>

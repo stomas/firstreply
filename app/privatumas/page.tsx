@@ -18,12 +18,12 @@ export default function PrivacyPage() {
       <p className="mt-4 leading-relaxed text-ink-soft">
         Tai yra dokumento vietos rezervavimas. Prieš viešą paleidimą čia bus
         įrašyta pilna {SITE.name} privatumo politika: kokius duomenis renkame
-        per demo formą, kaip juos saugome ir kaip su mumis susisiekti dėl
+        per pasiūlymo formą, kaip juos saugome ir kaip su mumis susisiekti dėl
         duomenų.
       </p>
       <p className="mt-4 leading-relaxed text-ink-soft">
-        Kol kas demo formos duomenis naudojame tik tam, kad susisiektume su
-        jumis dėl demonstracijos. Duomenų trečiosioms šalims neperduodame.
+        Kol kas pasiūlymo formos duomenis naudojame tik tam, kad susisiektume su
+        jumis dėl pasiūlymo. Duomenų trečiosioms šalims neperduodame.
       </p>
       <p className="mt-4 leading-relaxed text-ink-soft">
         Klausimai:{" "}

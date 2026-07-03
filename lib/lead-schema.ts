@@ -16,6 +16,18 @@ export const LEAD_SOURCE_VALUES = LEAD_SOURCES.map((s) => s.value) as [
   ...string[],
 ];
 
+export const INQUIRY_VOLUMES = [
+  { value: "iki-10", label: "Iki 10" },
+  { value: "10-30", label: "10–30" },
+  { value: "30-50", label: "30–50" },
+  { value: "50-plus", label: "50+" },
+] as const;
+
+export const INQUIRY_VOLUME_VALUES = INQUIRY_VOLUMES.map((v) => v.value) as [
+  string,
+  ...string[],
+];
+
 /**
  * Shared lead schema — used on the client for inline validation and on the
  * server (API route) as the source of truth. The `website` field doubles as a
@@ -49,13 +61,22 @@ export const leadSchema = z.object({
     .optional()
     .or(z.literal("")),
   message: z
-    .string({ required_error: "Parašykite žinutę." })
+    .string()
     .trim()
-    .min(10, "Parašykite bent kelis sakinius (min. 10 simbolių).")
-    .max(2000, "Žinutė per ilga (maks. 2000 simbolių)."),
+    .max(2000, "Papildoma žinutė per ilga (maks. 2000 simbolių).")
+    .optional()
+    .or(z.literal("")),
   source: z.enum(LEAD_SOURCE_VALUES, {
     errorMap: () => ({ message: "Pasirinkite užklausų šaltinį." }),
   }),
+  monthlyInquiries: z.enum(INQUIRY_VOLUME_VALUES, {
+    errorMap: () => ({ message: "Pasirinkite užklausų kiekį." }),
+  }),
+  services: z
+    .string({ required_error: "Parašykite, kokias paslaugas norite automatizuoti." })
+    .trim()
+    .min(3, "Parašykite bent vieną paslaugą.")
+    .max(500, "Paslaugų aprašymas per ilgas (maks. 500 simbolių)."),
   // Honeypot: real users leave this empty; bots tend to fill every field.
   // We intentionally accept any value here so the schema does NOT reject a
   // filled honeypot — the API route detects it and silently drops the lead,

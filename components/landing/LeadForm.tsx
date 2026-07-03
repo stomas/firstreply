@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { FINAL_CTA } from "@/lib/constants";
 import {
+  INQUIRY_VOLUMES,
   LEAD_SOURCES,
   leadSchema,
   fieldErrors,
@@ -19,6 +20,8 @@ const initialValues: LeadInput = {
   website: "",
   message: "",
   source: "abu",
+  monthlyInquiries: "10-30",
+  services: "",
   companyWebsite: "",
 };
 
@@ -76,7 +79,7 @@ export function LeadForm() {
 
       if (!res.ok || !data.ok) {
         if (data.fields) setErrors(data.fields);
-        setServerError(data.error ?? "Nepavyko išsiųsti. Bandykite dar kartą.");
+        setServerError(data.error ?? FINAL_CTA.errorText);
         setStatus("error");
         return;
       }
@@ -84,9 +87,7 @@ export function LeadForm() {
       setStatus("success");
       setValues(initialValues);
     } catch {
-      setServerError(
-        "Įvyko tinklo klaida. Patikrinkite ryšį ir bandykite dar kartą.",
-      );
+      setServerError(FINAL_CTA.errorText);
       setStatus("error");
     }
   }
@@ -118,6 +119,15 @@ export function LeadForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[18px]">
+      <div className="text-center">
+        <h3 className="font-display text-[24px] font-extrabold text-ink">
+          {FINAL_CTA.formTitle}
+        </h3>
+        <p className="mx-auto mt-2 max-w-[52ch] text-[15px] leading-relaxed text-ink-soft">
+          {FINAL_CTA.formSubtitle}
+        </p>
+      </div>
+
       {/* Honeypot — off-screen, ignored by real users. */}
       <div className="absolute left-[-9999px]" aria-hidden>
         <label htmlFor="companyWebsite">Įmonės svetainė (nepildyti)</label>
@@ -177,9 +187,7 @@ export function LeadForm() {
         </label>
 
         <label className={labelClass}>
-          <span className="whitespace-nowrap">
-            Telefonas <span className={optionalClass}>(nebūtina)</span>
-          </span>
+          Telefonas
           <input
             type="tel"
             autoComplete="tel"
@@ -192,9 +200,7 @@ export function LeadForm() {
         </label>
 
         <label className={labelClass}>
-          <span className="whitespace-nowrap">
-            Svetainė <span className={optionalClass}>(nebūtina)</span>
-          </span>
+          Svetainė
           <input
             type="text"
             autoComplete="url"
@@ -209,7 +215,7 @@ export function LeadForm() {
         </label>
 
         <label className={labelClass}>
-          Iš kur ateina užklausos
+          Iš kur gaunate užklausas?
           <select
             className={inputClass}
             value={values.source}
@@ -222,14 +228,44 @@ export function LeadForm() {
             ))}
           </select>
         </label>
+
+        <label className={labelClass}>
+          Kiek rašytinių užklausų gaunate per mėnesį?
+          <select
+            className={inputClass}
+            value={values.monthlyInquiries}
+            onChange={(e) => update("monthlyInquiries", e.target.value)}
+          >
+            {INQUIRY_VOLUMES.map((v) => (
+              <option key={v.value} value={v.value}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <label className={labelClass}>
-        Žinutė
+        Kokias paslaugas norėtumėte automatizuoti pirmiausia?
+        <textarea
+          rows={3}
+          className={`${inputClass} resize-y`}
+          placeholder="Pvz., terasos, tvoros, stoginės ar kiti standartiniai montavimo darbai"
+          value={values.services}
+          onChange={(e) => update("services", e.target.value)}
+          aria-invalid={!!errors.services}
+        />
+        {errors.services && (
+          <span className={errorClass}>{errors.services}</span>
+        )}
+      </label>
+
+      <label className={labelClass}>
+        Papildoma žinutė <span className={optionalClass}>(nebūtina)</span>
         <textarea
           rows={4}
           className={`${inputClass} resize-y`}
-          placeholder="Trumpai apie jūsų paslaugas arba įklijuokite kelias tipines užklausas"
+          placeholder="Galite įklijuoti kelias tipines užklausas arba trumpai aprašyti dabartinį atsakymo procesą"
           value={values.message}
           onChange={(e) => update("message", e.target.value)}
           aria-invalid={!!errors.message}
