@@ -16,7 +16,7 @@ export function FinalCTA() {
           <Button href="#offer-form" size="lg">
             {FINAL_CTA.cta}
           </Button>
-          <Button href="/demo" size="lg" variant="secondary">
+          <Button href="/pavyzdziai" size="lg" variant="secondary">
             {FINAL_CTA.secondaryCta}
           </Button>
         </div>

@@ -44,7 +44,7 @@ export function Hero() {
           <Button href="#cta" size="lg">
             {HERO.primaryCta}
           </Button>
-          <Button href="/demo" size="lg" variant="secondary">
+          <Button href="/pavyzdziai" size="lg" variant="secondary">
             {HERO.secondaryCta}
           </Button>
         </div>

@@ -16,7 +16,7 @@ export const NAV_ITEMS = [
   { href: "#kaip-veikia", label: "Kaip veikia" },
   { href: "#kam-skirta", label: "Kam skirta" },
   { href: "#kaina", label: "Kaina" },
-  { href: "/demo", label: "Pavyzdžiai" },
+  { href: "/pavyzdziai", label: "Pavyzdžiai" },
   { href: "#duk", label: "DUK" },
 ] as const;
 
@@ -417,7 +417,7 @@ export const FOOTER = {
   nav: [
     { href: "#kaip-veikia", label: "Kaip veikia" },
     { href: "#kaina", label: "Kaina" },
-    { href: "/demo", label: "Pavyzdžiai" },
+    { href: "/pavyzdziai", label: "Pavyzdžiai" },
     { href: "#duk", label: "DUK" },
   ],
   legal: [
