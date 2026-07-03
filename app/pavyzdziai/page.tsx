@@ -10,13 +10,13 @@ export const metadata: Metadata = {
   description:
     "Pavyzdžiai, kaip FirstReply paruošia atsakymą į web formos ar Paslaugos.lt užklausą: orientacinė kaina, trūkstami klausimai, preliminarus terminas ir follow-up.",
   alternates: {
-    canonical: "/demo",
+    canonical: "/pavyzdziai",
   },
   openGraph: {
     title: "FirstReply pavyzdžiai — kaip atrodo pirmas atsakymas",
     description:
       "Pavyzdžiai, kaip FirstReply paruošia atsakymą į web formos ar Paslaugos.lt užklausą: orientacinė kaina, trūkstami klausimai, preliminarus terminas ir follow-up.",
-    url: "/demo",
+    url: "/pavyzdziai",
   },
 };
 

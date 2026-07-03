@@ -21,7 +21,8 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const HERO = {
-  badge: "Nepraraskite užklausų vien todėl, kad nespėjote atrašyti tą pačią dieną.",
+  badge:
+    "Nepraraskite užklausų vien todėl, kad nespėjote atrašyti tą pačią dieną.",
   headline: "Pirmas atsakymas klientui — per kelias minutes",
   subheadline:
     "FirstReply padeda paslaugų įmonėms greičiau atsakyti į web formos ir Paslaugos.lt užklausas: klientas gauna orientacinę kainą, sužino, ko trūksta tikslesniam pasiūlymui, ir mato preliminarų darbų pradžios langą.",
@@ -197,8 +198,7 @@ export const SEGMENTS = {
     {
       icon: "terrace" as const,
       name: "Terasos",
-      question:
-        "„Kiek kainuotų 30 m² terasa ir kada galėtumėte pradėti?“",
+      question: "„Kiek kainuotų 30 m² terasa ir kada galėtumėte pradėti?“",
       help: "FirstReply gali paprašyti informacijos apie pagrindą, medieną, laiptus, turėklus, miestą ir nuotraukas.",
     },
     {
