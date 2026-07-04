@@ -1,36 +1,29 @@
 import type { Prisma } from "@prisma/client";
 import { AppConfigError, AppValidationError } from "@/lib/app-errors";
-import {
-  AI_NOT_CONFIGURED,
-  assertAiGapFillerConfigured,
-  fillAiGaps,
-} from "@/lib/ai/gap-filler";
-import { decideLeadResponse } from "@/lib/decision/engine";
+import { AI_NOT_CONFIGURED } from "@/lib/ai/gap-filler";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import {
   parseTestInquiryLead,
-  toDecisionEngineInput,
   resolveParsedLeadRequirements,
 } from "@/lib/leads/parse-lead";
-import { composeResponseDraft } from "@/lib/response/composer";
+import {
+  runTestLeadPipeline,
+  type LeadProcessingTrace,
+} from "@/lib/leads/test-pipeline";
 import {
   fieldErrors,
   testInquirySchema,
   type TestInquiryInput,
 } from "@/lib/leads/test-inquiry-schema";
 import { getClientRules } from "@/lib/rules/get-client-rules";
-import type {
-  DecisionResult,
-  LeadEvaluationResult,
-  MatchedPricingRule,
-  ResponseType,
-} from "@/lib/rules/types";
+import type { LeadEvaluationResult } from "@/lib/rules/types";
 
 export type TestLeadResult = {
   leadId: string;
   responseId: string;
   responseStatus: "ready" | "manual_review";
   evaluation: LeadEvaluationResult;
+  trace: LeadProcessingTrace;
 };
 
 export async function createTestLeadAndResponse(
@@ -51,7 +44,7 @@ export async function createTestLeadAndResponse(
   const rules = await getClientRules(clientId);
   ensureTestingAllowed(rules, input);
 
-  let parsedLead = resolveParsedLeadRequirements(
+  const parsedLead = resolveParsedLeadRequirements(
     parseTestInquiryLead(input),
     rules,
   );
@@ -77,9 +70,12 @@ export async function createTestLeadAndResponse(
     },
   });
 
-  try {
-    assertAiGapFillerConfigured(parsedLead);
-  } catch (error) {
+  const pipeline = await runTestLeadPipeline({
+    input,
+    rules,
+    leadId: lead.id,
+    isTest: true,
+  }).catch(async (error) => {
     if (error instanceof AppConfigError) {
       await prisma.lead.update({
         where: { id: lead.id },
@@ -92,128 +88,29 @@ export async function createTestLeadAndResponse(
     }
 
     throw error;
-  }
-
-  const aiGapFill = await fillAiGaps(
-    {
-      rawText: input.inquiryMessage,
-      facts: parsedLead.facts,
-      requirements: rules.decisionRequirements.filter(
-        (requirement) =>
-          requirement.active && requirement.serviceId === parsedLead.serviceId,
-      ),
-      resolution: parsedLead,
-      subjects: (rules.serviceSubjects ?? []).filter(
-        (subject) => subject.serviceId === parsedLead.serviceId,
-      ),
-    },
-    {},
-  );
-
-  if (aiGapFill.status === "manual_review") {
-    const decisionResult = {
-      decision: "MANUAL_REVIEW",
-      reason: aiGapFill.reason,
-      priceEstimate: null,
-      leadTime: null,
-      questionsToAsk: [],
-      autoSend: false,
-      autoSendBlockedBy: [aiGapFill.reason],
-    };
-    const response = await prisma.leadResponse.create({
-      data: {
-        leadId: lead.id,
-        responseType: "manual_review",
-        draftText: null,
-        status: "manual_review",
-        autoSendAllowed: false,
-        manualReviewReason: aiGapFill.reason,
-        decisionJson: decisionResult as Prisma.InputJsonObject,
-      },
-    });
-
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: {
-        status: "manual_review",
-        manualReviewReason: aiGapFill.reason,
-        decisionResult: decisionResult as Prisma.InputJsonObject,
-      },
-    });
-
-    return {
-      leadId: lead.id,
-      responseId: response.id,
-      responseStatus: "manual_review",
-      evaluation: {
-        leadId: lead.id,
-        serviceId: parsedLead.serviceId,
-        canGenerateResponse: false,
-        autoSendAllowed: false,
-        responseType: "manual_review",
-        missingRequirements: [],
-        matchedPricingRules: [],
-        matchedAvailabilityRule: null,
-        manualReviewReasons: [aiGapFill.reason],
-        draftText: null,
-      },
-    };
-  }
-
-  parsedLead = {
-    ...parsedLead,
-    facts: aiGapFill.facts,
-    resolvedRequirements: aiGapFill.resolution.resolvedRequirements,
-    unresolvedRequirements: aiGapFill.resolution.unresolvedRequirements,
-    conflicts: aiGapFill.resolution.conflicts,
-  };
+  });
 
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
-      parseResult: parsedLead as Prisma.InputJsonObject,
+      parseResult: pipeline.parsedLead as Prisma.InputJsonObject,
+      decisionResult:
+        pipeline.decisionResult as unknown as Prisma.InputJsonObject,
     },
   });
-
-  const decisionResult = decideLeadResponse(
-    toDecisionEngineInput({ parsed: parsedLead, rules }),
-  );
-
-  await prisma.lead.update({
-    where: { id: lead.id },
-    data: {
-      decisionResult: decisionResult as unknown as Prisma.InputJsonObject,
-    },
-  });
-
-  const composed = composeResponseDraft({
-    decisionResult,
-    rules,
-    resolvedRequirements: parsedLead.resolvedRequirements,
-    isTest: true,
-  });
-  const evaluation = toLeadEvaluationResult({
-    leadId: lead.id,
-    serviceId: parsedLead.serviceId,
-    decisionResult,
-    composed,
-    rules,
-    parsedLead,
-  });
-  const responseStatus = composed.draftText ? "ready" : "manual_review";
-  const manualReviewReason = composed.manualReviewReason;
 
   const response = await prisma.leadResponse.create({
     data: {
       leadId: lead.id,
-      responseType: composed.responseType,
-      draftText: composed.draftText,
-      status: responseStatus,
-      autoSendAllowed: composed.autoSendAllowed,
-      manualReviewReason,
+      responseType: pipeline.responseType,
+      draftText: pipeline.draftText,
+      status: pipeline.responseStatus,
+      autoSendAllowed: pipeline.autoSendAllowed,
+      manualReviewReason: pipeline.manualReviewReason,
       decisionJson: {
-        decisionResult,
-        composed,
+        decisionResult: pipeline.decisionResult,
+        composed: pipeline.composed,
+        trace: pipeline.trace,
       } as unknown as Prisma.InputJsonObject,
     },
   });
@@ -221,17 +118,21 @@ export async function createTestLeadAndResponse(
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
-      status: responseStatus === "ready" ? "response_ready" : "manual_review",
-      manualReviewReason,
-      responseDraft: composed.draftText,
+      status:
+        pipeline.responseStatus === "ready"
+          ? "response_ready"
+          : "manual_review",
+      manualReviewReason: pipeline.manualReviewReason,
+      responseDraft: pipeline.draftText,
     },
   });
 
   return {
     leadId: lead.id,
     responseId: response.id,
-    responseStatus,
-    evaluation,
+    responseStatus: pipeline.responseStatus,
+    evaluation: pipeline.evaluation,
+    trace: pipeline.trace,
   };
 }
 
@@ -265,71 +166,4 @@ function ensureTestingAllowed(
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function toLeadEvaluationResult(params: {
-  leadId: string;
-  serviceId: string;
-  decisionResult: DecisionResult;
-  composed: ReturnType<typeof composeResponseDraft>;
-  rules: Awaited<ReturnType<typeof getClientRules>>;
-  parsedLead: ReturnType<typeof resolveParsedLeadRequirements>;
-}): LeadEvaluationResult {
-  return {
-    leadId: params.leadId,
-    serviceId: params.serviceId,
-    canGenerateResponse: params.composed.draftText !== null,
-    autoSendAllowed: params.composed.autoSendAllowed,
-    responseType: legacyResponseType(params.composed.responseType),
-    missingRequirements: params.parsedLead.unresolvedRequirements.map(
-      (requirement) => ({
-        key: requirement.requirementKey,
-        label: requirement.label,
-        question: requirement.question,
-      }),
-    ),
-    matchedPricingRules: matchedPricingRules(
-      params.decisionResult,
-      params.rules,
-    ),
-    matchedAvailabilityRule: null,
-    manualReviewReasons: params.composed.manualReviewReason
-      ? [params.composed.manualReviewReason]
-      : [],
-    draftText: params.composed.draftText,
-  };
-}
-
-function legacyResponseType(
-  responseType: ReturnType<typeof composeResponseDraft>["responseType"],
-): ResponseType {
-  if (responseType === "missing_info") {
-    return "missing_info";
-  }
-
-  if (responseType === "price_estimate") {
-    return "price_availability";
-  }
-
-  return "manual_review";
-}
-
-function matchedPricingRules(
-  decisionResult: DecisionResult,
-  rules: Awaited<ReturnType<typeof getClientRules>>,
-): MatchedPricingRule[] {
-  const pricingRuleId = decisionResult.priceEstimate?.pricingRuleId;
-  if (!pricingRuleId) {
-    return [];
-  }
-
-  return rules.pricingRules
-    .filter((rule) => rule.id === pricingRuleId)
-    .map((rule) => ({
-      id: rule.id,
-      name: rule.name,
-      priceMin: rule.priceMin,
-      priceMax: rule.priceMax,
-      unit: rule.unit,
-    }));
 }
