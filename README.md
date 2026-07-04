@@ -11,9 +11,9 @@ inquiries with an indicative price, the missing information needed for an
 accurate quote, a preliminary work-start window, and one follow-up — while
 keeping final quotes and dates under the owner's control.
 
-This repository contains **only the landing page and launch skeleton** (no
-auth, dashboard, payments, CRM, or the actual SaaS product). It is structured
-so the real product can be added later.
+This repository contains the landing page plus the first minimal product
+surface: a DB-backed client dashboard and test tool. It still intentionally
+does not include auth, payments, CRM, or advanced integrations.
 
 ---
 
@@ -25,11 +25,12 @@ so the real product can be added later.
 | Language    | TypeScript (strict)                        |
 | Styling     | Tailwind CSS v3                            |
 | Validation  | Zod (shared client + server schema)        |
-| Lead intake | API route + optional webhook (no DB)       |
+| Lead intake | API route + optional webhook               |
+| Product DB  | Prisma + PostgreSQL                        |
 | Linting     | ESLint (`next/core-web-vitals`) + Prettier |
 | Deployment  | Railway (Nixpacks)                         |
 
-No paid UI libraries, no database, no heavy dependencies.
+No paid UI libraries and no mock product data.
 
 ---
 
@@ -39,6 +40,8 @@ No paid UI libraries, no database, no heavy dependencies.
 .
 ├── app
 │   ├── api/leads/route.ts       # Lead intake API (validation + optional webhook)
+│   ├── api/dashboard/test       # Test lead API, DB-backed
+│   ├── dashboard                # Minimal client dashboard and test tool
 │   ├── privatumas/page.tsx      # Privacy placeholder page (noindex)
 │   ├── salygos/page.tsx         # Terms placeholder page (noindex)
 │   ├── globals.css
@@ -51,9 +54,13 @@ No paid UI libraries, no database, no heavy dependencies.
 │   ├── landing/                 # Section components (Header, Hero, ...)
 │   └── ui/                      # Button, Card, Section primitives
 ├── lib
+│   ├── ai/                      # Server-side response generation gate
+│   ├── leads/                   # Lead queries, parsing, and test flow
+│   ├── rules/                   # Rules loading and response decisions
 │   ├── constants.ts             # All Lithuanian copy + config
 │   ├── lead-schema.ts           # Zod lead schema (shared)
 │   └── utils.ts                 # cn(), getSiteUrl()
+├── prisma                       # Prisma schema + PostgreSQL migrations
 ├── public/opengraph-image.svg   # Social share image
 ├── .env.example
 ├── railway.json
@@ -101,6 +108,9 @@ locally and on Railway without changes.
 | `npm run dev`          | Start dev server (hot reload)    |
 | `npm run build`        | Production build                 |
 | `npm run start`        | Serve the production build       |
+| `npm run test`         | Run server-side logic tests      |
+| `npm run db:generate`  | Generate Prisma Client           |
+| `npm run db:migrate`   | Apply Prisma migrations          |
 | `npm run lint`         | Run ESLint                       |
 | `npm run typecheck`    | Type-check with no emit          |
 | `npm run format`       | Format all files with Prettier   |
@@ -113,11 +123,15 @@ locally and on Railway without changes.
 Copy `.env.example` → `.env.local` for local dev. In Railway, set these in the
 service **Variables** tab.
 
-| Variable               | Required | Scope       | Description                                                                                                        |
-| ---------------------- | -------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL` | Yes      | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
-| `LEAD_WEBHOOK_URL`     | No       | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
-| `NODE_ENV`             | Auto     | Server      | `development` locally; Railway sets `production` automatically.                                                    |
+| Variable                       | Required  | Scope       | Description                                                                                                        |
+| ------------------------------ | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`         | Yes       | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
+| `LEAD_WEBHOOK_URL`             | No        | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
+| `DATABASE_URL`                 | Dashboard | Server only | PostgreSQL connection string used by Prisma. Dashboard routes fail clearly without it.                             |
+| `FIRSTREPLY_DEFAULT_CLIENT_ID` | Dashboard | Server only | Temporary server-side client resolution until auth exists. Must match a real `clients.id`.                         |
+| `OPENAI_API_KEY`               | Test tool | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
+| `OPENAI_MODEL`                 | Test tool | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
+| `NODE_ENV`                     | Auto      | Server      | `development` locally; Railway sets `production` automatically.                                                    |
 
 > **Security:** `LEAD_WEBHOOK_URL` is a server-only secret — it is never
 > prefixed with `NEXT_PUBLIC_` and never sent to the browser. Do not put
@@ -137,6 +151,20 @@ The webhook is **optional**. Without it, leads still succeed and appear in your
 Railway deploy logs. To collect them somewhere, create a webhook in Make.com,
 Zapier, n8n, or a Slack incoming webhook and paste the URL into
 `LEAD_WEBHOOK_URL`.
+
+### Dashboard database
+
+The dashboard and test tool use real PostgreSQL data through Prisma. They do
+not seed mock clients, rules, leads, or responses.
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+Until auth exists, set `FIRSTREPLY_DEFAULT_CLIENT_ID` to an existing
+`clients.id`. If there are no active services and rules for that client,
+`/dashboard/test` shows the empty state and does not allow testing.
 
 ---
 
@@ -203,10 +231,10 @@ in [`railway.json`](./railway.json): build with `npm run build`, start with
 
 The skeleton keeps future work easy:
 
-- Add authenticated app routes under `app/(app)/…` and keep the public landing
-  page under the root.
-- The lead API route is a natural place to later persist to a database
-  (add Prisma + Postgres only when a real need appears).
+- Add authenticated app routes under `app/(app)/…` or wire auth into the
+  existing dashboard client resolution.
+- The public lead API route is still the launch/contact intake. Product leads
+  live in the Prisma `leads` table.
 - All copy lives in `lib/constants.ts`; the lead contract lives in
   `lib/lead-schema.ts`.
 

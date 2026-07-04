@@ -1,0 +1,508 @@
+[
+  {
+    "code": "akmenes_r_sav",
+    "type": "municipality",
+    "label": "Akmenės r. sav.",
+    "aliases": [
+      "akmenės rajonas",
+      "akmenės rajone",
+      "akmenės r. sav.",
+      "akmenes rajonas",
+      "akmenes rajone"
+    ]
+  },
+  {
+    "code": "alytaus_m_sav",
+    "type": "municipality",
+    "label": "Alytaus m. sav.",
+    "aliases": ["alytaus miestas", "alytuje", "alytaus m. sav.", "alytus"]
+  },
+  {
+    "code": "alytaus_r_sav",
+    "type": "municipality",
+    "label": "Alytaus r. sav.",
+    "aliases": ["alytaus rajonas", "alytaus rajone", "alytaus r. sav."]
+  },
+  {
+    "code": "anyksciu_r_sav",
+    "type": "municipality",
+    "label": "Anykščių r. sav.",
+    "aliases": [
+      "anykščių rajonas",
+      "anykščių rajone",
+      "anykščiai",
+      "anyksciu rajonas",
+      "anyksciu rajone"
+    ]
+  },
+  {
+    "code": "birstono_sav",
+    "type": "municipality",
+    "label": "Birštono sav.",
+    "aliases": [
+      "birštono savivaldybė",
+      "birštone",
+      "birštonas",
+      "birstonas",
+      "birstone"
+    ]
+  },
+  {
+    "code": "birzu_r_sav",
+    "type": "municipality",
+    "label": "Biržų r. sav.",
+    "aliases": [
+      "biržų rajonas",
+      "biržų rajone",
+      "biržai",
+      "birzu rajonas",
+      "birzu rajone"
+    ]
+  },
+  {
+    "code": "druskininku_sav",
+    "type": "municipality",
+    "label": "Druskininkų sav.",
+    "aliases": [
+      "druskininkų savivaldybė",
+      "druskininku savivaldybe",
+      "druskininkai",
+      "druskininkuose"
+    ]
+  },
+  {
+    "code": "elektrenu_sav",
+    "type": "municipality",
+    "label": "Elektrėnų sav.",
+    "aliases": [
+      "elektrėnų savivaldybė",
+      "elektrenu savivaldybe",
+      "elektrėnai",
+      "elektrėnuose",
+      "elektrenai"
+    ]
+  },
+  {
+    "code": "ignalinos_r_sav",
+    "type": "municipality",
+    "label": "Ignalinos r. sav.",
+    "aliases": ["ignalinos rajonas", "ignalinos rajone", "ignalina"]
+  },
+  {
+    "code": "jonavos_r_sav",
+    "type": "municipality",
+    "label": "Jonavos r. sav.",
+    "aliases": ["jonavos rajonas", "jonavos rajone", "jonava", "jonavoje"]
+  },
+  {
+    "code": "joniskio_r_sav",
+    "type": "municipality",
+    "label": "Joniškio r. sav.",
+    "aliases": [
+      "joniškio rajonas",
+      "joniškio rajone",
+      "joniškis",
+      "joniskio rajonas"
+    ]
+  },
+  {
+    "code": "jurbarko_r_sav",
+    "type": "municipality",
+    "label": "Jurbarko r. sav.",
+    "aliases": ["jurbarko rajonas", "jurbarko rajone", "jurbarkas"]
+  },
+  {
+    "code": "kaisiadoriu_r_sav",
+    "type": "municipality",
+    "label": "Kaišiadorių r. sav.",
+    "aliases": [
+      "kaišiadorių rajonas",
+      "kaišiadorių rajone",
+      "kaišiadorys",
+      "kaisiadoriu rajonas"
+    ]
+  },
+  {
+    "code": "kalvarijos_sav",
+    "type": "municipality",
+    "label": "Kalvarijos sav.",
+    "aliases": ["kalvarijos savivaldybė", "kalvarija", "kalvarijoje"]
+  },
+  {
+    "code": "kauno_m_sav",
+    "type": "municipality",
+    "label": "Kauno m. sav.",
+    "aliases": ["kauno miestas", "kaune", "kauno m. sav.", "kaunas"]
+  },
+  {
+    "code": "kauno_r_sav",
+    "type": "municipality",
+    "label": "Kauno r. sav.",
+    "aliases": ["kauno rajonas", "kauno rajone", "kauno r. sav."]
+  },
+  {
+    "code": "kazlu_rudos_sav",
+    "type": "municipality",
+    "label": "Kazlų Rūdos sav.",
+    "aliases": [
+      "kazlų rūdos savivaldybė",
+      "kazlų rūda",
+      "kazlų rūdoje",
+      "kazlu ruda"
+    ]
+  },
+  {
+    "code": "kedainiu_r_sav",
+    "type": "municipality",
+    "label": "Kėdainių r. sav.",
+    "aliases": [
+      "kėdainių rajonas",
+      "kėdainių rajone",
+      "kėdainiai",
+      "kedainiu rajonas"
+    ]
+  },
+  {
+    "code": "kelmes_r_sav",
+    "type": "municipality",
+    "label": "Kelmės r. sav.",
+    "aliases": ["kelmės rajonas", "kelmės rajone", "kelmė", "kelme"]
+  },
+  {
+    "code": "klaipedos_m_sav",
+    "type": "municipality",
+    "label": "Klaipėdos m. sav.",
+    "aliases": [
+      "klaipėdos miestas",
+      "klaipėdoje",
+      "klaipėda",
+      "klaipedos miestas",
+      "klaipeda"
+    ]
+  },
+  {
+    "code": "klaipedos_r_sav",
+    "type": "municipality",
+    "label": "Klaipėdos r. sav.",
+    "aliases": [
+      "klaipėdos rajonas",
+      "klaipėdos rajone",
+      "klaipėdos r. sav.",
+      "klaipedos rajonas"
+    ]
+  },
+  {
+    "code": "kretingos_r_sav",
+    "type": "municipality",
+    "label": "Kretingos r. sav.",
+    "aliases": ["kretingos rajonas", "kretingos rajone", "kretinga"]
+  },
+  {
+    "code": "kupiskio_r_sav",
+    "type": "municipality",
+    "label": "Kupiškio r. sav.",
+    "aliases": [
+      "kupiškio rajonas",
+      "kupiškio rajone",
+      "kupiškis",
+      "kupiskio rajonas"
+    ]
+  },
+  {
+    "code": "lazdiju_r_sav",
+    "type": "municipality",
+    "label": "Lazdijų r. sav.",
+    "aliases": ["lazdijų rajonas", "lazdijų rajone", "lazdijai"]
+  },
+  {
+    "code": "marijampoles_sav",
+    "type": "municipality",
+    "label": "Marijampolės sav.",
+    "aliases": [
+      "marijampolės savivaldybė",
+      "marijampolė",
+      "marijampolėje",
+      "marijampole"
+    ]
+  },
+  {
+    "code": "mazeikiu_r_sav",
+    "type": "municipality",
+    "label": "Mažeikių r. sav.",
+    "aliases": [
+      "mažeikių rajonas",
+      "mažeikių rajone",
+      "mažeikiai",
+      "mazeikiu rajonas"
+    ]
+  },
+  {
+    "code": "moletu_r_sav",
+    "type": "municipality",
+    "label": "Molėtų r. sav.",
+    "aliases": ["molėtų rajonas", "molėtų rajone", "molėtai", "moletu rajonas"]
+  },
+  {
+    "code": "neringos_sav",
+    "type": "municipality",
+    "label": "Neringos sav.",
+    "aliases": ["neringos savivaldybė", "neringa", "neringoje"]
+  },
+  {
+    "code": "pagegiu_sav",
+    "type": "municipality",
+    "label": "Pagėgių sav.",
+    "aliases": [
+      "pagėgių savivaldybė",
+      "pagėgiai",
+      "pagegiai",
+      "pagegiu savivaldybe"
+    ]
+  },
+  {
+    "code": "pakruojo_r_sav",
+    "type": "municipality",
+    "label": "Pakruojo r. sav.",
+    "aliases": ["pakruojo rajonas", "pakruojo rajone", "pakruojis"]
+  },
+  {
+    "code": "palangos_m_sav",
+    "type": "municipality",
+    "label": "Palangos m. sav.",
+    "aliases": ["palangos miestas", "palangoje", "palanga", "palangos m. sav."]
+  },
+  {
+    "code": "panevezio_m_sav",
+    "type": "municipality",
+    "label": "Panevėžio m. sav.",
+    "aliases": [
+      "panevėžio miestas",
+      "panevėžyje",
+      "panevėžys",
+      "panevezio miestas"
+    ]
+  },
+  {
+    "code": "panevezio_r_sav",
+    "type": "municipality",
+    "label": "Panevėžio r. sav.",
+    "aliases": [
+      "panevėžio rajonas",
+      "panevėžio rajone",
+      "panevėžio r. sav.",
+      "panevezio rajonas"
+    ]
+  },
+  {
+    "code": "pasvalio_r_sav",
+    "type": "municipality",
+    "label": "Pasvalio r. sav.",
+    "aliases": ["pasvalio rajonas", "pasvalio rajone", "pasvalys"]
+  },
+  {
+    "code": "plunges_r_sav",
+    "type": "municipality",
+    "label": "Plungės r. sav.",
+    "aliases": ["plungės rajonas", "plungės rajone", "plungė", "plunge"]
+  },
+  {
+    "code": "prienu_r_sav",
+    "type": "municipality",
+    "label": "Prienų r. sav.",
+    "aliases": ["prienų rajonas", "prienų rajone", "prienai"]
+  },
+  {
+    "code": "radviliskio_r_sav",
+    "type": "municipality",
+    "label": "Radviliškio r. sav.",
+    "aliases": [
+      "radviliškio rajonas",
+      "radviliškio rajone",
+      "radviliškis",
+      "radviliskio rajonas"
+    ]
+  },
+  {
+    "code": "raseiniu_r_sav",
+    "type": "municipality",
+    "label": "Raseinių r. sav.",
+    "aliases": ["raseinių rajonas", "raseinių rajone", "raseiniai"]
+  },
+  {
+    "code": "rietavo_sav",
+    "type": "municipality",
+    "label": "Rietavo sav.",
+    "aliases": ["rietavo savivaldybė", "rietavas", "rietave"]
+  },
+  {
+    "code": "rokiskio_r_sav",
+    "type": "municipality",
+    "label": "Rokiškio r. sav.",
+    "aliases": [
+      "rokiškio rajonas",
+      "rokiškio rajone",
+      "rokiškis",
+      "rokiskio rajonas"
+    ]
+  },
+  {
+    "code": "skuodo_r_sav",
+    "type": "municipality",
+    "label": "Skuodo r. sav.",
+    "aliases": ["skuodo rajonas", "skuodo rajone", "skuodas"]
+  },
+  {
+    "code": "sakiu_r_sav",
+    "type": "municipality",
+    "label": "Šakių r. sav.",
+    "aliases": ["šakių rajonas", "šakių rajone", "šakiai", "sakiu rajonas"]
+  },
+  {
+    "code": "salcininku_r_sav",
+    "type": "municipality",
+    "label": "Šalčininkų r. sav.",
+    "aliases": [
+      "šalčininkų rajonas",
+      "šalčininkų rajone",
+      "šalčininkai",
+      "salcininku rajonas"
+    ]
+  },
+  {
+    "code": "siauliu_m_sav",
+    "type": "municipality",
+    "label": "Šiaulių m. sav.",
+    "aliases": ["šiaulių miestas", "šiauliuose", "šiauliai", "siauliu miestas"]
+  },
+  {
+    "code": "siauliu_r_sav",
+    "type": "municipality",
+    "label": "Šiaulių r. sav.",
+    "aliases": [
+      "šiaulių rajonas",
+      "šiaulių rajone",
+      "šiaulių r. sav.",
+      "siauliu rajonas"
+    ]
+  },
+  {
+    "code": "silales_r_sav",
+    "type": "municipality",
+    "label": "Šilalės r. sav.",
+    "aliases": [
+      "šilalės rajonas",
+      "šilalės rajone",
+      "šilalė",
+      "silales rajonas"
+    ]
+  },
+  {
+    "code": "silutes_r_sav",
+    "type": "municipality",
+    "label": "Šilutės r. sav.",
+    "aliases": [
+      "šilutės rajonas",
+      "šilutės rajone",
+      "šilutė",
+      "silutes rajonas"
+    ]
+  },
+  {
+    "code": "sirvintu_r_sav",
+    "type": "municipality",
+    "label": "Širvintų r. sav.",
+    "aliases": [
+      "širvintų rajonas",
+      "širvintų rajone",
+      "širvintos",
+      "sirvintu rajonas"
+    ]
+  },
+  {
+    "code": "svencioniu_r_sav",
+    "type": "municipality",
+    "label": "Švenčionių r. sav.",
+    "aliases": [
+      "švenčionių rajonas",
+      "švenčionių rajone",
+      "švenčionys",
+      "svencioniu rajonas"
+    ]
+  },
+  {
+    "code": "taurages_r_sav",
+    "type": "municipality",
+    "label": "Tauragės r. sav.",
+    "aliases": ["tauragės rajonas", "tauragės rajone", "tauragė", "taurage"]
+  },
+  {
+    "code": "telsiu_r_sav",
+    "type": "municipality",
+    "label": "Telšių r. sav.",
+    "aliases": ["telšių rajonas", "telšių rajone", "telšiai", "telsiu rajonas"]
+  },
+  {
+    "code": "traku_r_sav",
+    "type": "municipality",
+    "label": "Trakų r. sav.",
+    "aliases": ["trakų rajonas", "trakų rajone", "trakai"]
+  },
+  {
+    "code": "ukmerges_r_sav",
+    "type": "municipality",
+    "label": "Ukmergės r. sav.",
+    "aliases": ["ukmergės rajonas", "ukmergės rajone", "ukmergė", "ukmerge"]
+  },
+  {
+    "code": "utenos_r_sav",
+    "type": "municipality",
+    "label": "Utenos r. sav.",
+    "aliases": ["utenos rajonas", "utenos rajone", "utena"]
+  },
+  {
+    "code": "varenos_r_sav",
+    "type": "municipality",
+    "label": "Varėnos r. sav.",
+    "aliases": ["varėnos rajonas", "varėnos rajone", "varėna", "varena"]
+  },
+  {
+    "code": "vilkaviskio_r_sav",
+    "type": "municipality",
+    "label": "Vilkaviškio r. sav.",
+    "aliases": [
+      "vilkaviškio rajonas",
+      "vilkaviškio rajone",
+      "vilkaviškis",
+      "vilkaviskio rajonas"
+    ]
+  },
+  {
+    "code": "vilniaus_m_sav",
+    "type": "municipality",
+    "label": "Vilniaus m. sav.",
+    "aliases": ["vilniaus miestas", "vilniuje", "vilnius", "vilniaus m. sav."]
+  },
+  {
+    "code": "vilniaus_r_sav",
+    "type": "municipality",
+    "label": "Vilniaus r. sav.",
+    "aliases": [
+      "vilniaus rajonas",
+      "vilniaus rajone",
+      "vilniaus r. sav.",
+      "vilniaus raj."
+    ]
+  },
+  {
+    "code": "visagino_sav",
+    "type": "municipality",
+    "label": "Visagino sav.",
+    "aliases": ["visagino savivaldybė", "visaginas", "visagine"]
+  },
+  {
+    "code": "zarasu_r_sav",
+    "type": "municipality",
+    "label": "Zarasų r. sav.",
+    "aliases": ["zarasų rajonas", "zarasų rajone", "zarasai", "zarasu rajonas"]
+  }
+]

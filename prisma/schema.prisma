@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  companyName String   @map("company_name")
+  ownerEmail  String   @map("owner_email")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant               Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  services             Service[]
+  pricingRules         PricingRule[]
+  decisionRequirements DecisionRequirement[]
+  availabilityRules    AvailabilityRule[]
+  leads                Lead[]
+
+  @@index([tenantId])
+  @@map("clients")
+}
+
+model Tenant {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  ownerEmail String   @map("owner_email")
+  status     String   @default("active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  clients           Client[]
+  services          Service[]
+  leads             Lead[]
+  locationZones     LocationZone[]
+  scheduleRules     ScheduleRule[]
+  autosendPolicies  AutosendPolicy[]
+  responseTemplates ResponseTemplate[]
+
+  @@map("tenants")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  clientId    String   @map("client_id")
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  name        String
+  label       String?
+  keywords    Json?
+  rangePolicy String   @default("manual_review") @map("range_policy")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  client               Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenant               Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  subjects             ServiceSubject[]
+  pricingRules         PricingRule[]
+  decisionRequirements DecisionRequirement[]
+  availabilityRules    AvailabilityRule[]
+  leads                Lead[]
+
+  @@index([tenantId, active])
+  @@index([clientId, active])
+  @@map("services")
+}
+
+model ServiceSubject {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  serviceId     String   @map("service_id")
+  subjectKey    String   @map("subject_key")
+  labelLt       String   @map("label_lt")
+  descriptionLt String   @map("description_lt")
+  synonyms      Json
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, subjectKey])
+  @@map("service_subjects")
+}
+
+model PricingRule {
+  id              String    @id @default(cuid())
+  clientId        String    @map("client_id")
+  serviceId       String    @map("service_id")
+  name            String
+  priceMin        Decimal?  @map("price_min") @db.Decimal(10, 2)
+  priceMax        Decimal?  @map("price_max") @db.Decimal(10, 2)
+  unit            String?
+  conditions      Json?
+  exclusions      Json?
+  disclaimerText  String?   @map("disclaimer_text")
+  autoSendAllowed Boolean   @default(false) @map("auto_send_allowed")
+  active          Boolean   @default(true)
+  rule            Json?
+  validFrom       DateTime  @default(now()) @map("valid_from")
+  validTo         DateTime? @map("valid_to")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, serviceId, active])
+  @@map("pricing_rules")
+}
+
+model DecisionRequirement {
+  id                    String    @id @default(cuid())
+  clientId              String    @map("client_id")
+  serviceId             String    @map("service_id")
+  requirementKey        String    @map("requirement_key")
+  label                 String
+  requiredFor           String    @map("required_for")
+  questionTextIfMissing String    @map("question_text_if_missing")
+  blocksAutoSend        Boolean   @default(true) @map("blocks_auto_send")
+  priority              Int       @default(100)
+  active                Boolean   @default(true)
+  required              Boolean   @default(true)
+  affectsPrice          Boolean   @default(false) @map("affects_price")
+  expectedFact          Json?     @map("expected_fact")
+  validation            Json?
+  validFrom             DateTime  @default(now()) @map("valid_from")
+  validTo               DateTime? @map("valid_to")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, serviceId, active, priority])
+  @@map("decision_requirements")
+}
+
+model AvailabilityRule {
+  id                String    @id @default(cuid())
+  clientId          String    @map("client_id")
+  serviceId         String    @map("service_id")
+  location          String?
+  status            String
+  earliestStartText String?   @map("earliest_start_text")
+  noteForCustomer   String?   @map("note_for_customer")
+  validUntil        DateTime? @map("valid_until")
+  autoSendAllowed   Boolean   @default(false) @map("auto_send_allowed")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, serviceId, location])
+  @@map("availability_rules")
+}
+
+model Lead {
+  id                 String    @id @default(cuid())
+  clientId           String    @map("client_id")
+  tenantId           String?   @map("tenant_id") @db.Uuid
+  serviceId          String?   @map("service_id")
+  sourceType         String    @map("source_type")
+  source             String?
+  isTest             Boolean   @default(false) @map("is_test")
+  status             String
+  customerName       String?   @map("customer_name")
+  customerEmail      String?   @map("customer_email")
+  customerPhone      String?   @map("customer_phone")
+  city               String?
+  originalMessage    String    @map("original_message")
+  rawText            String?   @map("raw_text")
+  formFields         Json?     @map("form_fields")
+  parsedJson         Json?     @map("parsed_json")
+  parseResult        Json?     @map("parse_result")
+  decisionResult     Json?     @map("decision_result")
+  responseDraft      String?   @map("response_draft")
+  responseSentAt     DateTime? @map("response_sent_at")
+  asksPrice          Boolean?  @map("asks_price")
+  asksAvailability   Boolean?  @map("asks_availability")
+  isUrgent           Boolean?  @map("is_urgent")
+  hasAttachments     Boolean?  @map("has_attachments")
+  manualReviewReason String?   @map("manual_review_reason")
+  errorCode          String?   @map("error_code")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenant    Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  service   Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  responses LeadResponse[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@index([clientId, createdAt])
+  @@index([clientId, isTest, createdAt])
+  @@index([clientId, status])
+  @@map("leads")
+}
+
+model LeadResponse {
+  id                 String   @id @default(cuid())
+  leadId             String   @map("lead_id")
+  responseType       String   @map("response_type")
+  draftText          String?  @map("draft_text")
+  sentText           String?  @map("sent_text")
+  status             String
+  autoSendAllowed    Boolean  @default(false) @map("auto_send_allowed")
+  manualReviewReason String?  @map("manual_review_reason")
+  decisionJson       Json?    @map("decision_json")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@index([status])
+  @@map("responses")
+}
+
+model LocationZone {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  adminUnitCode String   @map("admin_unit_code")
+  zone          String
+  travelFeeEur  Decimal  @default(0) @map("travel_fee_eur") @db.Decimal(10, 2)
+  served        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, adminUnitCode])
+  @@map("location_zones")
+}
+
+model ScheduleRule {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  rule      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("schedule_rules")
+}
+
+model AutosendPolicy {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  policy    Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("autosend_policies")
+}
+
+model ResponseTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  templateKey String   @map("template_key")
+  body        String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, templateKey])
+  @@map("response_templates")
+}
