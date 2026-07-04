@@ -1,8 +1,16 @@
 import type { Prisma } from "@prisma/client";
-import { AppValidationError } from "@/lib/app-errors";
+import { AppConfigError, AppValidationError } from "@/lib/app-errors";
+import {
+  AI_NOT_CONFIGURED,
+  assertAiGapFillerConfigured,
+} from "@/lib/ai/gap-filler";
 import { generateLeadResponse } from "@/lib/ai/generate-lead-response";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
-import { parseTestInquiryLead, toEvaluationLead } from "@/lib/leads/parse-lead";
+import {
+  parseTestInquiryLead,
+  resolveParsedLeadRequirements,
+  toEvaluationLead,
+} from "@/lib/leads/parse-lead";
 import {
   fieldErrors,
   testInquirySchema,
@@ -37,7 +45,10 @@ export async function createTestLeadAndResponse(
   const rules = await getClientRules(clientId);
   ensureTestingAllowed(rules, input);
 
-  const parsedLead = parseTestInquiryLead(input);
+  const parsedLead = resolveParsedLeadRequirements(
+    parseTestInquiryLead(input),
+    rules,
+  );
   const lead = await prisma.lead.create({
     data: {
       clientId,
@@ -59,6 +70,23 @@ export async function createTestLeadAndResponse(
       hasAttachments: parsedLead.hasAttachments,
     },
   });
+
+  try {
+    assertAiGapFillerConfigured(parsedLead);
+  } catch (error) {
+    if (error instanceof AppConfigError) {
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          status: "error",
+          errorCode: AI_NOT_CONFIGURED,
+          manualReviewReason: error.message,
+        },
+      });
+    }
+
+    throw error;
+  }
 
   const evaluation = await evaluateLeadForResponse(
     toEvaluationLead({

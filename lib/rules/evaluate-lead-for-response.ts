@@ -36,6 +36,10 @@ export async function evaluateLeadForResponse(
     addManualReviewReason("nėra aktyvios paslaugos");
   }
 
+  if (hasParseConflicts(lead.parseResult)) {
+    addManualReviewReason("CONFLICTS");
+  }
+
   const matchedPricingRules = activeService
     ? rules.pricingRules
         .filter((rule) => rule.active && rule.serviceId === activeService.id)
@@ -178,6 +182,16 @@ function hasRequirementValue(
   lead: EvaluationLead,
   requirement: ClientRules["decisionRequirements"][number],
 ): boolean {
+  if (
+    hasResolvedRequirementValue(lead.parseResult, requirement.requirementKey)
+  ) {
+    return true;
+  }
+
+  if (isRecord(requirement.expectedFact)) {
+    return false;
+  }
+
   const directValues: Record<string, unknown> = {
     city: lead.city,
     original_message: lead.originalMessage,
@@ -190,94 +204,7 @@ function hasRequirementValue(
     directValues[requirement.requirementKey] ??
     lead.parseResult?.[requirement.requirementKey];
 
-  if (typeof value === "string") {
-    return value.trim().length > 0;
-  }
-
-  if (value !== null && value !== undefined && value !== false) {
-    return true;
-  }
-
-  return hasExpectedFactValue(lead.parseResult, requirement.expectedFact);
-}
-
-function hasExpectedFactValue(
-  parseResult: Record<string, unknown> | null,
-  expectedFact: ClientRules["decisionRequirements"][number]["expectedFact"],
-): boolean {
-  if (!isRecord(expectedFact) || !Array.isArray(parseResult?.facts)) {
-    return false;
-  }
-
-  return parseResult.facts.some((fact) =>
-    factMatchesExpectedFact(fact, expectedFact),
-  );
-}
-
-function factMatchesExpectedFact(
-  fact: unknown,
-  expectedFact: Record<string, unknown>,
-): boolean {
-  if (!isRecord(fact) || fact.negated === true) {
-    return false;
-  }
-
-  if (
-    typeof expectedFact.kind === "string" &&
-    fact.kind !== expectedFact.kind
-  ) {
-    return false;
-  }
-
-  if (
-    typeof expectedFact.dimension === "string" &&
-    fact.dimension !== expectedFact.dimension
-  ) {
-    return false;
-  }
-
-  const units = expectedUnits(expectedFact);
-
-  if (
-    units.length > 0 &&
-    (typeof fact.unit !== "string" || !units.includes(fact.unit))
-  ) {
-    return false;
-  }
-
-  if (
-    typeof expectedFact.subject === "string" &&
-    typeof fact.subject === "string" &&
-    fact.subject !== expectedFact.subject
-  ) {
-    return false;
-  }
-
-  return hasFactValue(fact);
-}
-
-function expectedUnits(expectedFact: Record<string, unknown>): string[] {
-  if (Array.isArray(expectedFact.units)) {
-    return expectedFact.units.filter(
-      (unit): unit is string => typeof unit === "string",
-    );
-  }
-
-  return typeof expectedFact.unit === "string" ? [expectedFact.unit] : [];
-}
-
-function hasFactValue(fact: Record<string, unknown>): boolean {
-  const value = fact.value;
-
-  if (typeof value === "string") {
-    return value.trim().length > 0;
-  }
-
-  if (value !== null && value !== undefined && value !== false) {
-    return true;
-  }
-
-  return typeof fact.valueMin === "number" || typeof fact.valueMax === "number";
+  return hasUsableValue(value);
 }
 
 function matchAvailabilityRule(
@@ -392,6 +319,42 @@ function uniqueListPusher(target: string[]): (value: string) => void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasResolvedRequirementValue(
+  parseResult: Record<string, unknown> | null,
+  requirementKey: string,
+): boolean {
+  if (!isRecord(parseResult?.resolvedRequirements)) {
+    return false;
+  }
+
+  const resolved = parseResult.resolvedRequirements[requirementKey];
+  if (!isRecord(resolved)) {
+    return hasUsableValue(resolved);
+  }
+
+  return (
+    hasUsableValue(resolved.value) ||
+    typeof resolved.valueMin === "number" ||
+    typeof resolved.valueMax === "number"
+  );
+}
+
+function hasParseConflicts(
+  parseResult: Record<string, unknown> | null,
+): boolean {
+  return (
+    Array.isArray(parseResult?.conflicts) && parseResult.conflicts.length > 0
+  );
+}
+
+function hasUsableValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return value !== null && value !== undefined && value !== false;
 }
 
 function cityMatches(ruleLocation: string, city: string | null): boolean {

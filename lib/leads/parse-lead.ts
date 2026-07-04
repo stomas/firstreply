@@ -5,9 +5,15 @@ import type {
   ExtractedContacts,
   ExtractedFact,
 } from "@/lib/extractor/types";
-import type { EvaluationLead } from "@/lib/rules/types";
+import { resolveRequirements } from "@/lib/requirements/resolve-requirements";
+import type {
+  ClientRules,
+  EvaluationLead,
+  RequirementResolutionResult,
+} from "@/lib/rules/types";
 
 export type ParsedLeadData = {
+  schemaVersion: "lead_parse_v2";
   serviceId: string;
   city: string | null;
   asksPrice: boolean;
@@ -19,12 +25,16 @@ export type ParsedLeadData = {
   contacts: ExtractedContacts;
   location: AdminUnitLocation | null;
   facts: ExtractedFact[];
+  resolvedRequirements: RequirementResolutionResult["resolvedRequirements"];
+  unresolvedRequirements: RequirementResolutionResult["unresolvedRequirements"];
+  conflicts: RequirementResolutionResult["conflicts"];
 };
 
 export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
   const extraction = extractDeterministicFacts(input.inquiryMessage);
 
   return {
+    schemaVersion: "lead_parse_v2",
     serviceId: input.serviceId,
     city:
       normalizeOptional(input.city) ??
@@ -40,6 +50,27 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
     contacts: extraction.contacts,
     location: extraction.location,
     facts: extraction.facts,
+    resolvedRequirements: {},
+    unresolvedRequirements: [],
+    conflicts: [],
+  };
+}
+
+export function resolveParsedLeadRequirements(
+  parsed: ParsedLeadData,
+  rules: ClientRules,
+): ParsedLeadData {
+  const resolution = resolveRequirements({
+    facts: parsed.facts,
+    requirements: rules.decisionRequirements.filter(
+      (requirement) =>
+        requirement.active && requirement.serviceId === parsed.serviceId,
+    ),
+  });
+
+  return {
+    ...parsed,
+    ...resolution,
   };
 }
 

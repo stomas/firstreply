@@ -61,6 +61,8 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
       blocksAutoSend: requirement.blocksAutoSend,
       priority: requirement.priority,
       active: requirement.active,
+      required: requirement.required,
+      affectsPrice: requirement.affectsPrice,
       expectedFact: requirement.expectedFact as RuleJson,
       validation: requirement.validation as RuleJson,
     })),
