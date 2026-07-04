@@ -5,23 +5,26 @@ import {
   assertAiGapFillerConfigured,
   fillAiGaps,
 } from "@/lib/ai/gap-filler";
-import { generateLeadResponse } from "@/lib/ai/generate-lead-response";
 import { decideLeadResponse } from "@/lib/decision/engine";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import {
   parseTestInquiryLead,
   toDecisionEngineInput,
   resolveParsedLeadRequirements,
-  toEvaluationLead,
 } from "@/lib/leads/parse-lead";
+import { composeResponseDraft } from "@/lib/response/composer";
 import {
   fieldErrors,
   testInquirySchema,
   type TestInquiryInput,
 } from "@/lib/leads/test-inquiry-schema";
-import { evaluateLeadForResponse } from "@/lib/rules/evaluate-lead-for-response";
 import { getClientRules } from "@/lib/rules/get-client-rules";
-import type { LeadEvaluationResult } from "@/lib/rules/types";
+import type {
+  DecisionResult,
+  LeadEvaluationResult,
+  MatchedPricingRule,
+  ResponseType,
+} from "@/lib/rules/types";
 
 export type TestLeadResult = {
   leadId: string;
@@ -183,36 +186,34 @@ export async function createTestLeadAndResponse(
     },
   });
 
-  const evaluation = await evaluateLeadForResponse(
-    toEvaluationLead({
-      leadId: lead.id,
-      input,
-      parsed: parsedLead,
-    }),
+  const composed = composeResponseDraft({
+    decisionResult,
     rules,
-    {
-      generateDraft: generateLeadResponse,
-    },
-  );
-
-  const responseStatus =
-    evaluation.canGenerateResponse && evaluation.draftText
-      ? "ready"
-      : "manual_review";
-  const manualReviewReason = evaluation.manualReviewReasons.join("; ") || null;
+    resolvedRequirements: parsedLead.resolvedRequirements,
+    isTest: true,
+  });
+  const evaluation = toLeadEvaluationResult({
+    leadId: lead.id,
+    serviceId: parsedLead.serviceId,
+    decisionResult,
+    composed,
+    rules,
+    parsedLead,
+  });
+  const responseStatus = composed.draftText ? "ready" : "manual_review";
+  const manualReviewReason = composed.manualReviewReason;
 
   const response = await prisma.leadResponse.create({
     data: {
       leadId: lead.id,
-      responseType: evaluation.responseType,
-      draftText: evaluation.draftText,
+      responseType: composed.responseType,
+      draftText: composed.draftText,
       status: responseStatus,
-      autoSendAllowed:
-        responseStatus === "ready" ? evaluation.autoSendAllowed : false,
+      autoSendAllowed: composed.autoSendAllowed,
       manualReviewReason,
       decisionJson: {
         decisionResult,
-        evaluation,
+        composed,
       } as unknown as Prisma.InputJsonObject,
     },
   });
@@ -222,6 +223,7 @@ export async function createTestLeadAndResponse(
     data: {
       status: responseStatus === "ready" ? "response_ready" : "manual_review",
       manualReviewReason,
+      responseDraft: composed.draftText,
     },
   });
 
@@ -263,4 +265,71 @@ function ensureTestingAllowed(
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function toLeadEvaluationResult(params: {
+  leadId: string;
+  serviceId: string;
+  decisionResult: DecisionResult;
+  composed: ReturnType<typeof composeResponseDraft>;
+  rules: Awaited<ReturnType<typeof getClientRules>>;
+  parsedLead: ReturnType<typeof resolveParsedLeadRequirements>;
+}): LeadEvaluationResult {
+  return {
+    leadId: params.leadId,
+    serviceId: params.serviceId,
+    canGenerateResponse: params.composed.draftText !== null,
+    autoSendAllowed: params.composed.autoSendAllowed,
+    responseType: legacyResponseType(params.composed.responseType),
+    missingRequirements: params.parsedLead.unresolvedRequirements.map(
+      (requirement) => ({
+        key: requirement.requirementKey,
+        label: requirement.label,
+        question: requirement.question,
+      }),
+    ),
+    matchedPricingRules: matchedPricingRules(
+      params.decisionResult,
+      params.rules,
+    ),
+    matchedAvailabilityRule: null,
+    manualReviewReasons: params.composed.manualReviewReason
+      ? [params.composed.manualReviewReason]
+      : [],
+    draftText: params.composed.draftText,
+  };
+}
+
+function legacyResponseType(
+  responseType: ReturnType<typeof composeResponseDraft>["responseType"],
+): ResponseType {
+  if (responseType === "missing_info") {
+    return "missing_info";
+  }
+
+  if (responseType === "price_estimate") {
+    return "price_availability";
+  }
+
+  return "manual_review";
+}
+
+function matchedPricingRules(
+  decisionResult: DecisionResult,
+  rules: Awaited<ReturnType<typeof getClientRules>>,
+): MatchedPricingRule[] {
+  const pricingRuleId = decisionResult.priceEstimate?.pricingRuleId;
+  if (!pricingRuleId) {
+    return [];
+  }
+
+  return rules.pricingRules
+    .filter((rule) => rule.id === pricingRuleId)
+    .map((rule) => ({
+      id: rule.id,
+      name: rule.name,
+      priceMin: rule.priceMin,
+      priceMax: rule.priceMax,
+      unit: rule.unit,
+    }));
 }

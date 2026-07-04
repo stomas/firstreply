@@ -175,6 +175,7 @@ function toResolvedRequirement(fact: ExtractedFact): ResolvedRequirementValue {
     subjectSource: fact.subjectSource,
     confidence: fact.confidence,
     validationPassed: true,
+    evidenceVerified: fact.evidenceVerified,
   };
 }
 

@@ -383,11 +383,16 @@ function extractMeasurementFacts(
       span.start,
       span.end,
     );
+    const subject = subjectForMeasurement(
+      originalMessage,
+      span.start,
+      span.end,
+    );
 
     facts.push(
       nextFact("measurement", {
-        subject: null,
-        subjectSource: null,
+        subject,
+        subjectSource: subject ? "deterministic" : null,
         dimension,
         value: null,
         valueMin: parseNumber(match.groups.min),
@@ -419,11 +424,16 @@ function extractMeasurementFacts(
       span.start,
       span.end,
     );
+    const subject = subjectForMeasurement(
+      originalMessage,
+      span.start,
+      span.end,
+    );
 
     facts.push(
       nextFact("measurement", {
-        subject: null,
-        subjectSource: null,
+        subject,
+        subjectSource: subject ? "deterministic" : null,
         dimension,
         value: parseNumber(match.groups.value),
         valueMin: null,
@@ -592,6 +602,31 @@ function rightDimensionContext(message: string, spanEnd: number): string {
   return message
     .slice(spanEnd, Math.min(message.length, spanEnd + 80))
     .split(/[,.;\n]/u)[0];
+}
+
+function subjectForMeasurement(
+  message: string,
+  spanStart: number,
+  spanEnd: number,
+): string | null {
+  const nearbyText = normalizeSearchText(
+    message.slice(
+      Math.max(0, spanStart - 80),
+      Math.min(message.length, spanEnd + 80),
+    ),
+  );
+  const hasFenceContext = /\b(tvor\w*|skardin\w*|segmentin\w*)\b/u.test(
+    nearbyText,
+  );
+  const hasGateContext = /\b(vartai|vartus|vartu|vartams|vartel\w*)\b/u.test(
+    nearbyText,
+  );
+
+  if (hasFenceContext === hasGateContext) {
+    return null;
+  }
+
+  return hasFenceContext ? "fence" : "gate";
 }
 
 function parseNumber(rawValue: string): number {

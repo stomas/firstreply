@@ -57,6 +57,7 @@ export type ClientRules = {
   locationZones?: LocationZoneRule[];
   scheduleRules?: ScheduleRule[];
   autosendPolicies?: AutosendPolicyRule[];
+  responseTemplates?: ResponseTemplateRule[];
 };
 
 export type ServiceSubjectRule = {
@@ -89,6 +90,7 @@ export type ResolvedRequirementValue = {
   subjectSource: string | null;
   confidence: number;
   validationPassed?: boolean;
+  evidenceVerified?: boolean;
 };
 
 export type UnresolvedRequirementStatus =
@@ -137,6 +139,12 @@ export type ScheduleRule = {
 
 export type AutosendPolicyRule = {
   policy: RuleJson;
+};
+
+export type ResponseTemplateRule = {
+  templateKey: string;
+  body: string;
+  active: boolean;
 };
 
 export type DecisionServiceInput = {

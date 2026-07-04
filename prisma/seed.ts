@@ -502,24 +502,41 @@ async function seedOperationalRules() {
     },
   });
 
-  await prisma.responseTemplate.upsert({
-    where: {
-      tenantId_templateKey: {
-        tenantId: TENANT_ID,
-        templateKey: "ask_missing_info",
-      },
-    },
-    create: {
-      tenantId: TENANT_ID,
+  const responseTemplates = [
+    {
       templateKey: "ask_missing_info",
       body: "Sveiki, ačiū už užklausą. Kad galėtume pateikti tikslesnį atsakymą, patikslinkite: {{questions}}",
-      active: true,
     },
-    update: {
-      body: "Sveiki, ačiū už užklausą. Kad galėtume pateikti tikslesnį atsakymą, patikslinkite: {{questions}}",
-      active: true,
+    {
+      templateKey: "price_estimate",
+      body: "Sveiki, ačiū už užklausą. Orientacinė kaina pagal pateiktą informaciją: {{priceAmount}} {{currency}}. Preliminarus terminas: {{leadTimeWeeks}}.",
     },
-  });
+    {
+      templateKey: "decline_location",
+      body: "Sveiki, ačiū už užklausą. Šioje vietovėje šiuo metu darbų neatliekame.",
+    },
+  ] as const;
+
+  for (const template of responseTemplates) {
+    await prisma.responseTemplate.upsert({
+      where: {
+        tenantId_templateKey: {
+          tenantId: TENANT_ID,
+          templateKey: template.templateKey,
+        },
+      },
+      create: {
+        tenantId: TENANT_ID,
+        templateKey: template.templateKey,
+        body: template.body,
+        active: true,
+      },
+      update: {
+        body: template.body,
+        active: true,
+      },
+    });
+  }
 }
 
 async function loadAdminUnits(): Promise<AdminUnit[]> {

@@ -27,6 +27,7 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
     locationZones,
     scheduleRules,
     autosendPolicies,
+    responseTemplates,
   ] = await Promise.all([
     prisma.service.findMany({
       where: { clientId, active: true },
@@ -64,6 +65,12 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
       ? prisma.autosendPolicy.findMany({
           where: { tenantId },
           orderBy: { createdAt: "asc" },
+        })
+      : [],
+    tenantId
+      ? prisma.responseTemplate.findMany({
+          where: { tenantId, active: true },
+          orderBy: { templateKey: "asc" },
         })
       : [],
   ]);
@@ -135,6 +142,11 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
     })),
     autosendPolicies: autosendPolicies.map((policy) => ({
       policy: policy.policy as RuleJson,
+    })),
+    responseTemplates: responseTemplates.map((template) => ({
+      templateKey: template.templateKey,
+      body: template.body,
+      active: template.active,
     })),
   };
 }

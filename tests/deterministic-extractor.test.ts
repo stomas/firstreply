@@ -47,6 +47,37 @@ describe("extractDeterministicFacts", () => {
     assert.equal(height?.unit, "m");
   });
 
+  it("binds fence measurements when the nearby text explicitly names a fence", () => {
+    const result = extractDeterministicFacts(
+      "Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio.",
+    );
+    const measurements = result.facts.filter(
+      (fact) => fact.kind === "measurement",
+    );
+
+    assert.deepEqual(
+      measurements.map((fact) => [fact.dimension, fact.subject]),
+      [
+        ["length", "fence"],
+        ["height", "fence"],
+      ],
+    );
+    assert.deepEqual(
+      measurements.map((fact) => fact.subjectSource),
+      ["deterministic", "deterministic"],
+    );
+  });
+
+  it("does not bind a measurement subject when fence and gate context conflict", () => {
+    const result = extractDeterministicFacts("Reikia tvoros ir vartų 45 m.");
+    const measurement = result.facts.find(
+      (fact) => fact.kind === "measurement",
+    );
+
+    assert.equal(measurement?.subject, null);
+    assert.equal(measurement?.subjectSource, null);
+  });
+
   it("extracts ranges and approximate values", () => {
     const result = extractDeterministicFacts(
       "tvora apie 40-50 metru, kaunas, skubiai",
