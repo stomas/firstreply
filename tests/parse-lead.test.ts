@@ -16,9 +16,13 @@ const baseInput: TestInquiryInput = {
 };
 
 describe("parseTestInquiryLead", () => {
-  it("extracts fence length written in Lithuanian free text", () => {
+  it("stores extracted measurements as v2 facts without legacy compatibility fields", () => {
     const parsed = parseTestInquiryLead(baseInput);
+    const lengthFact = parsed.facts.find(
+      (fact) => fact.kind === "measurement" && fact.dimension === "length",
+    );
 
-    assert.equal(parsed.fence_length_m, 45);
+    assert.equal(lengthFact?.value, 45);
+    assert.equal(Object.hasOwn(parsed, "fence_length_m"), false);
   });
 });

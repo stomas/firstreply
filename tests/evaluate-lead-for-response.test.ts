@@ -60,7 +60,7 @@ const baseLead: EvaluationLead = {
   serviceId: "service_terrace",
   city: "Vilnius",
   originalMessage: "Domina terasos montavimas, plotas apie 24 m2.",
-  parsedJson: { area: "24 m2" },
+  parseResult: { area: "24 m2" },
   asksPrice: true,
   asksAvailability: true,
   isUrgent: false,
@@ -106,7 +106,7 @@ describe("evaluateLeadForResponse", () => {
     let draftWasRequested = false;
 
     const result = await evaluateLeadForResponse(
-      { ...baseLead, parsedJson: {} },
+      { ...baseLead, parseResult: {} },
       baseRules,
       {
         now,
@@ -131,6 +131,58 @@ describe("evaluateLeadForResponse", () => {
       "trūksta informacijos, kuri blokuoja auto-send: Plotas",
     ]);
     assert.equal(draftWasRequested, false);
+  });
+
+  it("uses deterministic facts to satisfy v2 expected fact requirements", async () => {
+    const result = await evaluateLeadForResponse(
+      {
+        ...baseLead,
+        parseResult: {
+          facts: [
+            {
+              kind: "measurement",
+              dimension: "length",
+              value: 45,
+              valueMin: null,
+              valueMax: null,
+              unit: "m",
+              subject: null,
+              negated: false,
+            },
+          ],
+        },
+      },
+      {
+        ...baseRules,
+        decisionRequirements: [
+          {
+            id: "req_v2_length",
+            serviceId: "service_terrace",
+            requirementKey: "fence_length",
+            label: "Tvoros ilgis",
+            requiredFor: "auto_send",
+            questionTextIfMissing: "Kiek metrų tvoros reikėtų?",
+            blocksAutoSend: true,
+            priority: 10,
+            active: true,
+            expectedFact: {
+              kind: "measurement",
+              subject: "fence",
+              dimension: "length",
+              units: ["m"],
+            },
+          },
+        ],
+      },
+      {
+        now,
+        generateDraft: async () => "AI drafted response",
+      },
+    );
+
+    assert.deepEqual(result.missingRequirements, []);
+    assert.deepEqual(result.manualReviewReasons, []);
+    assert.equal(result.canGenerateResponse, true);
   });
 
   it("requires manual review when the selected service is not active", async () => {

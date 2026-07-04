@@ -22,6 +22,7 @@ export async function evaluateLeadForResponse(
 ): Promise<LeadEvaluationResult> {
   const now = options.now ?? new Date();
   const manualReviewReasons: string[] = [];
+  const addManualReviewReason = uniqueListPusher(manualReviewReasons);
   const missingRequirements: MissingRequirement[] = [];
   const activeService = lead.serviceId
     ? rules.services.find(
@@ -30,9 +31,9 @@ export async function evaluateLeadForResponse(
     : null;
 
   if (!lead.serviceId) {
-    manualReviewReasons.push("nėra atpažintos paslaugos");
+    addManualReviewReason("nėra atpažintos paslaugos");
   } else if (!activeService) {
-    manualReviewReasons.push("nėra aktyvios paslaugos");
+    addManualReviewReason("nėra aktyvios paslaugos");
   }
 
   const matchedPricingRules = activeService
@@ -48,7 +49,7 @@ export async function evaluateLeadForResponse(
     : [];
 
   if (activeService && lead.asksPrice && matchedPricingRules.length === 0) {
-    manualReviewReasons.push("nėra kainų taisyklės");
+    addManualReviewReason("nėra kainų taisyklės");
   }
 
   if (
@@ -61,7 +62,7 @@ export async function evaluateLeadForResponse(
         !rule.autoSendAllowed,
     )
   ) {
-    manualReviewReasons.push("kainų taisyklė neleidžia auto-send");
+    addManualReviewReason("kainų taisyklė neleidžia auto-send");
   }
 
   if (activeService) {
@@ -73,7 +74,7 @@ export async function evaluateLeadForResponse(
       .sort((a, b) => a.priority - b.priority);
 
     for (const requirement of requirements) {
-      if (hasRequirementValue(lead, requirement.requirementKey)) {
+      if (hasRequirementValue(lead, requirement)) {
         continue;
       }
 
@@ -85,7 +86,7 @@ export async function evaluateLeadForResponse(
       missingRequirements.push(missing);
 
       if (requirement.blocksAutoSend) {
-        manualReviewReasons.push(
+        addManualReviewReason(
           `trūksta informacijos, kuri blokuoja auto-send: ${requirement.label}`,
         );
       }
@@ -100,16 +101,16 @@ export async function evaluateLeadForResponse(
           ),
           lead.city,
           now,
-          manualReviewReasons,
+          addManualReviewReason,
         )
       : null;
 
   if (lead.isUrgent) {
-    manualReviewReasons.push("klientas pažymėtas kaip skubus");
+    addManualReviewReason("klientas pažymėtas kaip skubus");
   }
 
   if (lead.hasAttachments) {
-    manualReviewReasons.push("užklausa nepatenka į standartines taisykles");
+    addManualReviewReason("užklausa nepatenka į standartines taisykles");
   }
 
   const responseType = getResponseType(
@@ -173,7 +174,10 @@ export async function evaluateLeadForResponse(
   }
 }
 
-function hasRequirementValue(lead: EvaluationLead, key: string): boolean {
+function hasRequirementValue(
+  lead: EvaluationLead,
+  requirement: ClientRules["decisionRequirements"][number],
+): boolean {
   const directValues: Record<string, unknown> = {
     city: lead.city,
     original_message: lead.originalMessage,
@@ -182,40 +186,125 @@ function hasRequirementValue(lead: EvaluationLead, key: string): boolean {
     is_urgent: lead.isUrgent,
     has_attachments: lead.hasAttachments,
   };
-  const value = directValues[key] ?? lead.parsedJson?.[key];
+  const value =
+    directValues[requirement.requirementKey] ??
+    lead.parseResult?.[requirement.requirementKey];
 
   if (typeof value === "string") {
     return value.trim().length > 0;
   }
 
-  return value !== null && value !== undefined && value !== false;
+  if (value !== null && value !== undefined && value !== false) {
+    return true;
+  }
+
+  return hasExpectedFactValue(lead.parseResult, requirement.expectedFact);
+}
+
+function hasExpectedFactValue(
+  parseResult: Record<string, unknown> | null,
+  expectedFact: ClientRules["decisionRequirements"][number]["expectedFact"],
+): boolean {
+  if (!isRecord(expectedFact) || !Array.isArray(parseResult?.facts)) {
+    return false;
+  }
+
+  return parseResult.facts.some((fact) =>
+    factMatchesExpectedFact(fact, expectedFact),
+  );
+}
+
+function factMatchesExpectedFact(
+  fact: unknown,
+  expectedFact: Record<string, unknown>,
+): boolean {
+  if (!isRecord(fact) || fact.negated === true) {
+    return false;
+  }
+
+  if (
+    typeof expectedFact.kind === "string" &&
+    fact.kind !== expectedFact.kind
+  ) {
+    return false;
+  }
+
+  if (
+    typeof expectedFact.dimension === "string" &&
+    fact.dimension !== expectedFact.dimension
+  ) {
+    return false;
+  }
+
+  const units = expectedUnits(expectedFact);
+
+  if (
+    units.length > 0 &&
+    (typeof fact.unit !== "string" || !units.includes(fact.unit))
+  ) {
+    return false;
+  }
+
+  if (
+    typeof expectedFact.subject === "string" &&
+    typeof fact.subject === "string" &&
+    fact.subject !== expectedFact.subject
+  ) {
+    return false;
+  }
+
+  return hasFactValue(fact);
+}
+
+function expectedUnits(expectedFact: Record<string, unknown>): string[] {
+  if (Array.isArray(expectedFact.units)) {
+    return expectedFact.units.filter(
+      (unit): unit is string => typeof unit === "string",
+    );
+  }
+
+  return typeof expectedFact.unit === "string" ? [expectedFact.unit] : [];
+}
+
+function hasFactValue(fact: Record<string, unknown>): boolean {
+  const value = fact.value;
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (value !== null && value !== undefined && value !== false) {
+    return true;
+  }
+
+  return typeof fact.valueMin === "number" || typeof fact.valueMax === "number";
 }
 
 function matchAvailabilityRule(
   rules: AvailabilityRule[],
   city: string | null,
   now: Date,
-  manualReviewReasons: string[],
+  addManualReviewReason: (reason: string) => void,
 ): MatchedAvailabilityRule | null {
   const activeRule =
     rules.find((rule) => rule.location && cityMatches(rule.location, city)) ??
     rules.find((rule) => !rule.location);
 
   if (!activeRule) {
-    manualReviewReasons.push("užklausa nepatenka į standartines taisykles");
+    addManualReviewReason("užklausa nepatenka į standartines taisykles");
     return null;
   }
 
   if (activeRule.validUntil && new Date(activeRule.validUntil) < now) {
-    manualReviewReasons.push("užimtumo taisyklė pasenusi");
+    addManualReviewReason("užimtumo taisyklė pasenusi");
   }
 
   if (activeRule.status !== "available") {
-    manualReviewReasons.push("užklausa nepatenka į standartines taisykles");
+    addManualReviewReason("užklausa nepatenka į standartines taisykles");
   }
 
   if (!activeRule.autoSendAllowed) {
-    manualReviewReasons.push("užimtumo taisyklė neleidžia auto-send");
+    addManualReviewReason("užimtumo taisyklė neleidžia auto-send");
   }
 
   return {
@@ -286,6 +375,23 @@ function normalize(value: string): string {
     .toLocaleLowerCase("lt-LT")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function uniqueListPusher(target: string[]): (value: string) => void {
+  const seen = new Set<string>();
+
+  return (value) => {
+    if (seen.has(value)) {
+      return;
+    }
+
+    seen.add(value);
+    target.push(value);
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function cityMatches(ruleLocation: string, city: string | null): boolean {

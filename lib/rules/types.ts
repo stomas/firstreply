@@ -30,6 +30,8 @@ export type DecisionRequirement = {
   blocksAutoSend: boolean;
   priority: number;
   active: boolean;
+  expectedFact?: RuleJson;
+  validation?: RuleJson;
 };
 
 export type AvailabilityRule = {
@@ -55,7 +57,7 @@ export type EvaluationLead = {
   serviceId: string | null;
   city: string | null;
   originalMessage: string;
-  parsedJson: Record<string, unknown> | null;
+  parseResult: Record<string, unknown> | null;
   asksPrice: boolean | null;
   asksAvailability: boolean | null;
   isUrgent: boolean | null;

@@ -13,7 +13,7 @@ export type LeadDetail = {
   customerPhone: string | null;
   city: string | null;
   originalMessage: string;
-  parsedJson: Prisma.JsonValue | null;
+  parseResult: Prisma.JsonValue | null;
   asksPrice: boolean | null;
   asksAvailability: boolean | null;
   isUrgent: boolean | null;
@@ -110,7 +110,7 @@ export async function getLeadDetail(
     customerPhone: lead.customerPhone,
     city: lead.city,
     originalMessage: lead.originalMessage,
-    parsedJson: lead.parsedJson,
+    parseResult: lead.parseResult ?? lead.parsedJson,
     asksPrice: lead.asksPrice,
     asksAvailability: lead.asksAvailability,
     isUrgent: lead.isUrgent,

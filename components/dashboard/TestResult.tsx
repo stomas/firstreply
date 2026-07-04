@@ -31,8 +31,8 @@ export function TestResult({ result }: { result: TestLeadResult }) {
             Manual review priežastys
           </div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-warn-text">
-            {evaluation.manualReviewReasons.map((reason) => (
-              <li key={reason}>{reason}</li>
+            {evaluation.manualReviewReasons.map((reason, index) => (
+              <li key={`${reason}-${index}`}>{reason}</li>
             ))}
           </ul>
         </div>

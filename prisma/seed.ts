@@ -285,6 +285,8 @@ async function main() {
     });
   }
 
+  await deleteLegacyDevRules();
+
   for (const requirement of requirements) {
     await prisma.decisionRequirement.upsert({
       where: { id: requirement.id },
@@ -324,6 +326,23 @@ async function main() {
   await seedOperationalRules();
 
   console.info("Seeded lead_parse_v2 foundation data.");
+}
+
+async function deleteLegacyDevRules() {
+  await prisma.$transaction([
+    prisma.decisionRequirement.deleteMany({
+      where: {
+        clientId: CLIENT_ID,
+        id: { startsWith: "req_dev_" },
+      },
+    }),
+    prisma.pricingRule.deleteMany({
+      where: {
+        clientId: CLIENT_ID,
+        id: { startsWith: "price_dev_" },
+      },
+    }),
+  ]);
 }
 
 async function seedPricingRules() {

@@ -40,8 +40,8 @@ export default async function LeadDetailPage({
                 {lead.originalMessage}
               </p>
             </Panel>
-            <Panel title="Parsed JSON">
-              <JsonBlock value={lead.parsedJson} />
+            <Panel title="Parse result JSON">
+              <JsonBlock value={lead.parseResult} />
             </Panel>
           </div>
 
