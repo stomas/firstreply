@@ -44,7 +44,7 @@ export type ExtractedFact = {
   unit: ExtractedUnit | null;
   rawText: string;
   evidenceVerified: true;
-  source: "deterministic";
+  source: FactSource;
   confidence: number;
   negated: boolean;
 };

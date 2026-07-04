@@ -18,6 +18,7 @@ export type PricingRule = {
   disclaimerText: string | null;
   autoSendAllowed: boolean;
   active: boolean;
+  rule?: RuleJson;
 };
 
 export type DecisionRequirement = {
@@ -49,9 +50,21 @@ export type AvailabilityRule = {
 
 export type ClientRules = {
   services: ServiceRule[];
+  serviceSubjects?: ServiceSubjectRule[];
   pricingRules: PricingRule[];
   decisionRequirements: DecisionRequirement[];
   availabilityRules: AvailabilityRule[];
+  locationZones?: LocationZoneRule[];
+  scheduleRules?: ScheduleRule[];
+  autosendPolicies?: AutosendPolicyRule[];
+};
+
+export type ServiceSubjectRule = {
+  serviceId: string;
+  subjectKey: string;
+  labelLt: string;
+  descriptionLt: string;
+  synonyms: string[];
 };
 
 export type EvaluationLead = {
@@ -96,7 +109,8 @@ export type UnresolvedRequirement = {
 export type RequirementConflictReason =
   | "MULTIPLE_FACTS_FOR_REQUIREMENT"
   | "VALUE_OUT_OF_RANGE"
-  | "VALUE_NOT_ALLOWED";
+  | "VALUE_NOT_ALLOWED"
+  | "AI_CONFLICT";
 
 export type RequirementConflict = {
   requirementKey: string;
@@ -108,6 +122,82 @@ export type RequirementResolutionResult = {
   resolvedRequirements: Record<string, ResolvedRequirementValue | null>;
   unresolvedRequirements: UnresolvedRequirement[];
   conflicts: RequirementConflict[];
+};
+
+export type LocationZoneRule = {
+  adminUnitCode: string;
+  zone: string;
+  travelFeeEur: number;
+  served: boolean;
+};
+
+export type ScheduleRule = {
+  rule: RuleJson;
+};
+
+export type AutosendPolicyRule = {
+  policy: RuleJson;
+};
+
+export type DecisionServiceInput = {
+  id: string | null;
+  confidence: number;
+  candidates?: Array<{ id: string; confidence: number }>;
+};
+
+export type DecisionLocationInput = {
+  raw: string;
+  adminUnit: {
+    type: "municipality";
+    code: string;
+    label: string;
+  };
+  confidence: number;
+  source: string;
+} | null;
+
+export type DecisionIntentsInput = {
+  asksPrice: boolean;
+  asksAvailability: boolean;
+  isUrgent: boolean;
+};
+
+export type DecisionEngineInput = RequirementResolutionResult & {
+  service: DecisionServiceInput;
+  location: DecisionLocationInput;
+  intents: DecisionIntentsInput;
+  rules: ClientRules;
+};
+
+export type DecisionResultDecision =
+  | "MANUAL_REVIEW"
+  | "DECLINE_TEMPLATE"
+  | "ASK_MISSING_INFO"
+  | "PRICE_ESTIMATE";
+
+export type PriceEstimate = {
+  pricingRuleId: string;
+  currency: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+};
+
+export type LeadTimeEstimate = {
+  minWeeks: number;
+  maxWeeks: number;
+  text: string;
+};
+
+export type DecisionResult = {
+  decision: DecisionResultDecision;
+  reason: string;
+  priceEstimate: PriceEstimate | null;
+  leadTime: LeadTimeEstimate | null;
+  questionsToAsk: string[];
+  autoSend: boolean;
+  autoSendBlockedBy: string[];
 };
 
 export type MissingRequirement = {

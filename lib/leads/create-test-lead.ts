@@ -3,11 +3,14 @@ import { AppConfigError, AppValidationError } from "@/lib/app-errors";
 import {
   AI_NOT_CONFIGURED,
   assertAiGapFillerConfigured,
+  fillAiGaps,
 } from "@/lib/ai/gap-filler";
 import { generateLeadResponse } from "@/lib/ai/generate-lead-response";
+import { decideLeadResponse } from "@/lib/decision/engine";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import {
   parseTestInquiryLead,
+  toDecisionEngineInput,
   resolveParsedLeadRequirements,
   toEvaluationLead,
 } from "@/lib/leads/parse-lead";
@@ -45,7 +48,7 @@ export async function createTestLeadAndResponse(
   const rules = await getClientRules(clientId);
   ensureTestingAllowed(rules, input);
 
-  const parsedLead = resolveParsedLeadRequirements(
+  let parsedLead = resolveParsedLeadRequirements(
     parseTestInquiryLead(input),
     rules,
   );
@@ -88,6 +91,98 @@ export async function createTestLeadAndResponse(
     throw error;
   }
 
+  const aiGapFill = await fillAiGaps(
+    {
+      rawText: input.inquiryMessage,
+      facts: parsedLead.facts,
+      requirements: rules.decisionRequirements.filter(
+        (requirement) =>
+          requirement.active && requirement.serviceId === parsedLead.serviceId,
+      ),
+      resolution: parsedLead,
+      subjects: (rules.serviceSubjects ?? []).filter(
+        (subject) => subject.serviceId === parsedLead.serviceId,
+      ),
+    },
+    {},
+  );
+
+  if (aiGapFill.status === "manual_review") {
+    const decisionResult = {
+      decision: "MANUAL_REVIEW",
+      reason: aiGapFill.reason,
+      priceEstimate: null,
+      leadTime: null,
+      questionsToAsk: [],
+      autoSend: false,
+      autoSendBlockedBy: [aiGapFill.reason],
+    };
+    const response = await prisma.leadResponse.create({
+      data: {
+        leadId: lead.id,
+        responseType: "manual_review",
+        draftText: null,
+        status: "manual_review",
+        autoSendAllowed: false,
+        manualReviewReason: aiGapFill.reason,
+        decisionJson: decisionResult as Prisma.InputJsonObject,
+      },
+    });
+
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        status: "manual_review",
+        manualReviewReason: aiGapFill.reason,
+        decisionResult: decisionResult as Prisma.InputJsonObject,
+      },
+    });
+
+    return {
+      leadId: lead.id,
+      responseId: response.id,
+      responseStatus: "manual_review",
+      evaluation: {
+        leadId: lead.id,
+        serviceId: parsedLead.serviceId,
+        canGenerateResponse: false,
+        autoSendAllowed: false,
+        responseType: "manual_review",
+        missingRequirements: [],
+        matchedPricingRules: [],
+        matchedAvailabilityRule: null,
+        manualReviewReasons: [aiGapFill.reason],
+        draftText: null,
+      },
+    };
+  }
+
+  parsedLead = {
+    ...parsedLead,
+    facts: aiGapFill.facts,
+    resolvedRequirements: aiGapFill.resolution.resolvedRequirements,
+    unresolvedRequirements: aiGapFill.resolution.unresolvedRequirements,
+    conflicts: aiGapFill.resolution.conflicts,
+  };
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      parseResult: parsedLead as Prisma.InputJsonObject,
+    },
+  });
+
+  const decisionResult = decideLeadResponse(
+    toDecisionEngineInput({ parsed: parsedLead, rules }),
+  );
+
+  await prisma.lead.update({
+    where: { id: lead.id },
+    data: {
+      decisionResult: decisionResult as unknown as Prisma.InputJsonObject,
+    },
+  });
+
   const evaluation = await evaluateLeadForResponse(
     toEvaluationLead({
       leadId: lead.id,
@@ -115,7 +210,10 @@ export async function createTestLeadAndResponse(
       autoSendAllowed:
         responseStatus === "ready" ? evaluation.autoSendAllowed : false,
       manualReviewReason,
-      decisionJson: evaluation as unknown as Prisma.InputJsonObject,
+      decisionJson: {
+        decisionResult,
+        evaluation,
+      } as unknown as Prisma.InputJsonObject,
     },
   });
 

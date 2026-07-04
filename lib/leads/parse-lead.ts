@@ -8,6 +8,7 @@ import type {
 import { resolveRequirements } from "@/lib/requirements/resolve-requirements";
 import type {
   ClientRules,
+  DecisionEngineInput,
   EvaluationLead,
   RequirementResolutionResult,
 } from "@/lib/rules/types";
@@ -89,6 +90,29 @@ export function toEvaluationLead(params: {
     asksAvailability: params.parsed.asksAvailability,
     isUrgent: params.parsed.isUrgent,
     hasAttachments: params.parsed.hasAttachments,
+  };
+}
+
+export function toDecisionEngineInput(params: {
+  parsed: ParsedLeadData;
+  rules: ClientRules;
+}): DecisionEngineInput {
+  return {
+    service: {
+      id: params.parsed.serviceId,
+      confidence: 1,
+      candidates: [{ id: params.parsed.serviceId, confidence: 1 }],
+    },
+    location: params.parsed.location,
+    intents: {
+      asksPrice: params.parsed.asksPrice,
+      asksAvailability: params.parsed.asksAvailability,
+      isUrgent: params.parsed.isUrgent,
+    },
+    resolvedRequirements: params.parsed.resolvedRequirements,
+    unresolvedRequirements: params.parsed.unresolvedRequirements,
+    conflicts: params.parsed.conflicts,
+    rules: params.rules,
   };
 }
 

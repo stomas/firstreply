@@ -12,31 +12,78 @@ export type RuleCounts = {
 export async function getClientRules(clientId: string): Promise<ClientRules> {
   assertDatabaseConfigured();
 
-  const [services, pricingRules, decisionRequirements, availabilityRules] =
-    await Promise.all([
-      prisma.service.findMany({
-        where: { clientId, active: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.pricingRule.findMany({
-        where: { clientId, active: true },
-        orderBy: { createdAt: "asc" },
-      }),
-      prisma.decisionRequirement.findMany({
-        where: { clientId, active: true },
-        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
-      }),
-      prisma.availabilityRule.findMany({
-        where: { clientId },
-        orderBy: { createdAt: "asc" },
-      }),
-    ]);
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { tenantId: true },
+  });
+  const tenantId = client?.tenantId ?? null;
+
+  const [
+    services,
+    serviceSubjects,
+    pricingRules,
+    decisionRequirements,
+    availabilityRules,
+    locationZones,
+    scheduleRules,
+    autosendPolicies,
+  ] = await Promise.all([
+    prisma.service.findMany({
+      where: { clientId, active: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.serviceSubject.findMany({
+      where: { service: { clientId, active: true } },
+      orderBy: [{ serviceId: "asc" }, { subjectKey: "asc" }],
+    }),
+    prisma.pricingRule.findMany({
+      where: { clientId, active: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.decisionRequirement.findMany({
+      where: { clientId, active: true },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.availabilityRule.findMany({
+      where: { clientId },
+      orderBy: { createdAt: "asc" },
+    }),
+    tenantId
+      ? prisma.locationZone.findMany({
+          where: { tenantId },
+          orderBy: { adminUnitCode: "asc" },
+        })
+      : [],
+    tenantId
+      ? prisma.scheduleRule.findMany({
+          where: { tenantId },
+          orderBy: { createdAt: "asc" },
+        })
+      : [],
+    tenantId
+      ? prisma.autosendPolicy.findMany({
+          where: { tenantId },
+          orderBy: { createdAt: "asc" },
+        })
+      : [],
+  ]);
 
   return {
     services: services.map((service) => ({
       id: service.id,
       name: service.name,
       active: service.active,
+    })),
+    serviceSubjects: serviceSubjects.map((subject) => ({
+      serviceId: subject.serviceId,
+      subjectKey: subject.subjectKey,
+      labelLt: subject.labelLt,
+      descriptionLt: subject.descriptionLt,
+      synonyms: Array.isArray(subject.synonyms)
+        ? subject.synonyms.filter(
+            (synonym): synonym is string => typeof synonym === "string",
+          )
+        : [],
     })),
     pricingRules: pricingRules.map((rule) => ({
       id: rule.id,
@@ -50,6 +97,7 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
       disclaimerText: rule.disclaimerText,
       autoSendAllowed: rule.autoSendAllowed,
       active: rule.active,
+      rule: rule.rule as RuleJson,
     })),
     decisionRequirements: decisionRequirements.map((requirement) => ({
       id: requirement.id,
@@ -75,6 +123,18 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
       noteForCustomer: rule.noteForCustomer,
       validUntil: rule.validUntil,
       autoSendAllowed: rule.autoSendAllowed,
+    })),
+    locationZones: locationZones.map((zone) => ({
+      adminUnitCode: zone.adminUnitCode,
+      zone: zone.zone,
+      travelFeeEur: decimalToNumber(zone.travelFeeEur) ?? 0,
+      served: zone.served,
+    })),
+    scheduleRules: scheduleRules.map((rule) => ({
+      rule: rule.rule as RuleJson,
+    })),
+    autosendPolicies: autosendPolicies.map((policy) => ({
+      policy: policy.policy as RuleJson,
     })),
   };
 }
