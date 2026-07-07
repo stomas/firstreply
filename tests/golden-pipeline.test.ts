@@ -181,6 +181,43 @@ describe("golden lead pipeline", () => {
       result.trace.stages.map((stage) => [stage.key, stage.status]),
       [
         ["parse", "ok"],
+        ["service_classification", "ok"],
+        ["resolver_pass_1", "ok"],
+        ["ai_gap_filler", "skipped"],
+        ["decision", "ok"],
+        ["composer", "ok"],
+      ],
+    );
+  });
+
+  it("auto-detects the service when the test input has no selected service", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        inquiryMessage:
+          "Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje. Kiek kainuotų?",
+      },
+      rules: rulesWithGateService(),
+      leadId: "golden_auto_service",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "",
+          OPENAI_MODEL: "",
+        },
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, "service_skardines_tvoros");
+    assert.equal(result.responseStatus, "ready");
+    assert.equal(result.evaluation.responseType, "price_availability");
+    assert.equal(result.decisionResult.priceEstimate?.amount, 4950);
+    assert.deepEqual(
+      result.trace.stages.map((stage) => [stage.key, stage.status]),
+      [
+        ["parse", "ok"],
+        ["service_classification", "ok"],
         ["resolver_pass_1", "ok"],
         ["ai_gap_filler", "skipped"],
         ["decision", "ok"],
@@ -218,6 +255,7 @@ describe("golden lead pipeline", () => {
         ).trace?.stages.map((stage) => [stage.key, stage.status]),
         [
           ["parse", "ok"],
+          ["service_classification", "ok"],
           ["resolver_pass_1", "ok"],
           ["ai_gap_filler", "manual_review"],
         ],
@@ -252,6 +290,7 @@ describe("golden lead pipeline", () => {
       result.trace.stages.map((stage) => [stage.key, stage.status]),
       [
         ["parse", "ok"],
+        ["service_classification", "ok"],
         ["resolver_pass_1", "ok"],
         ["ai_gap_filler", "skipped"],
         ["decision", "ok"],
@@ -299,6 +338,7 @@ describe("golden lead pipeline", () => {
       result.trace.stages.map((stage) => [stage.key, stage.status]),
       [
         ["parse", "ok"],
+        ["service_classification", "ok"],
         ["resolver_pass_1", "ok"],
         ["ai_gap_filler", "ok"],
         ["resolver_pass_2", "ok"],
@@ -418,5 +458,51 @@ function baseInput(): TestInquiryInput {
     asksPrice: true,
     asksAvailability: false,
     isUrgent: false,
+  };
+}
+
+function rulesWithGateService(): ClientRules {
+  return {
+    ...rules,
+    services: [
+      {
+        ...rules.services[0],
+        label: "Skardinės tvoros",
+        keywords: ["skardinė", "skardinės", "skarda", "tvora", "tvoros"],
+      },
+      {
+        id: "service_vartai",
+        name: "Vartai ir varteliai",
+        label: "Vartai ir varteliai",
+        keywords: ["vartai", "vartų", "vartus", "varteliai"],
+        active: true,
+      },
+    ],
+    serviceSubjects: [
+      ...(rules.serviceSubjects ?? []),
+      {
+        serviceId: "service_vartai",
+        subjectKey: "gate",
+        labelLt: "Vartai",
+        descriptionLt: "įvažiavimo vartai automobiliui",
+        synonyms: ["vartai", "vartų", "vartus", "slankiojantys vartai"],
+      },
+    ],
+    pricingRules: [
+      ...rules.pricingRules,
+      {
+        id: "price_gate",
+        serviceId: "service_vartai",
+        name: "Vartai pagal angos plotį",
+        priceMin: 900,
+        priceMax: 2800,
+        unit: "€/vnt.",
+        conditions: null,
+        exclusions: null,
+        disclaimerText: null,
+        autoSendAllowed: true,
+        active: true,
+      },
+    ],
   };
 }

@@ -79,6 +79,12 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
     services: services.map((service) => ({
       id: service.id,
       name: service.name,
+      label: service.label,
+      keywords: Array.isArray(service.keywords)
+        ? service.keywords.filter(
+            (keyword): keyword is string => typeof keyword === "string",
+          )
+        : [],
       active: service.active,
     })),
     serviceSubjects: serviceSubjects.map((subject) => ({

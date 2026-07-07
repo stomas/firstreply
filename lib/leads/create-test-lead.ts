@@ -3,6 +3,7 @@ import { AppConfigError, AppValidationError } from "@/lib/app-errors";
 import { AI_NOT_CONFIGURED } from "@/lib/ai/gap-filler";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import {
+  classifyParsedLeadService,
   parseTestInquiryLead,
   resolveParsedLeadRequirements,
 } from "@/lib/leads/parse-lead";
@@ -45,7 +46,11 @@ export async function createTestLeadAndResponse(
   ensureTestingAllowed(rules, input);
 
   const parsedLead = resolveParsedLeadRequirements(
-    parseTestInquiryLead(input),
+    classifyParsedLeadService(
+      parseTestInquiryLead(input),
+      input.inquiryMessage,
+      rules,
+    ),
     rules,
   );
   const lead = await prisma.lead.create({
@@ -156,7 +161,7 @@ function ensureTestingAllowed(
     (service) => service.id === input.serviceId && service.active,
   );
 
-  if (!serviceExists) {
+  if (input.serviceId?.trim() && !serviceExists) {
     throw new AppValidationError(
       "Pasirinkta paslauga neaktyvi arba neegzistuoja.",
     );

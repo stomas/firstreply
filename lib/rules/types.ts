@@ -3,6 +3,8 @@ export type RuleJson = Record<string, unknown> | Array<unknown> | null;
 export type ServiceRule = {
   id: string;
   name: string;
+  label?: string | null;
+  keywords?: string[];
   active: boolean;
 };
 

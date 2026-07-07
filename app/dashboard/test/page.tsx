@@ -26,7 +26,7 @@ export default async function DashboardTestPage() {
     const canTest = counts.activeServices > 0 && hasRules;
 
     return (
-      <main className="min-h-screen bg-page px-6 py-8">
+      <main className="min-h-screen bg-page px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-content">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -36,7 +36,7 @@ export default async function DashboardTestPage() {
               >
                 Atgal į dashboard
               </Link>
-              <h1 className="mt-2 text-3xl font-extrabold text-ink">
+              <h1 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
                 Testavimo įrankis
               </h1>
             </div>
@@ -60,7 +60,7 @@ export default async function DashboardTestPage() {
   } catch (error) {
     console.error("[dashboard-test] failed to load:", error);
     return (
-      <main className="min-h-screen bg-page px-6 py-8">
+      <main className="min-h-screen bg-page px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-content">
           <DashboardError message={getAppErrorMessage(error)} />
         </div>
@@ -87,14 +87,16 @@ function RuleCountGrid({
   ] as const;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
       {items.map(([label, value]) => (
         <div
           key={label}
-          className="rounded-lg border border-line bg-white p-4 shadow-cardsoft"
+          className="rounded-lg border border-line bg-white p-3 shadow-cardsoft sm:p-4"
         >
-          <div className="text-sm font-medium text-ink-soft">{label}</div>
-          <div className="mt-2 text-2xl font-extrabold text-ink">{value}</div>
+          <div className="text-xs font-bold uppercase text-ink-soft sm:text-sm sm:normal-case">
+            {label}
+          </div>
+          <div className="mt-1 text-2xl font-extrabold text-ink">{value}</div>
         </div>
       ))}
     </div>

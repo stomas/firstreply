@@ -6,6 +6,7 @@ import {
 import { AppConfigError } from "@/lib/app-errors";
 import { decideLeadResponse } from "@/lib/decision/engine";
 import {
+  classifyParsedLeadService,
   parseTestInquiryLead,
   resolveParsedLeadRequirements,
   toDecisionEngineInput,
@@ -29,6 +30,7 @@ export type TraceStageStatus = "ok" | "skipped" | "manual_review";
 export type LeadProcessingTraceStage = {
   key:
     | "parse"
+    | "service_classification"
     | "resolver_pass_1"
     | "ai_gap_filler"
     | "resolver_pass_2"
@@ -91,6 +93,29 @@ export async function runTestLeadPipeline({
       },
       facts: parsedLead.facts,
     },
+  });
+
+  parsedLead = classifyParsedLeadService(
+    parsedLead,
+    input.inquiryMessage,
+    rules,
+  );
+  trace.stages.push({
+    key: "service_classification",
+    label: "Service classification",
+    status: parsedLead.serviceId ? "ok" : "manual_review",
+    summary: parsedLead.serviceId
+      ? `Paslauga nustatyta: ${parsedLead.serviceId}`
+      : "Paslauga nenustatyta arba dviprasmiška",
+    data: parsedLead.serviceClassification
+      ? {
+          id: parsedLead.serviceClassification.id,
+          confidence: parsedLead.serviceClassification.confidence,
+          source: parsedLead.serviceClassification.source,
+          reason: parsedLead.serviceClassification.reason,
+          candidates: parsedLead.serviceClassification.candidates,
+        }
+      : {},
   });
 
   parsedLead = resolveParsedLeadRequirements(parsedLead, rules);
@@ -288,7 +313,7 @@ function manualReviewDecision(reason: "AI_PARSE_FAILED"): DecisionResult {
 
 function manualReviewEvaluation(params: {
   leadId: string;
-  serviceId: string;
+  serviceId: string | null;
   reason: string;
 }): LeadEvaluationResult {
   return {
@@ -307,7 +332,7 @@ function manualReviewEvaluation(params: {
 
 function toLeadEvaluationResult(params: {
   leadId: string;
-  serviceId: string;
+  serviceId: string | null;
   decisionResult: DecisionResult;
   composed: ComposedResponseDraft;
   rules: ClientRules;

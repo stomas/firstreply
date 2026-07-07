@@ -8,7 +8,7 @@ const optionalText = z
   .or(z.literal(""));
 
 export const testInquirySchema = z.object({
-  serviceId: z.string().trim().min(1, "Pasirinkite paslaugą."),
+  serviceId: optionalText,
   customerName: optionalText,
   customerEmail: z
     .string()

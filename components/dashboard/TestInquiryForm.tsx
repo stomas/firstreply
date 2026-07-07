@@ -73,10 +73,10 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,520px)_1fr]">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(360px,480px)_minmax(0,1fr)]">
       <form
         onSubmit={onSubmit}
-        className="rounded-lg border border-line bg-white p-5 shadow-cardsoft"
+        className="min-w-0 rounded-lg border border-line bg-white p-4 shadow-cardsoft sm:p-5"
       >
         <div className="grid gap-4">
           <FieldError message={error} />
@@ -85,10 +85,9 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
             Paslauga
             <select
               name="serviceId"
-              required
-              className="rounded-lg border border-line bg-white px-3 py-2 font-normal"
+              className="min-w-0 rounded-lg border border-line bg-white px-3 py-2 font-normal"
             >
-              <option value="">Pasirinkite</option>
+              <option value="">Auto-detect iš užklausos</option>
               {services.map((service) => (
                 <option key={service.id} value={service.id}>
                   {service.name}
@@ -123,8 +122,8 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
             <textarea
               name="inquiryMessage"
               required
-              rows={8}
-              className="resize-y rounded-lg border border-line px-3 py-2 font-normal leading-relaxed"
+              rows={5}
+              className="min-h-32 resize-y rounded-lg border border-line px-3 py-2 font-normal leading-relaxed"
             />
             <FieldError message={fields.inquiryMessage} />
           </label>
@@ -141,7 +140,7 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-lg bg-brand px-5 py-3 text-sm font-bold text-white shadow-cta hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-lg bg-brand px-5 py-3 text-sm font-bold text-white shadow-cta hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? "Testuojama..." : "Testuoti atsakymą"}
           </button>
@@ -151,14 +150,14 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
       {result ? (
         <TestResult result={result} />
       ) : errorTrace ? (
-        <div className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
+        <div className="min-w-0 rounded-lg border border-line bg-white p-4 shadow-cardsoft sm:p-5">
           <div className="text-sm font-bold text-warn-text">
             Užklausa sustojo prieš rezultatą
           </div>
           <TracePanel trace={errorTrace} className="mt-4" />
         </div>
       ) : (
-        <div className="rounded-lg border border-line bg-white p-5 text-sm text-ink-soft shadow-cardsoft">
+        <div className="min-w-0 rounded-lg border border-line bg-white p-4 text-sm text-ink-soft shadow-cardsoft sm:p-5">
           Rezultatas atsiras sukūrus testinį lead įrašą.
         </div>
       )}
@@ -183,7 +182,7 @@ function TextInput({
       <input
         name={name}
         type={type}
-        className="rounded-lg border border-line px-3 py-2 font-normal"
+        className="min-w-0 rounded-lg border border-line px-3 py-2 font-normal"
       />
       <FieldError message={error} />
     </label>
@@ -192,9 +191,13 @@ function TextInput({
 
 function Checkbox({ name, label }: { name: string; label: string }) {
   return (
-    <label className="flex items-center gap-2">
-      <input name={name} type="checkbox" className="h-4 w-4 accent-brand" />
-      <span>{label}</span>
+    <label className="flex min-w-0 items-start gap-2">
+      <input
+        name={name}
+        type="checkbox"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
+      />
+      <span className="min-w-0 leading-snug">{label}</span>
     </label>
   );
 }

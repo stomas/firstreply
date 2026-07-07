@@ -5,6 +5,10 @@ import type {
   ExtractedContacts,
   ExtractedFact,
 } from "@/lib/extractor/types";
+import {
+  classifyLeadService,
+  type ServiceClassification,
+} from "@/lib/leads/service-classifier";
 import { resolveRequirements } from "@/lib/requirements/resolve-requirements";
 import type {
   ClientRules,
@@ -15,7 +19,8 @@ import type {
 
 export type ParsedLeadData = {
   schemaVersion: "lead_parse_v2";
-  serviceId: string;
+  serviceId: string | null;
+  serviceClassification: ServiceClassification | null;
   city: string | null;
   asksPrice: boolean;
   asksAvailability: boolean;
@@ -36,7 +41,8 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
 
   return {
     schemaVersion: "lead_parse_v2",
-    serviceId: input.serviceId,
+    serviceId: normalizeOptional(input.serviceId),
+    serviceClassification: null,
     city:
       normalizeOptional(input.city) ??
       extraction.location?.adminUnit.label ??
@@ -54,6 +60,24 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
     resolvedRequirements: {},
     unresolvedRequirements: [],
     conflicts: [],
+  };
+}
+
+export function classifyParsedLeadService(
+  parsed: ParsedLeadData,
+  message: string,
+  rules: ClientRules,
+): ParsedLeadData {
+  const serviceClassification = classifyLeadService({
+    requestedServiceId: parsed.serviceId,
+    message,
+    rules,
+  });
+
+  return {
+    ...parsed,
+    serviceId: serviceClassification.id,
+    serviceClassification,
   };
 }
 
@@ -97,11 +121,16 @@ export function toDecisionEngineInput(params: {
   parsed: ParsedLeadData;
   rules: ClientRules;
 }): DecisionEngineInput {
+  const serviceClassification = params.parsed.serviceClassification;
+
   return {
     service: {
       id: params.parsed.serviceId,
-      confidence: 1,
-      candidates: [{ id: params.parsed.serviceId, confidence: 1 }],
+      confidence: serviceClassification?.confidence ?? 0,
+      candidates: serviceClassification?.candidates.map((candidate) => ({
+        id: candidate.id,
+        confidence: candidate.confidence,
+      })),
     },
     location: params.parsed.location,
     intents: {

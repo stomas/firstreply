@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseTestInquiryLead } from "../lib/leads/parse-lead";
-import type { TestInquiryInput } from "../lib/leads/test-inquiry-schema";
+import {
+  testInquirySchema,
+  type TestInquiryInput,
+} from "../lib/leads/test-inquiry-schema";
 
 const baseInput: TestInquiryInput = {
   serviceId: "service_dev_segmentines_tvoros",
@@ -24,5 +27,14 @@ describe("parseTestInquiryLead", () => {
 
     assert.equal(lengthFact?.value, 45);
     assert.equal(Object.hasOwn(parsed, "fence_length_m"), false);
+  });
+
+  it("allows an empty service id so inbound-email tests can auto-detect it", () => {
+    const result = testInquirySchema.safeParse({
+      ...baseInput,
+      serviceId: "",
+    });
+
+    assert.equal(result.success, true);
   });
 });
