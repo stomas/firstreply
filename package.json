@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:shadow-report": "tsx scripts/shadow-report.ts",
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

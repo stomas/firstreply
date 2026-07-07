@@ -14,6 +14,12 @@ import {
 } from "@/lib/leads/parse-lead";
 import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
 import {
+  isShadowEnabled,
+  runShadowParse,
+  type ShadowDiff,
+  type ShadowParseResult,
+} from "@/lib/ai/shadow-parse";
+import {
   composeResponseDraft,
   type ComposedResponseDraft,
 } from "@/lib/response/composer";
@@ -36,7 +42,8 @@ export type LeadProcessingTraceStage = {
     | "ai_gap_filler"
     | "resolver_pass_2"
     | "decision"
-    | "composer";
+    | "composer"
+    | "shadow_parse";
   label: string;
   status: TraceStageStatus;
   summary: string;
@@ -58,6 +65,8 @@ export type TestLeadPipelineResult = {
   manualReviewReason: string | null;
   evaluation: LeadEvaluationResult;
   trace: LeadProcessingTrace;
+  shadowParseResult?: ShadowParseResult;
+  shadowDiff?: ShadowDiff;
 };
 
 type RunTestLeadPipelineInput = {
@@ -290,6 +299,73 @@ export async function runTestLeadPipeline({
     },
   });
 
+  // Shadow AI parse — TIK matavimui, rodomas tik kai flag įjungtas. Rezultatas
+  // niekur nenaudojamas sprendimams; bet kokia klaida ignoruojama.
+  let shadowParseResult: ShadowParseResult | undefined;
+  let shadowDiff: ShadowDiff | undefined;
+  const shadowEnv = aiOptions.env ?? process.env;
+  if (isShadowEnabled(shadowEnv)) {
+    try {
+      const outcome = await runShadowParse(
+        {
+          rawText: input.inquiryMessage,
+          requirements: rules.decisionRequirements.filter(
+            (requirement) =>
+              requirement.active &&
+              requirement.serviceId === parsedLead.serviceId,
+          ),
+          subjects: (rules.serviceSubjects ?? []).filter(
+            (subject) => subject.serviceId === parsedLead.serviceId,
+          ),
+          mainResolved: parsedLead.resolvedRequirements,
+        },
+        aiOptions,
+      );
+
+      if (outcome.status === "ok") {
+        shadowParseResult = outcome.shadowParseResult;
+        shadowDiff = outcome.shadowDiff;
+      }
+
+      trace.stages.push({
+        key: "shadow_parse",
+        label: "Shadow AI parse",
+        status:
+          outcome.status === "ok"
+            ? "ok"
+            : outcome.status === "skipped"
+              ? "skipped"
+              : "rejected",
+        summary:
+          outcome.status === "ok"
+            ? `shadow — nenaudojama sprendimui; diff: ${Object.keys(outcome.shadowDiff).length} raktų`
+            : `shadow — nenaudojama sprendimui; ${outcome.reason}`,
+        data: {
+          note: "shadow — nenaudojama sprendimui",
+          status: outcome.status,
+          reason: outcome.status === "ok" ? null : outcome.reason,
+          shadowDiff: outcome.status === "ok" ? outcome.shadowDiff : null,
+          shadowParseResult:
+            outcome.status === "ok" ? outcome.shadowParseResult : null,
+          rawResponses: "rawResponses" in outcome ? outcome.rawResponses : [],
+        },
+      });
+    } catch (error) {
+      trace.stages.push({
+        key: "shadow_parse",
+        label: "Shadow AI parse",
+        status: "rejected",
+        summary: "shadow — nenaudojama sprendimui; AI klaida (ignoruota)",
+        data: {
+          note: "shadow — nenaudojama sprendimui",
+          status: "rejected",
+          reason: "AI_ERROR",
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
   const responseStatus = composed.draftText ? "ready" : "manual_review";
 
   return {
@@ -310,6 +386,8 @@ export async function runTestLeadPipeline({
       parsedLead,
     }),
     trace,
+    shadowParseResult,
+    shadowDiff,
   };
 }
 

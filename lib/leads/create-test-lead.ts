@@ -104,6 +104,15 @@ export async function createTestLeadAndResponse(
       parseResult: pipeline.parsedLead as Prisma.InputJsonObject,
       decisionResult:
         pipeline.decisionResult as unknown as Prisma.InputJsonObject,
+      ...(pipeline.shadowParseResult !== undefined
+        ? {
+            shadowParseResult:
+              pipeline.shadowParseResult as unknown as Prisma.InputJsonObject,
+          }
+        : {}),
+      ...(pipeline.shadowDiff !== undefined
+        ? { shadowDiff: pipeline.shadowDiff as unknown as Prisma.InputJsonObject }
+        : {}),
     },
   });
 

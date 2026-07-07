@@ -189,6 +189,8 @@ model Lead {
   hasAttachments     Boolean?  @map("has_attachments")
   manualReviewReason String?   @map("manual_review_reason")
   errorCode          String?   @map("error_code")
+  shadowParseResult  Json?     @map("shadow_parse_result")
+  shadowDiff         Json?     @map("shadow_diff")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
