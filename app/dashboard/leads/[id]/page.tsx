@@ -60,7 +60,7 @@ export default async function LeadDetailPage({
                 {lead.responses.map((response) => (
                   <div
                     key={response.id}
-                    className="rounded-lg border border-line bg-white p-5 shadow-cardsoft"
+                    className="min-w-0 rounded-lg border border-line bg-white p-5 shadow-cardsoft"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="text-sm font-bold text-ink">
@@ -213,7 +213,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
+    <section className="min-w-0 rounded-lg border border-line bg-white p-5 shadow-cardsoft">
       <h2 className="text-lg font-extrabold text-ink">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
