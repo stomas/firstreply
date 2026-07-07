@@ -18,16 +18,39 @@ export function isShadowEnabled(env: AiEnvironment = process.env): boolean {
   return env.SHADOW_AI_PARSE === "true";
 }
 
-const shadowFactSchema = z.object({
+// AI kartais grąžina range reikšmę kaip objektą {min,max} (pvz. „apie 1.5-1.7").
+// Normalizuojam į valueMin/valueMax (kaip likusioje sistemoje), kad shadow
+// nekristų su AI_PARSE_FAILED.
+const shadowFactSchema = z.preprocess((raw) => {
+  if (!raw || typeof raw !== "object") {
+    return raw;
+  }
+  const fact = raw as Record<string, unknown>;
+  const value = fact.value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const range = value as Record<string, unknown>;
+    if (typeof range.min === "number" || typeof range.max === "number") {
+      return {
+        ...fact,
+        value: null,
+        valueMin: typeof range.min === "number" ? range.min : null,
+        valueMax: typeof range.max === "number" ? range.max : null,
+      };
+    }
+  }
+  return raw;
+}, z.object({
   requirementKey: z.string(),
   kind: z.string(),
   subject: z.string().nullable().optional(),
   dimension: z.string().nullable().optional(),
   value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
+  valueMin: z.number().nullable().optional(),
+  valueMax: z.number().nullable().optional(),
   unit: z.string().nullable().optional(),
   evidence: z.string(),
   confidence: z.number().min(0).max(1),
-});
+}));
 
 const shadowResponseSchema = z.object({
   facts: z.array(shadowFactSchema).default([]),
@@ -147,12 +170,12 @@ export function computeShadowDiff(
   const diff: ShadowDiff = {};
   for (const key of keys) {
     const main = mainResolved[key] ?? null;
-    const mainValue = main ? main.value : null;
+    const mainValue = toComparable(main);
     const shadow = shadowByKey.get(key) ?? null;
-    const shadowValue = shadow ? shadow.value : null;
+    const shadowValue = toComparable(shadow);
 
-    const hasMain = mainValue !== null && mainValue !== undefined;
-    const hasShadow = shadowValue !== null && shadowValue !== undefined;
+    const hasMain = mainValue !== null;
+    const hasShadow = shadowValue !== null;
 
     let status: ShadowDiffStatus;
     if (hasMain && hasShadow) {
@@ -171,11 +194,51 @@ export function computeShadowDiff(
   return diff;
 }
 
+type ValueLike = {
+  value?: unknown;
+  valueMin?: number | null;
+  valueMax?: number | null;
+};
+
+// Reikšmė palyginimui: skaliaras arba range {min,max}; jei nieko — null.
+function toComparable(source: ValueLike | null): unknown {
+  if (!source) {
+    return null;
+  }
+  if (source.value !== null && source.value !== undefined) {
+    return source.value;
+  }
+  const min = source.valueMin ?? null;
+  const max = source.valueMax ?? null;
+  if (min !== null || max !== null) {
+    return { min, max };
+  }
+  return null;
+}
+
 function valuesEqual(left: unknown, right: unknown): boolean {
   if (typeof left === "number" && typeof right === "number") {
     return Math.abs(left - right) < 0.001;
   }
+  if (isRange(left) && isRange(right)) {
+    return numbersEqual(left.min, right.min) && numbersEqual(left.max, right.max);
+  }
   return left === right;
+}
+
+function isRange(value: unknown): value is { min: number | null; max: number | null } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ("min" in value || "max" in value)
+  );
+}
+
+function numbersEqual(left: number | null, right: number | null): boolean {
+  if (left === null || right === null) {
+    return left === right;
+  }
+  return Math.abs(left - right) < 0.001;
 }
 
 function buildShadowRequest(
@@ -185,7 +248,7 @@ function buildShadowRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi teksto faktų ekstraktorius (shadow matavimas). Iš kliento teksto ištrauk VISUS faktus, atitinkančius pateiktus requirements. Grąžink TIK validų JSON pagal schemą. Taisyklės: 1. NEKURK reikšmių, kurių nėra tekste. 2. Kiekvienam faktui privalomas evidence — pažodinis teksto fragmentas. 3. requirementKey TIK iš pateikto sąrašo. 4. Jei fakto tekste nėra, jo negrąžink.",
+      "Tu esi teksto faktų ekstraktorius (shadow matavimas). Iš kliento teksto ištrauk VISUS faktus, atitinkančius pateiktus requirements. Grąžink TIK validų JSON pagal schemą. Taisyklės: 1. NEKURK reikšmių, kurių nėra tekste. 2. Kiekvienam faktui privalomas evidence — pažodinis teksto fragmentas. 3. requirementKey TIK iš pateikto sąrašo. 4. Jei fakto tekste nėra, jo negrąžink. 5. Tiksli reikšmė → value (skaičius). Rėžis (pvz. „apie 1.5-1.7“) → value=null ir valueMin/valueMax skaičiai; NEGRĄŽINK value kaip objekto.",
     user: JSON.stringify({
       mode: "shadow_full_parse",
       rawText: input.rawText,
@@ -207,6 +270,8 @@ function buildShadowRequest(
             subject: "fence",
             dimension: "length",
             value: 0.0,
+            valueMin: null,
+            valueMax: null,
             unit: "m",
             evidence: "pažodinė ištrauka",
             confidence: 0.0,

@@ -100,6 +100,27 @@ describe("computeShadowDiff", () => {
     assert.equal(diff.fence_height.mainValue, 1.7);
     assert.equal(diff.fence_height.shadowValue, 1.5);
   });
+
+  it("handles range values (valueMin/valueMax) on the shadow side", () => {
+    const diff = computeShadowDiff(
+      { fence_height: resolved(1.7) },
+      [
+        {
+          requirementKey: "fence_height",
+          kind: "measurement",
+          value: null,
+          valueMin: 1.5,
+          valueMax: 1.7,
+          evidence: "apie 1.5-1.7",
+          confidence: 0.9,
+        },
+      ],
+      [requirement("fence_height")],
+    );
+
+    assert.equal(diff.fence_height.status, "value_diff");
+    assert.deepEqual(diff.fence_height.shadowValue, { min: 1.5, max: 1.7 });
+  });
 });
 
 describe("shadow parse pipeline integration", () => {
@@ -181,6 +202,59 @@ describe("shadow parse pipeline integration", () => {
     assert.equal(shadowStage?.status, "ok");
     assert.equal(result.shadowDiff?.fence_length.status, "match");
     assert.equal(result.shadowDiff?.fence_height.status, "value_diff");
+  });
+
+  it("normalizes a range value returned as an object instead of failing to parse", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        inquiryMessage:
+          "Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje. Kiek kainuotų?",
+      },
+      rules,
+      leadId: "shadow_range",
+      isTest: true,
+      aiOptions: {
+        env: shadowEnv,
+        callModel: async () =>
+          JSON.stringify({
+            facts: [
+              {
+                requirementKey: "fence_length",
+                kind: "measurement",
+                subject: "fence",
+                dimension: "length",
+                value: 45,
+                unit: "m",
+                evidence: "45 metrai",
+                confidence: 0.99,
+              },
+              {
+                requirementKey: "fence_height",
+                kind: "measurement",
+                subject: "fence",
+                dimension: "height",
+                value: { min: 1.5, max: 1.7 },
+                unit: "m",
+                evidence: "1.7 m aukščio",
+                confidence: 0.93,
+              },
+            ],
+          }),
+      },
+    });
+
+    const shadowStage = result.trace.stages.find(
+      (stage) => stage.key === "shadow_parse",
+    );
+
+    assert.equal(shadowStage?.status, "ok");
+    assert.equal(result.shadowDiff?.fence_length.status, "match");
+    assert.equal(result.shadowDiff?.fence_height.status, "value_diff");
+    assert.deepEqual(result.shadowDiff?.fence_height.shadowValue, {
+      min: 1.5,
+      max: 1.7,
+    });
   });
 
   it("never breaks the main pipeline when the shadow AI call throws", async () => {
