@@ -307,7 +307,8 @@ describe("golden lead pipeline", () => {
       input: {
         ...baseInput(),
         serviceId: "",
-        inquiryMessage: "Sveiki, reikia aptvert sklypa nuo kaimyno. Kiek kainuotų?",
+        inquiryMessage:
+          "Sveiki, reikia aptvert sklypa nuo kaimyno. Kiek kainuotų?",
       },
       rules,
       leadId: "golden_ai_service",

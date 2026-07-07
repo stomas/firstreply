@@ -73,7 +73,9 @@ export const leadSchema = z.object({
     errorMap: () => ({ message: "Pasirinkite užklausų kiekį." }),
   }),
   services: z
-    .string({ required_error: "Parašykite, kokias paslaugas norite automatizuoti." })
+    .string({
+      required_error: "Parašykite, kokias paslaugas norite automatizuoti.",
+    })
     .trim()
     .min(3, "Parašykite bent vieną paslaugą.")
     .max(500, "Paslaugų aprašymas per ilgas (maks. 500 simbolių)."),

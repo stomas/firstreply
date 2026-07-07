@@ -21,18 +21,21 @@ export function isShadowEnabled(env: AiEnvironment = process.env): boolean {
 
 // Range reikšmės normalizuojamos bendra normalizeRangeFactValue (openai-client),
 // kad shadow nekristų su AI_PARSE_FAILED.
-const shadowFactSchema = z.preprocess(normalizeRangeFactValue, z.object({
-  requirementKey: z.string(),
-  kind: z.string(),
-  subject: z.string().nullable().optional(),
-  dimension: z.string().nullable().optional(),
-  value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
-  valueMin: z.number().nullable().optional(),
-  valueMax: z.number().nullable().optional(),
-  unit: z.string().nullable().optional(),
-  evidence: z.string(),
-  confidence: z.number().min(0).max(1),
-}));
+const shadowFactSchema = z.preprocess(
+  normalizeRangeFactValue,
+  z.object({
+    requirementKey: z.string(),
+    kind: z.string(),
+    subject: z.string().nullable().optional(),
+    dimension: z.string().nullable().optional(),
+    value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
+    valueMin: z.number().nullable().optional(),
+    valueMax: z.number().nullable().optional(),
+    unit: z.string().nullable().optional(),
+    evidence: z.string(),
+    confidence: z.number().min(0).max(1),
+  }),
+);
 
 const shadowResponseSchema = z.object({
   facts: z.array(shadowFactSchema).default([]),
@@ -203,12 +206,16 @@ function valuesEqual(left: unknown, right: unknown): boolean {
     return Math.abs(left - right) < 0.001;
   }
   if (isRange(left) && isRange(right)) {
-    return numbersEqual(left.min, right.min) && numbersEqual(left.max, right.max);
+    return (
+      numbersEqual(left.min, right.min) && numbersEqual(left.max, right.max)
+    );
   }
   return left === right;
 }
 
-function isRange(value: unknown): value is { min: number | null; max: number | null } {
+function isRange(
+  value: unknown,
+): value is { min: number | null; max: number | null } {
   return (
     typeof value === "object" &&
     value !== null &&

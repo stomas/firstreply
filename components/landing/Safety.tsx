@@ -74,7 +74,10 @@ export function Safety() {
                   brand ? "border-brand-tintborder" : "border-warn-border",
                 )}
               >
-                <SafetyIcon icon={c.icon} stroke={brand ? "#0F8F6A" : "#8A5A00"} />
+                <SafetyIcon
+                  icon={c.icon}
+                  stroke={brand ? "#0F8F6A" : "#8A5A00"}
+                />
               </div>
               <h3 className="mt-[15px] text-[18px] font-bold tracking-[-0.01em] text-ink">
                 {c.title}

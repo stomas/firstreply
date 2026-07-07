@@ -45,8 +45,10 @@ export function normalizeRangeFactValue(raw: unknown): unknown {
   return {
     ...fact,
     value: null,
-    valueMin: typeof range.min === "number" ? range.min : (fact.valueMin ?? null),
-    valueMax: typeof range.max === "number" ? range.max : (fact.valueMax ?? null),
+    valueMin:
+      typeof range.min === "number" ? range.min : (fact.valueMin ?? null),
+    valueMax:
+      typeof range.max === "number" ? range.max : (fact.valueMax ?? null),
   };
 }
 

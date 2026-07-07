@@ -25,7 +25,17 @@ export function Solution() {
             className="rounded-[20px] border border-line bg-white p-6 shadow-cardsoft"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-brand-tintborder bg-brand-tint">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg
+                width="19"
+                height="19"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#0F8F6A"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </div>
@@ -69,7 +79,9 @@ export function Solution() {
           <div className="border-b border-line-soft p-[clamp(20px,3vw,28px)] lg:border-b-0 lg:border-r">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-base font-bold text-ink">Leadų lenta</h3>
-              <span className="text-xs text-ink-muted">Šią savaitę · 4 naujos</span>
+              <span className="text-xs text-ink-muted">
+                Šią savaitę · 4 naujos
+              </span>
             </div>
             <div className="mt-4 flex flex-col gap-[10px]">
               {SOLUTION.leads.map((l) => (
@@ -130,11 +142,30 @@ export function Solution() {
                     )}
                   >
                     {w.free ? (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#0F8F6A"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#8A5A00"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        aria-hidden
+                      >
                         <line x1="6" y1="12" x2="18" y2="12" />
                       </svg>
                     )}

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-20 sm:px-6">
-      <Link href="/" className="text-sm font-medium text-brand-600">
+      <Link href="/" className="text-brand-600 text-sm font-medium">
         ← Grįžti į pradžią
       </Link>
       <h1 className="mt-6 text-3xl font-bold text-ink">Privatumo politika</h1>

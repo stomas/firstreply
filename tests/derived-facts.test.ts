@@ -50,7 +50,12 @@ const rules: ClientRules = {
   ],
   availabilityRules: [],
   locationZones: [
-    { adminUnitCode: "vilniaus_m_sav", zone: "zone_a", travelFeeEur: 0, served: true },
+    {
+      adminUnitCode: "vilniaus_m_sav",
+      zone: "zone_a",
+      travelFeeEur: 0,
+      served: true,
+    },
   ],
   scheduleRules: [{ rule: { type: "lead_time_weeks", min: 3, max: 5 } }],
   autosendPolicies: [
@@ -97,11 +102,12 @@ type AiFact = {
 
 // AI mock'as, kuris „supranta" tekstą: randa kiekio ir per-unit ilgio atomus,
 // grąžina derived fact su computation. Kodas (verifier) perskaičiuoja.
-function computationMock(opts?: { valueOverride?: number; confidence?: number }) {
+function computationMock(opts?: {
+  valueOverride?: number;
+  confidence?: number;
+}) {
   const confidence = opts?.confidence ?? 0.9;
-  return async (request: {
-    user: string;
-  }): Promise<string> => {
+  return async (request: { user: string }): Promise<string> => {
     const payload = JSON.parse(request.user) as {
       rawText: string;
       existingFacts: AiFact[];

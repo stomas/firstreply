@@ -16,7 +16,9 @@ export function DemoExamples() {
               className="rounded-[22px] border border-line bg-white p-[clamp(20px,3vw,30px)] shadow-[0_6px_22px_-14px_rgba(16,32,27,0.2)]"
             >
               <div className="flex flex-wrap items-center gap-[10px]">
-                <span className="text-[13px] font-bold text-ink">{d.label}</span>
+                <span className="text-[13px] font-bold text-ink">
+                  {d.label}
+                </span>
                 <span
                   className={cn(
                     "rounded-full border px-3 py-[5px] text-xs font-bold",
@@ -65,7 +67,18 @@ export function DemoExamples() {
 
               {d.note ? (
                 <div className="mt-4 flex items-start gap-[10px] rounded-xl border border-warn-border bg-warn-bg px-[15px] py-[13px]">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A5A00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-px flex-none" aria-hidden>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#8A5A00"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="mt-px flex-none"
+                    aria-hidden
+                  >
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                     <line x1="12" y1="9" x2="12" y2="13" />
                     <line x1="12" y1="17" x2="12.01" y2="17" />

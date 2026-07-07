@@ -6,7 +6,11 @@ export function Pricing() {
 
   return (
     <Section id="kaina" tone="tint" maxWidth="1000px">
-      <SectionHeading eyebrow={PRICING.eyebrow} title={PRICING.title} centered />
+      <SectionHeading
+        eyebrow={PRICING.eyebrow}
+        title={PRICING.title}
+        centered
+      />
 
       <div className="mt-11 grid items-start gap-6 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
         {/* Starter — active */}
@@ -41,8 +45,22 @@ export function Pricing() {
           </a>
           <div className="mt-6 flex flex-col gap-[11px] border-t border-line-soft pt-5">
             {starter.features.map((f) => (
-              <div key={f} className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-none" aria-hidden>
+              <div
+                key={f}
+                className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#0F8F6A"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mt-0.5 flex-none"
+                  aria-hidden
+                >
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
                 <span>{f}</span>
@@ -68,15 +86,31 @@ export function Pricing() {
                 {pro.monthlyNote}
               </span>
             </div>
-            <div className="mt-1 text-[15px] text-ink-muted">{pro.subtitle}</div>
+            <div className="mt-1 text-[15px] text-ink-muted">
+              {pro.subtitle}
+            </div>
           </div>
           <div className="mt-[22px] block cursor-not-allowed rounded-[14px] border border-line bg-line-soft py-[15px] text-center text-base font-bold text-ink-muted">
             {pro.ctaLabel}
           </div>
           <div className="mt-6 flex flex-col gap-[11px] border-t border-line pt-5">
             {pro.features.map((f) => (
-              <div key={f} className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink-soft">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7A8A85" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-none" aria-hidden>
+              <div
+                key={f}
+                className="flex items-start gap-[11px] text-[14.5px] leading-[1.45] text-ink-soft"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#7A8A85"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mt-0.5 flex-none"
+                  aria-hidden
+                >
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <span>{f}</span>

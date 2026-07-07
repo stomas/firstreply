@@ -190,6 +190,7 @@ export async function classifyLeadServiceWithFallback(
     Boolean(topCandidate) &&
     Boolean(secondCandidate) &&
     topCandidate.score >= 2 &&
+    secondCandidate.score >= 2 &&
     topCandidate.score - secondCandidate.score < 2;
   if (genuineTie) {
     return {

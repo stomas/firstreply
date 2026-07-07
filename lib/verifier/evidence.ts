@@ -2,6 +2,8 @@ export type EvidenceVerificationInput = {
   originalText: string;
   evidence: string;
   value?: unknown;
+  valueMin?: unknown;
+  valueMax?: unknown;
 };
 
 export type EvidenceVerificationResult =
@@ -12,6 +14,8 @@ export function verifyAiEvidence({
   originalText,
   evidence,
   value,
+  valueMin,
+  valueMax,
 }: EvidenceVerificationInput): EvidenceVerificationResult {
   const normalizedOriginal = normalizeText(originalText);
   const normalizedEvidence = normalizeText(evidence);
@@ -23,11 +27,13 @@ export function verifyAiEvidence({
     return { ok: false, reason: "EVIDENCE_NOT_FOUND" };
   }
 
-  if (
-    typeof value === "number" &&
-    !evidenceContainsNumber(normalizedEvidence, value)
-  ) {
-    return { ok: false, reason: "VALUE_NOT_IN_EVIDENCE" };
+  for (const numericValue of [value, valueMin, valueMax]) {
+    if (
+      typeof numericValue === "number" &&
+      !evidenceContainsNumber(normalizedEvidence, numericValue)
+    ) {
+      return { ok: false, reason: "VALUE_NOT_IN_EVIDENCE" };
+    }
   }
 
   return { ok: true };

@@ -24,14 +24,21 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-page/[0.82] backdrop-blur-md">
       <div className="mx-auto flex h-[70px] max-w-content items-center justify-between gap-4 px-6">
-        <a href="#hero" className="flex items-center gap-[11px]" aria-label={SITE.name}>
+        <a
+          href="#hero"
+          className="flex items-center gap-[11px]"
+          aria-label={SITE.name}
+        >
           <LogoMark className="h-[38px] w-[38px] text-[15px] tracking-[-0.02em]" />
           <span className="font-display text-[19px] font-extrabold tracking-[-0.02em] text-ink">
             {SITE.name}
           </span>
         </a>
 
-        <nav className="hidden items-center gap-[30px] md:flex" aria-label="Pagrindinė navigacija">
+        <nav
+          className="hidden items-center gap-[30px] md:flex"
+          aria-label="Pagrindinė navigacija"
+        >
           {NAV_ITEMS.map((item) => (
             <a
               key={item.href}
@@ -58,7 +65,16 @@ export function Header() {
             aria-label={open ? "Uždaryti meniu" : "Atidaryti meniu"}
             onClick={() => setOpen((v) => !v)}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10201B" strokeWidth="2" strokeLinecap="round" aria-hidden>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#10201B"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
               {open ? (
                 <>
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -83,7 +99,10 @@ export function Header() {
           open ? "block" : "hidden",
         )}
       >
-        <nav className="mx-auto flex max-w-content flex-col gap-1 px-6 py-[14px] pb-5" aria-label="Mobili navigacija">
+        <nav
+          className="mx-auto flex max-w-content flex-col gap-1 px-6 py-[14px] pb-5"
+          aria-label="Mobili navigacija"
+        >
           {NAV_ITEMS.map((item) => (
             <a
               key={item.href}

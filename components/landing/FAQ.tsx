@@ -4,7 +4,11 @@ import { FAQ as FAQ_DATA } from "@/lib/constants";
 export function FAQ() {
   return (
     <Section id="duk" tone="tint" maxWidth="860px">
-      <SectionHeading eyebrow={FAQ_DATA.eyebrow} title={FAQ_DATA.title} centered />
+      <SectionHeading
+        eyebrow={FAQ_DATA.eyebrow}
+        title={FAQ_DATA.title}
+        centered
+      />
 
       <div className="mt-10 flex flex-col gap-3">
         {FAQ_DATA.items.map((item) => (
@@ -17,7 +21,17 @@ export function FAQ() {
                 {item.q}
               </span>
               <span className="flex flex-none text-brand transition-transform group-open:rotate-180">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </span>

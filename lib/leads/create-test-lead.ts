@@ -111,7 +111,10 @@ export async function createTestLeadAndResponse(
           }
         : {}),
       ...(pipeline.shadowDiff !== undefined
-        ? { shadowDiff: pipeline.shadowDiff as unknown as Prisma.InputJsonObject }
+        ? {
+            shadowDiff:
+              pipeline.shadowDiff as unknown as Prisma.InputJsonObject,
+          }
         : {}),
     },
   });

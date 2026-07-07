@@ -49,6 +49,20 @@ describe("verifyAiEvidence", () => {
     });
   });
 
+  it("rejects range evidence when one bound is not in the evidence span", () => {
+    const result = verifyAiEvidence({
+      originalText: "Sveiki, reikia tvoros. Aukštis apie 1.5-1.7.",
+      evidence: "Aukštis apie 1.5-1.7",
+      valueMin: 1.5,
+      valueMax: 2.4,
+    });
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason: "VALUE_NOT_IN_EVIDENCE",
+    });
+  });
+
   // Išvestinių (derived) totalų evidence verifier nebeatpažįsta per regex —
   // 4 iš „2 po 2m" tekste neegzistuoja. Aritmetiką dabar tikrina
   // lib/verifier/computation.ts; derived faktams value nebeperduodamas.

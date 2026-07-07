@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import { verifyComputation } from "../lib/verifier/computation";
 import type { ExtractedFact } from "../lib/extractor/types";
 
-function fact(overrides: Partial<ExtractedFact> & { id: string }): ExtractedFact {
+function fact(
+  overrides: Partial<ExtractedFact> & { id: string },
+): ExtractedFact {
   return {
     id: overrides.id,
     kind: overrides.kind ?? "measurement",

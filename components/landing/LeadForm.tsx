@@ -25,8 +25,7 @@ const initialValues: LeadInput = {
   companyWebsite: "",
 };
 
-const labelClass =
-  "flex flex-col gap-[7px] text-[13px] font-semibold text-ink";
+const labelClass = "flex flex-col gap-[7px] text-[13px] font-semibold text-ink";
 const inputClass =
   "rounded-xl border border-line bg-page px-[14px] py-3 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-muted focus:border-brand focus:bg-white focus:ring-[3px] focus:ring-brand/15";
 const optionalClass = "font-medium text-ink-muted";
@@ -96,7 +95,17 @@ export function LeadForm() {
     return (
       <div role="status" className="px-2 py-6 text-center">
         <div className="mx-auto flex h-[60px] w-[60px] items-center justify-center rounded-full border border-brand-tintborder bg-brand-tint">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F8F6A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#0F8F6A"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </div>
@@ -118,7 +127,11 @@ export function LeadForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-[18px]">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="flex flex-col gap-[18px]"
+    >
       <div className="text-center">
         <h3 className="font-display text-[24px] font-extrabold text-ink">
           {FINAL_CTA.formTitle}

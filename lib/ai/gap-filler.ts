@@ -413,6 +413,8 @@ function applyAiResponse(
       originalText: input.rawText,
       evidence: newFact.evidence,
       value: newFact.value,
+      valueMin: newFact.valueMin,
+      valueMax: newFact.valueMax,
     });
     if (!evidence.ok) {
       rejectedFindings.push({

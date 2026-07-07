@@ -160,6 +160,25 @@ const singleServiceRules: ClientRules = {
   ),
 };
 
+const weakAmbiguityRules: ClientRules = {
+  services: [
+    {
+      id: "service_specific",
+      name: "Specifine",
+      active: true,
+    },
+    {
+      id: "service_generic",
+      name: "Paslauga",
+      active: true,
+    },
+  ],
+  serviceSubjects: [],
+  pricingRules: [],
+  decisionRequirements: [],
+  availabilityRules: [],
+};
+
 describe("classifyLeadServiceWithFallback", () => {
   it("keeps deterministic match first and does not call AI", async () => {
     let called = false;
@@ -211,6 +230,30 @@ describe("classifyLeadServiceWithFallback", () => {
     assert.equal(ai.status, "skipped");
     assert.equal(ai.reason, "AMBIGUOUS");
     assert.equal(called, false);
+  });
+
+  it("still asks AI when the runner-up candidate is weak", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, domina specifine paslauga.",
+        rules: weakAmbiguityRules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_specific",
+            confidence: 0.9,
+            evidence: "specifine",
+          }),
+      },
+    );
+
+    assert.equal(classification.id, "service_specific");
+    assert.equal(classification.source, "ai");
+    assert.equal(ai.status, "ok");
+    assert.equal(ai.reason, "AI_MATCHED");
   });
 
   it("accepts an AI service when confidence and evidence pass on a no-match text", async () => {
