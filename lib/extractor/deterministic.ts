@@ -76,7 +76,10 @@ const wordNumberValues = new Map<string, number>(
 );
 
 const quantityNounPattern =
-  "(?:vartai|vartus|vartų|vartu|vartams|varteliai|vartelius|vartelių|varteliu|stulpai|stulpus|segmentai|segmentus|skydai|skydus|dalys|dalis)";
+  "(?:vartai|vartus|vartų|vartu|vartams|varteliai|vartelius|vartelių|varteliu|stulpai|stulpus|segmentas|segmentai|segmentus|segmentų|segmentu|segmento|segmentams|skydai|skydus|skydų|skydu|dalys|dalis|dalių|daliu)";
+const quantityValuePattern =
+  "(?:\\d+(?:[,.]\\d+)?|vienas|viena|du|dvi|trys|keturi|keturios|penki|penkios|šeši|šešios|sesi|sesios|septyni|septynios|aštuoni|aštuonios|astuoni|astuonios|devyni|devynios|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt)";
+const itemCountUnitPattern = "(?:vnt\\.?|vienetai|vienetus|vienetu|vienetų)";
 
 export function extractDeterministicFacts(
   message: string,
@@ -236,11 +239,11 @@ function extractIntents(message: string): ExtractedIntents {
 
   return {
     asksPrice:
-      /\b(kiek kain|kaina|kainos|kainuotu|kainuot|pasiulym|samata|saskaita)\b/u.test(
+      /\b(kiek\s+kain\w*|kaina|kainos|kainuot\w*|pasiulym\w*|samata|saskaita)\b/u.test(
         normalized,
       ),
     asksAvailability:
-      /\b(kada|termin|pradeti|pradet|galetumete|laisv|montuoti|atvykti)\b/u.test(
+      /\b(kada|termin\w*|pradet\w*|galetumete|laisv\w*|montuot\w*|montuoj\w*|sumontuot\w*|atvykti)\b/u.test(
         normalized,
       ),
     isUrgent: /\b(skubiai|skubu|kuo greiciau|nedelsiant)\b/u.test(normalized),
@@ -356,14 +359,72 @@ function extractMeasurementFacts(
   const spans: Span[] = [];
   const unitPattern =
     "(?:m2|m²|kv\\.?\\s*m\\.?|kvadratų|kvadratu|m|metrai|metrų|metru|metro|metrus|cm|mm|km)";
+  const unitBoundary = "(?=\\s|[,.;?!]|$)";
   const rangeRegex = new RegExp(
-    `\\b(?<approx>apie\\s+|~\\s*)?(?:nuo\\s+)?(?<min>\\d+(?:[,.]\\d+)?)\\s*(?:-|–|iki)\\s*(?<max>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\b`,
+    `\\b(?<approx>apie\\s+|~\\s*)?(?:nuo\\s+)?(?<min>\\d+(?:[,.]\\d+)?)\\s*(?:-|–|iki)\\s*(?<max>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
     "giu",
   );
   const singleRegex = new RegExp(
-    `\\b(?<approx>apie\\s+|~\\s*)?(?<value>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\b`,
+    `\\b(?<approx>apie\\s+|~\\s*)?(?<value>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
     "giu",
   );
+  const perItemRegex = new RegExp(
+    `\\b(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern}\\s+)?${quantityNounPattern}\\s*(?:[,;:–-]\\s*)?(?:kiekvienas\\s+)?(?:po\\s+)?(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
+    "giu",
+  );
+  const perItemNounFirstRegex = new RegExp(
+    `\\b${quantityNounPattern}\\s*(?:[,;:–-]\\s*)?(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern})?\\s*(?:po\\s+)?(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
+    "giu",
+  );
+  const perItemMultiplierRegex = new RegExp(
+    `\\b(?<count>${quantityValuePattern})\\s*(?:x|×)\\s*(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\s+${quantityNounPattern}(?=\\s|[,.;?!]|$)`,
+    "giu",
+  );
+  const perItemReversedRegex = new RegExp(
+    `\\b(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\s+(?:ilgio\\s+)?${quantityNounPattern}\\s+(?:apie\\s+|maždaug\\s+|mazdaug\\s+|kokius\\s+|kokias\\s+)?(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern})?\\b`,
+    "giu",
+  );
+
+  for (const match of [
+    ...maskedMessage.matchAll(perItemRegex),
+    ...maskedMessage.matchAll(perItemNounFirstRegex),
+    ...maskedMessage.matchAll(perItemMultiplierRegex),
+    ...maskedMessage.matchAll(perItemReversedRegex),
+  ].sort((left, right) => (left.index ?? 0) - (right.index ?? 0))) {
+    if (match.index === undefined || !match.groups) {
+      continue;
+    }
+
+    const span = { start: match.index, end: match.index + match[0].length };
+    if (overlapsAny(span, takenSpans) || overlapsAny(span, spans)) {
+      continue;
+    }
+
+    const unit = normalizeUnit(match.groups.unit);
+    const count = parseQuantityValue(match.groups.count);
+    const perUnit = parseNumber(match.groups.perUnit);
+    const subject = subjectForMeasurement(
+      originalMessage,
+      span.start,
+      span.end,
+    );
+
+    facts.push(
+      nextFact("measurement", {
+        subject,
+        subjectSource: subject ? "deterministic" : null,
+        dimension: unit === "m2" ? "area" : "length",
+        value: count * perUnit,
+        valueMin: null,
+        valueMax: null,
+        unit,
+        rawText: evidenceForSpan(originalMessage, span),
+        confidence: 1,
+        negated: isNegatedNear(originalMessage, span.start),
+      }),
+    );
+    spans.push(span);
+  }
 
   for (const match of maskedMessage.matchAll(rangeRegex)) {
     if (match.index === undefined || !match.groups) {
@@ -585,17 +646,59 @@ function dimensionForUnit(
     .split(" ")
     .slice(0, 6)
     .join(" ");
-  const nearbyText = `${nearbyLeftText} ${nearbyRightText}`;
+  const leftDimension = nearestDimension(
+    nearbyLeftText.split(" ").filter(Boolean).reverse(),
+  );
+  const rightDimension = nearestDimension(
+    nearbyRightText.split(" ").filter(Boolean),
+  );
 
-  if (/\b(aukstis|aukscio|auksti)\b/u.test(nearbyText)) {
-    return "height";
+  if (leftDimension && rightDimension) {
+    return rightDimension.distance < leftDimension.distance
+      ? rightDimension.dimension
+      : leftDimension.dimension;
   }
 
-  if (/\b(plotis|plocio|ploti)\b/u.test(nearbyText)) {
-    return "width";
+  const nearestKnownDimension = leftDimension ?? rightDimension;
+
+  if (nearestKnownDimension) {
+    return nearestKnownDimension.dimension;
   }
 
   return "length";
+}
+
+function nearestDimension(
+  tokens: string[],
+): { dimension: MeasurementDimension; distance: number } | null {
+  for (const [index, token] of tokens.entries()) {
+    const dimension = dimensionForKeyword(token);
+
+    if (dimension) {
+      return {
+        dimension,
+        distance: index + 1,
+      };
+    }
+  }
+
+  return null;
+}
+
+function dimensionForKeyword(token: string): MeasurementDimension | null {
+  if (["ilgis", "ilgio", "ilgi"].includes(token)) {
+    return "length";
+  }
+
+  if (["aukstis", "aukscio", "auksti"].includes(token)) {
+    return "height";
+  }
+
+  if (["plotis", "plocio", "ploti"].includes(token)) {
+    return "width";
+  }
+
+  return null;
 }
 
 function rightDimensionContext(message: string, spanEnd: number): string {
@@ -631,6 +734,11 @@ function subjectForMeasurement(
 
 function parseNumber(rawValue: string): number {
   return Number(rawValue.replace(",", "."));
+}
+
+function parseQuantityValue(rawValue: string): number {
+  const wordValue = wordNumberValues.get(normalizeSearchText(rawValue));
+  return wordValue ?? parseNumber(rawValue);
 }
 
 function isNegatedNear(message: string, spanStart: number): boolean {

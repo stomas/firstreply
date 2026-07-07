@@ -190,26 +190,219 @@ describe("golden lead pipeline", () => {
   });
 
   it("stops with a clear config error when unresolved requirements need AI", async () => {
-    await assert.rejects(
-      () =>
-        runTestLeadPipeline({
-          input: {
-            ...baseInput(),
-            inquiryMessage: "Sveiki, reikia tvoros Vilniuje. Kiek kainuotų?",
+    try {
+      await runTestLeadPipeline({
+        input: {
+          ...baseInput(),
+          inquiryMessage: "Sveiki, reikia tvoros Vilniuje. Kiek kainuotų?",
+        },
+        rules,
+        leadId: "golden_missing",
+        isTest: true,
+        aiOptions: {
+          env: {
+            OPENAI_API_KEY: "",
+            OPENAI_MODEL: "",
           },
-          rules,
-          leadId: "golden_missing",
-          isTest: true,
-          aiOptions: {
-            env: {
-              OPENAI_API_KEY: "",
-              OPENAI_MODEL: "",
-            },
-          },
-        }),
-      (error) =>
-        error instanceof AppConfigError &&
-        error.message.includes(AI_NOT_CONFIGURED),
+        },
+      });
+      assert.fail("Expected AI_NOT_CONFIGURED");
+    } catch (error) {
+      assert.ok(error instanceof AppConfigError);
+      assert.ok(error.message.includes(AI_NOT_CONFIGURED));
+      assert.deepEqual(
+        (
+          error as AppConfigError & {
+            trace?: { stages: Array<{ key: string; status: string }> };
+          }
+        ).trace?.stages.map((stage) => [stage.key, stage.status]),
+        [
+          ["parse", "ok"],
+          ["resolver_pass_1", "ok"],
+          ["ai_gap_filler", "manual_review"],
+        ],
+      );
+    }
+  });
+
+  it("declines a clear inquiry outside served municipalities", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        city: "Klaipėda",
+        inquiryMessage:
+          "Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Klaipėdoje. Kiek kainuotų?",
+      },
+      rules,
+      leadId: "golden_decline",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "",
+          OPENAI_MODEL: "",
+        },
+      },
+    });
+
+    assert.equal(result.responseStatus, "ready");
+    assert.equal(result.responseType, "decline");
+    assert.equal(result.decisionResult.reason, "LOCATION_NOT_SERVED");
+    assert.equal(result.draftText, "Atsiprašome, šioje vietovėje nedirbame.");
+    assert.deepEqual(
+      result.trace.stages.map((stage) => [stage.key, stage.status]),
+      [
+        ["parse", "ok"],
+        ["resolver_pass_1", "ok"],
+        ["ai_gap_filler", "skipped"],
+        ["decision", "ok"],
+        ["composer", "ok"],
+      ],
+    );
+  });
+
+  it("asks missing questions after AI finds no additional facts", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        inquiryMessage:
+          "Sveiki, reikia skardinės tvoros Vilniuje. Kiek kainuotų?",
+      },
+      rules,
+      leadId: "golden_missing_questions",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "test-key",
+          OPENAI_MODEL: "test-model",
+        },
+        callModel: async () =>
+          JSON.stringify({
+            bindings: [],
+            newFacts: [],
+            conflicts: [],
+            serviceClassification: null,
+          }),
+      },
+    });
+
+    assert.equal(result.responseStatus, "ready");
+    assert.equal(result.responseType, "missing_info");
+    assert.deepEqual(result.decisionResult.questionsToAsk, [
+      "Kiek metrų skardinės tvoros reikėtų?",
+      "Kokio aukščio skardinės tvoros norėtumėte?",
+    ]);
+    assert.equal(
+      result.draftText,
+      "Sveiki, patikslinkite: Kiek metrų skardinės tvoros reikėtų? Kokio aukščio skardinės tvoros norėtumėte?",
+    );
+    assert.deepEqual(
+      result.trace.stages.map((stage) => [stage.key, stage.status]),
+      [
+        ["parse", "ok"],
+        ["resolver_pass_1", "ok"],
+        ["ai_gap_filler", "ok"],
+        ["resolver_pass_2", "ok"],
+        ["decision", "ok"],
+        ["composer", "ok"],
+      ],
+    );
+  });
+
+  it("uses AI to derive total length from per-segment wording instead of pricing one segment", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        inquiryMessage:
+          "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio. Kiek kainuos ir ar duodat pristatymą?",
+      },
+      rules,
+      leadId: "golden_per_segment",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "test-key",
+          OPENAI_MODEL: "test-model",
+        },
+        callModel: async () =>
+          JSON.stringify({
+            bindings: [
+              {
+                factId: "fact_1",
+                subject: "fence",
+                evidence: "2 segmentu po 2m",
+                confidence: 0.91,
+              },
+              {
+                factId: "fact_2",
+                subject: "fence",
+                evidence: "1.5m aukščio",
+                confidence: 0.91,
+              },
+            ],
+            newFacts: [],
+            conflicts: [],
+            serviceClassification: null,
+          }),
+      },
+    });
+    const aiStage = result.trace.stages.find(
+      (stage) => stage.key === "ai_gap_filler",
+    );
+
+    assert.equal(result.responseStatus, "ready");
+    assert.equal(result.decisionResult.priceEstimate?.quantity, 4);
+    assert.equal(result.decisionResult.priceEstimate?.amount, 340);
+    assert.equal(
+      result.draftText,
+      "Sveiki, orientacinė kaina: 340 EUR. Terminas: 3-5 sav..",
+    );
+    assert.deepEqual(aiStage?.data.rejectedFindings, []);
+  });
+
+  it("derives total length when the per-segment length appears before the count", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        inquiryMessage:
+          "Hey, ždž reikia 2m segmento kokius 2 vienetus ir 1.5m aukščio. Kiek kainuos ir ar duodat pristatymą?",
+      },
+      rules,
+      leadId: "golden_reversed_per_segment",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "test-key",
+          OPENAI_MODEL: "test-model",
+        },
+        callModel: async () =>
+          JSON.stringify({
+            bindings: [
+              {
+                factId: "fact_1",
+                subject: "fence",
+                evidence: "2m segmento kokius 2 vienetus",
+                confidence: 0.91,
+              },
+              {
+                factId: "fact_2",
+                subject: "fence",
+                evidence: "1.5m aukščio",
+                confidence: 0.91,
+              },
+            ],
+            newFacts: [],
+            conflicts: [],
+            serviceClassification: null,
+          }),
+      },
+    });
+
+    assert.equal(result.responseStatus, "ready");
+    assert.equal(result.decisionResult.priceEstimate?.quantity, 4);
+    assert.equal(result.decisionResult.priceEstimate?.amount, 340);
+    assert.equal(
+      result.draftText,
+      "Sveiki, orientacinė kaina: 340 EUR. Terminas: 3-5 sav..",
     );
   });
 });

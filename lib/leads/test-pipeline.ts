@@ -3,6 +3,7 @@ import {
   fillAiGaps,
   needsAiGapFiller,
 } from "@/lib/ai/gap-filler";
+import { AppConfigError } from "@/lib/app-errors";
 import { decideLeadResponse } from "@/lib/decision/engine";
 import {
   parseTestInquiryLead,
@@ -96,7 +97,25 @@ export async function runTestLeadPipeline({
   trace.stages.push(resolverTraceStage("resolver_pass_1", parsedLead));
 
   if (needsAiGapFiller(parsedLead)) {
-    assertAiGapFillerConfigured(parsedLead, aiOptions.env);
+    try {
+      assertAiGapFillerConfigured(parsedLead, aiOptions.env);
+    } catch (error) {
+      if (error instanceof AppConfigError) {
+        trace.stages.push({
+          key: "ai_gap_filler",
+          label: "AI gap filler",
+          status: "manual_review",
+          summary: error.message,
+          data: {
+            error: error.message,
+            unresolvedRequirements: parsedLead.unresolvedRequirements,
+          },
+        });
+        attachTrace(error, trace);
+      }
+
+      throw error;
+    }
 
     const aiGapFill = await fillAiGaps(
       {
@@ -228,6 +247,10 @@ export async function runTestLeadPipeline({
     }),
     trace,
   };
+}
+
+function attachTrace(error: AppConfigError, trace: LeadProcessingTrace): void {
+  (error as AppConfigError & { trace?: LeadProcessingTrace }).trace = trace;
 }
 
 function resolverTraceStage(

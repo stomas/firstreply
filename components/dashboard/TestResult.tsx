@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { TestLeadResult } from "@/lib/leads/create-test-lead";
+import type { LeadProcessingTrace } from "@/lib/leads/test-pipeline";
 
 export function TestResult({ result }: { result: TestLeadResult }) {
   const evaluation = result.evaluation;
@@ -77,42 +78,57 @@ export function TestResult({ result }: { result: TestLeadResult }) {
         </div>
       ) : null}
 
-      {result.trace.stages.length > 0 ? (
-        <div className="mt-5 border-t border-line pt-4">
-          <div className="text-sm font-bold text-ink">Trace</div>
-          <div className="mt-3 divide-y divide-line rounded-lg border border-line">
-            {result.trace.stages.map((stage) => (
-              <details key={stage.key} className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm">
-                  <span className="min-w-0">
-                    <span className="block font-bold text-ink">
-                      {stage.label}
-                    </span>
-                    <span className="block truncate text-ink-soft">
-                      {stage.summary}
-                    </span>
-                  </span>
-                  <span
-                    className={[
-                      "shrink-0 rounded-full px-2 py-1 text-xs font-bold uppercase",
-                      stage.status === "ok"
-                        ? "bg-green-100 text-green-800"
-                        : stage.status === "skipped"
-                          ? "bg-line-soft text-ink-soft"
-                          : "bg-warn-bg text-warn-text",
-                    ].join(" ")}
-                  >
-                    {stage.status}
-                  </span>
-                </summary>
-                <pre className="max-h-72 overflow-auto border-t border-line bg-line-soft p-3 text-xs leading-relaxed text-ink">
-                  {JSON.stringify(stage.data, null, 2)}
-                </pre>
-              </details>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <TracePanel
+        trace={result.trace}
+        className="mt-5 border-t border-line pt-4"
+      />
+    </div>
+  );
+}
+
+export function TracePanel({
+  trace,
+  className = "",
+}: {
+  trace: LeadProcessingTrace | null | undefined;
+  className?: string;
+}) {
+  if (!trace?.stages.length) {
+    return null;
+  }
+
+  return (
+    <div className={className}>
+      <div className="text-sm font-bold text-ink">Trace</div>
+      <div className="mt-3 divide-y divide-line rounded-lg border border-line">
+        {trace.stages.map((stage) => (
+          <details key={stage.key} className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm">
+              <span className="min-w-0">
+                <span className="block font-bold text-ink">{stage.label}</span>
+                <span className="block truncate text-ink-soft">
+                  {stage.summary}
+                </span>
+              </span>
+              <span
+                className={[
+                  "shrink-0 rounded-full px-2 py-1 text-xs font-bold uppercase",
+                  stage.status === "ok"
+                    ? "bg-green-100 text-green-800"
+                    : stage.status === "skipped"
+                      ? "bg-line-soft text-ink-soft"
+                      : "bg-warn-bg text-warn-text",
+                ].join(" ")}
+              >
+                {stage.status}
+              </span>
+            </summary>
+            <pre className="max-h-72 overflow-auto border-t border-line bg-line-soft p-3 text-xs leading-relaxed text-ink">
+              {JSON.stringify(stage.data, null, 2)}
+            </pre>
+          </details>
+        ))}
+      </div>
     </div>
   );
 }

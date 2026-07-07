@@ -317,6 +317,117 @@ describe("AI gap filler configuration gate", () => {
     );
   });
 
+  it("does not bind a per-segment length as total length and accepts a verified derived total", async () => {
+    const result = await fillAiGaps(
+      {
+        rawText: "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio.",
+        facts: [
+          measurementFact({
+            id: "fact_1",
+            subject: null,
+            subjectSource: null,
+            value: 2,
+            rawText: "2 segmentu po 2m",
+          }),
+          measurementFact({
+            id: "fact_2",
+            subject: null,
+            subjectSource: null,
+            dimension: "height",
+            value: 1.5,
+            rawText: "1.5m aukščio",
+          }),
+        ],
+        requirements: [lengthRequirement, heightRequirement],
+        resolution: {
+          resolvedRequirements: {
+            fence_length: null,
+            fence_height: null,
+          },
+          unresolvedRequirements: [
+            {
+              requirementKey: "fence_length",
+              label: "Tvoros ilgis",
+              question: "Kiek metrų tvoros reikėtų?",
+              required: true,
+              affectsPrice: true,
+              status: "pending_binding",
+              candidateFactRefs: ["fact_1"],
+            },
+            {
+              requirementKey: "fence_height",
+              label: "Tvoros aukštis",
+              question: "Koks tvoros aukštis?",
+              required: true,
+              affectsPrice: true,
+              status: "pending_binding",
+              candidateFactRefs: ["fact_2"],
+            },
+          ],
+          conflicts: [],
+        },
+        subjects,
+      },
+      {
+        env: { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" },
+        callModel: async () =>
+          JSON.stringify({
+            bindings: [
+              {
+                factId: "fact_1",
+                subject: "fence",
+                evidence: "2 segmentu po 2m",
+                confidence: 0.91,
+              },
+              {
+                factId: "fact_2",
+                subject: "fence",
+                evidence: "1.5m aukščio",
+                confidence: 0.91,
+              },
+            ],
+            newFacts: [
+              {
+                requirementKey: "fence_length",
+                kind: "measurement",
+                dimension: "length",
+                value: 4,
+                valueMin: null,
+                valueMax: null,
+                unit: "m",
+                evidence: "2 segmentu po 2m",
+                confidence: 0.9,
+              },
+            ],
+            conflicts: [],
+            serviceClassification: null,
+          }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    if (result.status !== "ok") {
+      return;
+    }
+
+    assert.equal(
+      result.facts.find((fact) => fact.id === "fact_1")?.subject,
+      null,
+    );
+    assert.equal(result.resolution.resolvedRequirements.fence_length?.value, 4);
+    assert.equal(
+      result.resolution.resolvedRequirements.fence_height?.value,
+      1.5,
+    );
+    assert.deepEqual(result.rejectedFindings, [
+      {
+        type: "binding",
+        target: "fact_1",
+        reason: "PER_ITEM_MEASUREMENT_REQUIRES_DERIVED_FACT",
+      },
+    ]);
+  });
+
   it("retries invalid JSON once and returns manual review when parsing still fails", async () => {
     const calls: string[] = [];
     const result = await fillAiGaps(

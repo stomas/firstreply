@@ -39,7 +39,8 @@ export type RejectedAiFinding = {
   reason:
     | "EVIDENCE_NOT_FOUND"
     | "VALUE_NOT_IN_EVIDENCE"
-    | "SUBJECT_NOT_ALLOWED";
+    | "SUBJECT_NOT_ALLOWED"
+    | "PER_ITEM_MEASUREMENT_REQUIRES_DERIVED_FACT";
 };
 
 export type AiGapFillResult =
@@ -186,7 +187,7 @@ function buildAiRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei informacijos tekste nėra, grąžink requirement kaip nerastą.",
+      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su išvestiniu totalu 4m ir evidence „2 segmentai po 2m“. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą.",
     user: JSON.stringify({
       rawText: input.rawText,
       existingFacts: input.facts,
@@ -312,6 +313,15 @@ function applyAiResponse(
       continue;
     }
 
+    if (isPerItemMeasurementBinding(fact, binding.evidence)) {
+      rejectedFindings.push({
+        type: "binding",
+        target: binding.factId,
+        reason: "PER_ITEM_MEASUREMENT_REQUIRES_DERIVED_FACT",
+      });
+      continue;
+    }
+
     fact.subject = binding.subject;
     fact.subjectSource = "ai";
     fact.confidence = Math.min(fact.confidence, binding.confidence);
@@ -384,6 +394,61 @@ function stripJsonFence(value: string): string {
   const trimmed = value.trim();
   const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/iu.exec(trimmed);
   return fenced ? fenced[1].trim() : trimmed;
+}
+
+function isPerItemMeasurementBinding(
+  fact: ExtractedFact,
+  evidence: string,
+): boolean {
+  if (fact.kind !== "measurement" || typeof fact.value !== "number") {
+    return false;
+  }
+
+  const derived = perItemDerivedTotal(`${fact.rawText} ${evidence}`);
+  return (
+    derived !== null &&
+    nearlyEqual(derived.perUnit, fact.value) &&
+    !nearlyEqual(derived.total, fact.value)
+  );
+}
+
+function perItemDerivedTotal(
+  value: string,
+): { perUnit: number; total: number } | null {
+  const normalized = normalizeText(value);
+  const match = normalized.match(
+    /\b(?<count>\d+(?:[.,]\d+)?)\s+\p{L}+\s+po\s+(?<perUnit>\d+(?:[.,]\d+)?)\s*(?:m|metrai|metru|metro|metrus)?\b/u,
+  );
+  if (!match?.groups) {
+    return null;
+  }
+
+  const count = parseNumber(match.groups.count);
+  const perUnit = parseNumber(match.groups.perUnit);
+  if (count === null || perUnit === null) {
+    return null;
+  }
+
+  return { perUnit, total: count * perUnit };
+}
+
+function parseNumber(value: string): number | null {
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function nearlyEqual(left: number, right: number): boolean {
+  return Math.abs(left - right) < 0.000001;
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLocaleLowerCase("lt-LT")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .replace(/[^\p{L}\p{N}.,]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function extractOutputText(json: unknown): string | null {

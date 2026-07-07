@@ -25,7 +25,8 @@ export function verifyAiEvidence({
 
   if (
     typeof value === "number" &&
-    !evidenceContainsNumber(normalizedEvidence, value)
+    !evidenceContainsNumber(normalizedEvidence, value) &&
+    !evidenceContainsDerivedPerItemTotal(normalizedEvidence, value)
   ) {
     return { ok: false, reason: "VALUE_NOT_IN_EVIDENCE" };
   }
@@ -78,6 +79,35 @@ function evidenceContainsNumber(
   return evidenceNumbers.some((number) =>
     candidates.includes(number.replace(",", ".")),
   );
+}
+
+function evidenceContainsDerivedPerItemTotal(
+  normalizedEvidence: string,
+  value: number,
+): boolean {
+  const match = normalizedEvidence.match(
+    /\b(?<count>\d+(?:[.,]\d+)?)\s+\p{L}+\s+po\s+(?<perUnit>\d+(?:[.,]\d+)?)\s*(?:m|metrai|metru|metro|metrus)?\b/u,
+  );
+  if (!match?.groups) {
+    return false;
+  }
+
+  const count = parseNumber(match.groups.count);
+  const perUnit = parseNumber(match.groups.perUnit);
+  if (count === null || perUnit === null) {
+    return false;
+  }
+
+  return nearlyEqual(count * perUnit, value);
+}
+
+function parseNumber(value: string): number | null {
+  const parsed = Number(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function nearlyEqual(left: number, right: number): boolean {
+  return Math.abs(left - right) < 0.000001;
 }
 
 function numberCandidates(value: number): string[] {

@@ -48,4 +48,27 @@ describe("verifyAiEvidence", () => {
       reason: "VALUE_NOT_IN_EVIDENCE",
     });
   });
+
+  it("accepts a derived per-item total when the evidence contains count and per-unit length", () => {
+    const result = verifyAiEvidence({
+      originalText: "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio.",
+      evidence: "2 segmentu po 2m",
+      value: 4,
+    });
+
+    assert.equal(result.ok, true);
+  });
+
+  it("rejects a derived per-item total when the arithmetic does not match", () => {
+    const result = verifyAiEvidence({
+      originalText: "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio.",
+      evidence: "2 segmentu po 2m",
+      value: 5,
+    });
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason: "VALUE_NOT_IN_EVIDENCE",
+    });
+  });
 });

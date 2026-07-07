@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import type { TestLeadResult } from "@/lib/leads/create-test-lead";
-import { TestResult } from "@/components/dashboard/TestResult";
+import type { LeadProcessingTrace } from "@/lib/leads/test-pipeline";
+import { TestResult, TracePanel } from "@/components/dashboard/TestResult";
 
 type ServiceOption = {
   id: string;
@@ -11,13 +12,21 @@ type ServiceOption = {
 
 type ApiResponse =
   | { ok: true; result: TestLeadResult }
-  | { ok: false; error: string; fields?: Record<string, string> };
+  | {
+      ok: false;
+      error: string;
+      fields?: Record<string, string>;
+      trace?: LeadProcessingTrace;
+    };
 
 export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [result, setResult] = useState<TestLeadResult | null>(null);
+  const [errorTrace, setErrorTrace] = useState<LeadProcessingTrace | null>(
+    null,
+  );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +34,7 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
     setError(null);
     setFields({});
     setResult(null);
+    setErrorTrace(null);
 
     const formData = new FormData(event.currentTarget);
     const payload = {
@@ -50,6 +60,7 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
       if (!json.ok) {
         setError(json.error);
         setFields(json.fields ?? {});
+        setErrorTrace(json.trace ?? null);
         return;
       }
 
@@ -139,6 +150,13 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
 
       {result ? (
         <TestResult result={result} />
+      ) : errorTrace ? (
+        <div className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
+          <div className="text-sm font-bold text-warn-text">
+            Užklausa sustojo prieš rezultatą
+          </div>
+          <TracePanel trace={errorTrace} className="mt-4" />
+        </div>
       ) : (
         <div className="rounded-lg border border-line bg-white p-5 text-sm text-ink-soft shadow-cardsoft">
           Rezultatas atsiras sukūrus testinį lead įrašą.
