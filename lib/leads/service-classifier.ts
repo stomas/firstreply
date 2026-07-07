@@ -41,6 +41,7 @@ export type ServiceAiOutcome = {
   status: "skipped" | "ok" | "rejected";
   reason:
     | "DETERMINISTIC_MATCH"
+    | "AMBIGUOUS"
     | "NOT_CONFIGURED"
     | "NO_ACTIVE_SERVICES"
     | "AI_MATCHED"
@@ -179,6 +180,24 @@ export async function classifyLeadServiceWithFallback(
     };
   }
 
+  // Tikros dviprasmybės (≥2 STIPRŪS ir artimi kandidatai, pvz. dvi tvorų rūšys)
+  // AI nelaužo — tekstas matched, bet neišskiria konkretaus serviso → lieka
+  // ambiguous, patikslinam su klientu. Silpną/vienintelį match'ą (score < 2) AI
+  // vis tiek bando (žodyno spraga).
+  const [topCandidate, secondCandidate] = deterministic.candidates;
+  const genuineTie =
+    deterministic.reason === "ambiguous" &&
+    Boolean(topCandidate) &&
+    Boolean(secondCandidate) &&
+    topCandidate.score >= 2 &&
+    topCandidate.score - secondCandidate.score < 2;
+  if (genuineTie) {
+    return {
+      classification: deterministic,
+      ai: { status: "skipped", reason: "AMBIGUOUS" },
+    };
+  }
+
   const env = options.env ?? process.env;
   if (!isAiConfigured(env)) {
     return {
@@ -279,7 +298,7 @@ function buildAiServiceRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi paslaugų klasifikatorius. Iš pateikto AKTYVIŲ paslaugų sąrašo parink TIK VIENĄ, geriausiai atitinkančią kliento tekstą, arba grąžink serviceId=null jei nė viena netinka. Grąžink TIK validų JSON, jokio kito teksto. Taisyklės: 1. serviceId TIK iš pateikto sąrašo arba null. 2. Privalomas evidence — pažodinis teksto fragmentas, dėl kurio taip nusprendei. 3. Viena paslauga sąraše NEREIŠKIA automatinio pasirinkimo — vis tiek privalai turėti evidence arba grąžinti null. 4. NEKURK reikšmių, kurių nėra tekste.",
+      "Tu esi paslaugų klasifikatorius. Iš pateikto AKTYVIŲ paslaugų sąrašo parink TIK VIENĄ, geriausiai atitinkančią kliento tekstą, arba grąžink serviceId=null jei nė viena netinka. Grąžink TIK validų JSON, jokio kito teksto. Taisyklės: 1. serviceId TIK iš pateikto sąrašo arba null. 2. Privalomas evidence — pažodinis teksto fragmentas, dėl kurio taip nusprendei. 3. Viena paslauga sąraše NEREIŠKIA automatinio pasirinkimo — vis tiek privalai turėti evidence arba grąžinti null. 4. NEKURK reikšmių, kurių nėra tekste. 5. Jei kelios paslaugos tinka vienodai arba tekstas nenurodo konkrečios (pvz. paminėta tik bendra kategorija, o rūšis nenurodyta) → grąžink serviceId=null. NESPĖK.",
     user: JSON.stringify({
       rawText: message,
       activeServices: activeServices.map((service) => ({

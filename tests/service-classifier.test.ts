@@ -185,6 +185,34 @@ describe("classifyLeadServiceWithFallback", () => {
     assert.equal(called, false);
   });
 
+  it("does not let AI break a genuine ambiguity between multiple services", async () => {
+    let called = false;
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia tvoros 45 m.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () => {
+          called = true;
+          return JSON.stringify({
+            serviceId: "service_segmentine",
+            confidence: 0.95,
+            evidence: "tvoros",
+          });
+        },
+      },
+    );
+
+    assert.equal(classification.id, null);
+    assert.equal(classification.reason, "ambiguous");
+    assert.equal(ai.status, "skipped");
+    assert.equal(ai.reason, "AMBIGUOUS");
+    assert.equal(called, false);
+  });
+
   it("accepts an AI service when confidence and evidence pass on a no-match text", async () => {
     const { classification, ai } = await classifyLeadServiceWithFallback(
       {
