@@ -6,7 +6,19 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(grep -E '\\\\.\\(ts|tsx|sql\\)$')",
+      "Bash(npx prisma *)",
+      "Bash(npm test *)",
+      "Bash(npx tsx *)",
+      "Bash(node -p 'process.arch')",
+      "Bash(echo \"node arch: $\\(node -p 'process.arch'\\)\")",
+      "Bash(node -p 'process.platform')",
+      "Bash(echo \"node platform: $\\(node -p 'process.platform'\\)\")",
+      "Bash(arch -arm64 node -p 'process.arch')",
+      "Read(//opt/homebrew/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(git checkout *)"
     ]
   }
 }
