@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AppConfigError } from "@/lib/app-errors";
-import type { ExtractedFact } from "@/lib/extractor/types";
+import type { ExtractedFact, PrimaryIntent } from "@/lib/extractor/types";
 import { resolveRequirements } from "@/lib/requirements/resolve-requirements";
 import type {
   DecisionRequirement,
@@ -48,6 +48,7 @@ export type AiGapFillResult =
       status: "ok";
       facts: ExtractedFact[];
       resolution: RequirementResolutionResult;
+      primaryIntent: PrimaryIntent | null;
       rawResponses: string[];
       rejectedFindings: RejectedAiFinding[];
     }
@@ -90,6 +91,17 @@ const aiGapFillResponseSchema = z.object({
       id: z.string(),
       confidence: z.number().min(0).max(1),
     })
+    .nullable()
+    .default(null),
+  primaryIntent: z
+    .enum([
+      "requests_quote",
+      "asks_offering",
+      "asks_availability",
+      "asks_process",
+      "provides_info",
+      "other",
+    ])
     .nullable()
     .default(null),
 });
@@ -138,6 +150,7 @@ export async function fillAiGaps(
       status: "ok",
       facts: input.facts,
       resolution: input.resolution,
+      primaryIntent: null,
       rawResponses: [],
       rejectedFindings: [],
     };
@@ -175,6 +188,7 @@ export async function fillAiGaps(
       facts: applied.facts,
       requirements: input.requirements,
     }),
+    primaryIntent: parsed.primaryIntent,
     rawResponses,
     rejectedFindings: applied.rejectedFindings,
   };
@@ -187,7 +201,7 @@ function buildAiRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su išvestiniu totalu 4m ir evidence „2 segmentai po 2m“. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą.",
+      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su išvestiniu totalu 4m ir evidence „2 segmentai po 2m“. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą. 7. primaryIntent: pagrindinis kliento tikslas, TIK viena iš reikšmių: requests_quote (prašo kainos), asks_offering (klausia ar tokią paslaugą teikiate/gaminate/montuojate), asks_availability (klausia termino/laisvo laiko), asks_process (klausia proceso/kaip vyksta), provides_info (tik pateikia informaciją), other. Jei neaišku — other.",
     user: JSON.stringify({
       rawText: input.rawText,
       existingFacts: input.facts,
@@ -222,6 +236,7 @@ function buildAiRequest(
         ],
         conflicts: [{ factId: "fact_1", reason: "..." }],
         serviceClassification: null,
+        primaryIntent: "other",
       },
     }),
   };

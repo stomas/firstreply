@@ -6,7 +6,12 @@ import type {
 } from "@/lib/rules/types";
 
 export type ComposedResponseDraft = {
-  responseType: "missing_info" | "price_estimate" | "decline" | "manual_review";
+  responseType:
+    | "missing_info"
+    | "price_estimate"
+    | "decline"
+    | "offering_answer"
+    | "manual_review";
   draftText: string | null;
   autoSendAllowed: boolean;
   autoSendBlockedBy: string[];
@@ -34,6 +39,8 @@ export function composeResponseDraft({
         priceAmount: formatNumber(decisionResult.priceEstimate?.amount),
         currency: decisionResult.priceEstimate?.currency ?? "",
         leadTimeWeeks: decisionResult.leadTime?.text ?? "",
+        offeringDescription: decisionResult.offeringAnswer?.description ?? "",
+        offeringFollowup: decisionResult.offeringAnswer?.followup ?? "",
       })
     : null;
   const autoSendBlockedBy = autoSendBlockers({
@@ -69,6 +76,10 @@ function responseTypeForDecision(
     return "decline";
   }
 
+  if (decision === "OFFERING_ANSWER") {
+    return "offering_answer";
+  }
+
   return "manual_review";
 }
 
@@ -85,6 +96,10 @@ function templateKeyForDecision(
 
   if (decision === "DECLINE_TEMPLATE") {
     return "decline_location";
+  }
+
+  if (decision === "OFFERING_ANSWER") {
+    return "offering_answer";
   }
 
   return null;

@@ -54,6 +54,8 @@ model Service {
   label       String?
   keywords    Json?
   rangePolicy String   @default("manual_review") @map("range_policy")
+  offeringDescription String? @map("offering_description")
+  offeringFollowup    String? @map("offering_followup")
   active      Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

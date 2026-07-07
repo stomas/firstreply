@@ -146,6 +146,11 @@ const rules: ClientRules = {
       body: "Atsiprašome, šioje vietovėje nedirbame.",
       active: true,
     },
+    {
+      templateKey: "offering_answer",
+      body: "Sveiki, ačiū už užklausą. {{offeringDescription}} {{offeringFollowup}}",
+      active: true,
+    },
   ],
 };
 
@@ -213,6 +218,77 @@ describe("golden lead pipeline", () => {
     assert.equal(result.responseStatus, "ready");
     assert.equal(result.evaluation.responseType, "price_availability");
     assert.equal(result.decisionResult.priceEstimate?.amount, 4950);
+    assert.deepEqual(
+      result.trace.stages.map((stage) => [stage.key, stage.status]),
+      [
+        ["parse", "ok"],
+        ["service_classification", "ok"],
+        ["resolver_pass_1", "ok"],
+        ["ai_gap_filler", "skipped"],
+        ["decision", "ok"],
+        ["composer", "ok"],
+      ],
+    );
+  });
+
+  it("answers an offering question from DB fields without asking for width or calling AI", async () => {
+    const offeringRules: ClientRules = {
+      ...rulesWithGateService(),
+      decisionRequirements: [
+        ...rules.decisionRequirements,
+        {
+          id: "req_gate_width",
+          serviceId: "service_vartai",
+          requirementKey: "gate_width",
+          label: "Vartų plotis",
+          requiredFor: "auto_send",
+          questionTextIfMissing: "Koks planuojamos vartų angos plotis metrais?",
+          blocksAutoSend: true,
+          priority: 10,
+          active: true,
+          required: true,
+          affectsPrice: true,
+          expectedFact: {
+            kind: "measurement",
+            subject: "gate",
+            dimension: "width",
+            units: ["m"],
+          },
+          validation: { min: 2, max: 8 },
+        },
+      ],
+    };
+
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        asksPrice: false,
+        inquiryMessage: "labas, o turit pas save metaliniu vartu?",
+      },
+      rules: offeringRules,
+      leadId: "golden_offering",
+      isTest: true,
+      aiOptions: {
+        env: {
+          OPENAI_API_KEY: "",
+          OPENAI_MODEL: "",
+        },
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, "service_vartai");
+    assert.equal(result.parsedLead.primaryIntent, "asks_offering");
+    assert.equal(result.decisionResult.decision, "OFFERING_ANSWER");
+    assert.equal(result.responseType, "offering_answer");
+    assert.equal(result.responseStatus, "ready");
+    assert.deepEqual(result.decisionResult.questionsToAsk, []);
+    assert.equal(
+      result.draftText,
+      "Sveiki, ačiū už užklausą. Taip, gaminame ir montuojame metalinius kiemo vartus — varstomus ir stumdomus. Jei norite, galiu paskaičiuoti orientacinę kainą — kokio pločio įvažiavimo angą turite?",
+    );
+    assert.equal(result.draftText?.includes("angos plotis"), false);
+    assert.ok(result.draftText?.includes("kokio pločio įvažiavimo angą"));
     assert.deepEqual(
       result.trace.stages.map((stage) => [stage.key, stage.status]),
       [
@@ -475,6 +551,10 @@ function rulesWithGateService(): ClientRules {
         name: "Vartai ir varteliai",
         label: "Vartai ir varteliai",
         keywords: ["vartai", "vartų", "vartus", "varteliai"],
+        offeringDescription:
+          "Taip, gaminame ir montuojame metalinius kiemo vartus — varstomus ir stumdomus.",
+        offeringFollowup:
+          "Jei norite, galiu paskaičiuoti orientacinę kainą — kokio pločio įvažiavimo angą turite?",
         active: true,
       },
     ],

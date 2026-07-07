@@ -194,4 +194,34 @@ describe("extractDeterministicFacts", () => {
       false,
     );
   });
+
+  it("classifies an offering question as asks_offering", () => {
+    const result = extractDeterministicFacts(
+      "labas, o turit pas save metaliniu vartu?",
+    );
+
+    assert.equal(result.intents.primaryIntent, "asks_offering");
+    assert.equal(result.intents.asksPrice, false);
+  });
+
+  it("classifies a price question as requests_quote (price beats offering)", () => {
+    const result = extractDeterministicFacts("kiek kainuotu tvora 45m");
+
+    assert.equal(result.intents.primaryIntent, "requests_quote");
+  });
+
+  // QUESTION: neigimo atvejis. Kol kas grąžiname asks_offering — saugu, nes
+  // OFFERING_ANSWER atsakymas yra faktinis iš DB (jokio automatinio „ne, nedarome").
+  // TODO: nuspręsti, ar reikia atskiro neigimo intento (pvz. verifies_claim).
+  it("TODO/QUESTION: treats a negated offering question as asks_offering for now", () => {
+    const result = extractDeterministicFacts("ar tikrai nedarot vartu?");
+
+    assert.equal(result.intents.primaryIntent, "asks_offering");
+  });
+
+  it("returns null primaryIntent when no intent phrase matches", () => {
+    const result = extractDeterministicFacts("sveiki, turiu sklypą Vilniuje");
+
+    assert.equal(result.intents.primaryIntent, null);
+  });
 });

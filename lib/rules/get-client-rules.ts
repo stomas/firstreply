@@ -85,6 +85,8 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
             (keyword): keyword is string => typeof keyword === "string",
           )
         : [],
+      offeringDescription: service.offeringDescription,
+      offeringFollowup: service.offeringFollowup,
       active: service.active,
     })),
     serviceSubjects: serviceSubjects.map((subject) => ({

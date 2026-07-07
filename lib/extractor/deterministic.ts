@@ -11,6 +11,7 @@ import type {
   ExtractedUnit,
   FactKind,
   MeasurementDimension,
+  PrimaryIntent,
 } from "@/lib/extractor/types";
 
 const PARSER_VERSION = "lead_parse_v2_deterministic_2026-07-04";
@@ -236,18 +237,49 @@ function toLocation(alias: AliasEntry, confidence: number): AdminUnitLocation {
 
 function extractIntents(message: string): ExtractedIntents {
   const normalized = normalizeSearchText(message);
+  const asksPrice =
+    /\b(kiek\s+kain\w*|kaina|kainos|kainuot\w*|pasiulym\w*|samata|saskaita)\b/u.test(
+      normalized,
+    );
+  const asksAvailability =
+    /\b(kada|termin\w*|pradet\w*|galetumete|laisv\w*|montuot\w*|montuoj\w*|sumontuot\w*|atvykti)\b/u.test(
+      normalized,
+    );
 
   return {
-    asksPrice:
-      /\b(kiek\s+kain\w*|kaina|kainos|kainuot\w*|pasiulym\w*|samata|saskaita)\b/u.test(
-        normalized,
-      ),
-    asksAvailability:
-      /\b(kada|termin\w*|pradet\w*|galetumete|laisv\w*|montuot\w*|montuoj\w*|sumontuot\w*|atvykti)\b/u.test(
-        normalized,
-      ),
+    asksPrice,
+    asksAvailability,
     isUrgent: /\b(skubiai|skubu|kuo greiciau|nedelsiant)\b/u.test(normalized),
+    primaryIntent: detectPrimaryIntent(normalized, {
+      asksPrice,
+      asksAvailability,
+    }),
   };
+}
+
+// Determinizmas: kainos intentas turi pirmenybę prieš offering (patvirtinta
+// su vartotoju) — konkretus kainos klausimas eina per pilną pipeline.
+// Offering frazes gaudome tolerantiškai linksniams/rašybai ir neigimui
+// („ar tikrai nedarot vartu?" → asks_offering; atsakymas faktinis iš DB).
+function detectPrimaryIntent(
+  normalized: string,
+  intents: { asksPrice: boolean; asksAvailability: boolean },
+): PrimaryIntent | null {
+  if (intents.asksPrice) {
+    return "requests_quote";
+  }
+
+  if (
+    /\b(?:ne)?(?:turit\w*|darot\w*|gaminat\w*|montuoj\w*)\b/u.test(normalized)
+  ) {
+    return "asks_offering";
+  }
+
+  if (intents.asksAvailability) {
+    return "asks_availability";
+  }
+
+  return null;
 }
 
 function extractDateFacts(

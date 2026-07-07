@@ -71,10 +71,19 @@ export type AdminUnitLocation = {
   source: "deterministic";
 };
 
+export type PrimaryIntent =
+  | "requests_quote"
+  | "asks_offering"
+  | "asks_availability"
+  | "asks_process"
+  | "provides_info"
+  | "other";
+
 export type ExtractedIntents = {
   asksPrice: boolean;
   asksAvailability: boolean;
   isUrgent: boolean;
+  primaryIntent: PrimaryIntent | null;
 };
 
 export type DeterministicExtractionResult = {

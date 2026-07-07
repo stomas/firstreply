@@ -121,7 +121,11 @@ export async function runTestLeadPipeline({
   parsedLead = resolveParsedLeadRequirements(parsedLead, rules);
   trace.stages.push(resolverTraceStage("resolver_pass_1", parsedLead));
 
-  if (needsAiGapFiller(parsedLead)) {
+  // Offering klausimas atsakomas TIK iš DB faktų (decision engine OFFERING_ANSWER),
+  // todėl neišspręsti reikalavimai jo neblokuoja ir AI čia nekviečiamas.
+  const skipAiForOffering = parsedLead.primaryIntent === "asks_offering";
+
+  if (!skipAiForOffering && needsAiGapFiller(parsedLead)) {
     try {
       assertAiGapFillerConfigured(parsedLead, aiOptions.env);
     } catch (error) {
@@ -208,6 +212,9 @@ export async function runTestLeadPipeline({
       resolvedRequirements: aiGapFill.resolution.resolvedRequirements,
       unresolvedRequirements: aiGapFill.resolution.unresolvedRequirements,
       conflicts: aiGapFill.resolution.conflicts,
+      // Deterministika autoritetinga; AI primaryIntent naudojamas tik kai
+      // deterministika nieko nepagavo.
+      primaryIntent: parsedLead.primaryIntent ?? aiGapFill.primaryIntent,
     };
     trace.stages.push(resolverTraceStage("resolver_pass_2", parsedLead));
   } else {
@@ -215,7 +222,9 @@ export async function runTestLeadPipeline({
       key: "ai_gap_filler",
       label: "AI gap filler",
       status: "skipped",
-      summary: "AI nereikalingas: visi privalomi reikalavimai išspręsti",
+      summary: skipAiForOffering
+        ? "AI praleistas: offering klausimas — reikalavimai neblokuoja"
+        : "AI nereikalingas: visi privalomi reikalavimai išspręsti",
       data: {},
     });
   }

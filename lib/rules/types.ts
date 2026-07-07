@@ -1,3 +1,5 @@
+import type { PrimaryIntent } from "@/lib/extractor/types";
+
 export type RuleJson = Record<string, unknown> | Array<unknown> | null;
 
 export type ServiceRule = {
@@ -5,6 +7,8 @@ export type ServiceRule = {
   name: string;
   label?: string | null;
   keywords?: string[];
+  offeringDescription?: string | null;
+  offeringFollowup?: string | null;
   active: boolean;
 };
 
@@ -170,6 +174,7 @@ export type DecisionIntentsInput = {
   asksPrice: boolean;
   asksAvailability: boolean;
   isUrgent: boolean;
+  primaryIntent?: PrimaryIntent | null;
 };
 
 export type DecisionEngineInput = RequirementResolutionResult & {
@@ -183,7 +188,13 @@ export type DecisionResultDecision =
   | "MANUAL_REVIEW"
   | "DECLINE_TEMPLATE"
   | "ASK_MISSING_INFO"
-  | "PRICE_ESTIMATE";
+  | "PRICE_ESTIMATE"
+  | "OFFERING_ANSWER";
+
+export type OfferingAnswer = {
+  description: string;
+  followup: string | null;
+};
 
 export type PriceEstimate = {
   pricingRuleId: string;
@@ -208,6 +219,7 @@ export type DecisionResult = {
   questionsToAsk: string[];
   autoSend: boolean;
   autoSendBlockedBy: string[];
+  offeringAnswer?: OfferingAnswer | null;
 };
 
 export type MissingRequirement = {

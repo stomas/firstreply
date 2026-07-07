@@ -37,6 +37,36 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     };
   }
 
+  // Offering klausimas: paslauga jau atpažinta (service gate praėjo aukščiau).
+  // Atsakymas TIK iš DB offering laukų; neišspręsti reikalavimai neblokuoja ir
+  // klausimų nepridedame. Neatpažinta paslauga anksčiau tampa SERVICE_AMBIGUOUS.
+  if (input.intents.primaryIntent === "asks_offering") {
+    const service = input.rules.services.find(
+      (candidate) => candidate.id === input.service.id,
+    );
+    const description = service?.offeringDescription?.trim();
+
+    if (description) {
+      return {
+        ...base,
+        decision: "OFFERING_ANSWER",
+        reason: "OFFERING_MATCHED",
+        offeringAnswer: {
+          description,
+          followup: service?.offeringFollowup?.trim() || null,
+        },
+        autoSendBlockedBy: ["OFFERING_ANSWER"],
+      };
+    }
+
+    return {
+      ...base,
+      decision: "MANUAL_REVIEW",
+      reason: "OFFERING_NOT_CONFIGURED",
+      autoSendBlockedBy: ["OFFERING_NOT_CONFIGURED"],
+    };
+  }
+
   const requiredMissing = input.unresolvedRequirements
     .filter((requirement) => requirement.required)
     .sort((a, b) => Number(b.affectsPrice) - Number(a.affectsPrice));
@@ -88,6 +118,7 @@ function baseDecision(): DecisionResult {
     questionsToAsk: [],
     autoSend: false,
     autoSendBlockedBy: [],
+    offeringAnswer: null,
   };
 }
 

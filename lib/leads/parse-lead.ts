@@ -4,6 +4,7 @@ import type {
   AdminUnitLocation,
   ExtractedContacts,
   ExtractedFact,
+  PrimaryIntent,
 } from "@/lib/extractor/types";
 import {
   classifyLeadService,
@@ -25,6 +26,7 @@ export type ParsedLeadData = {
   asksPrice: boolean;
   asksAvailability: boolean;
   isUrgent: boolean;
+  primaryIntent: PrimaryIntent | null;
   hasAttachments: boolean;
   source: "dashboard_test_form";
   parserVersion: string;
@@ -38,6 +40,7 @@ export type ParsedLeadData = {
 
 export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
   const extraction = extractDeterministicFacts(input.inquiryMessage);
+  const asksPrice = input.asksPrice || extraction.intents.asksPrice;
 
   return {
     schemaVersion: "lead_parse_v2",
@@ -47,10 +50,16 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
       normalizeOptional(input.city) ??
       extraction.location?.adminUnit.label ??
       null,
-    asksPrice: input.asksPrice || extraction.intents.asksPrice,
+    asksPrice,
     asksAvailability:
       input.asksAvailability || extraction.intents.asksAvailability,
     isUrgent: input.isUrgent || extraction.intents.isUrgent,
+    // „Kaina pirma": jei formos laukas nurodo kainos klausimą, jis turi
+    // pirmenybę prieš tekste rastą offering intentą.
+    primaryIntent:
+      asksPrice && extraction.intents.primaryIntent === "asks_offering"
+        ? "requests_quote"
+        : extraction.intents.primaryIntent,
     hasAttachments: false,
     source: "dashboard_test_form",
     parserVersion: extraction.meta.parserVersion,
@@ -137,6 +146,7 @@ export function toDecisionEngineInput(params: {
       asksPrice: params.parsed.asksPrice,
       asksAvailability: params.parsed.asksAvailability,
       isUrgent: params.parsed.isUrgent,
+      primaryIntent: params.parsed.primaryIntent ?? "other",
     },
     resolvedRequirements: params.parsed.resolvedRequirements,
     unresolvedRequirements: params.parsed.unresolvedRequirements,

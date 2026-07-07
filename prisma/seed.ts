@@ -29,6 +29,10 @@ const services = [
       "segmentiniu",
     ],
     rangePolicy: "manual_review",
+    offeringDescription:
+      "Taip, montuojame segmentines tvoras — parenkame segmentų aukštį ir spalvą pagal jūsų sklypą.",
+    offeringFollowup:
+      "Jei norite, galiu paskaičiuoti orientacinę kainą — kiek metrų tvoros ir kokio aukščio reikėtų?",
   },
   {
     id: "service_dev_skardines_tvoros",
@@ -36,6 +40,10 @@ const services = [
     label: "Skardinės tvoros gamyba ir montavimas",
     keywords: ["skardinė", "skardinės", "skarda", "skardos", "tvora", "tvoros"],
     rangePolicy: "manual_review",
+    offeringDescription:
+      "Taip, gaminame ir montuojame skardines tvoras — vertikalias ir horizontalias.",
+    offeringFollowup:
+      "Jei norite, galiu paskaičiuoti orientacinę kainą — kiek metrų tvoros ir kokio aukščio reikėtų?",
   },
   {
     id: "service_dev_vartai_varteliai",
@@ -43,6 +51,10 @@ const services = [
     label: "Vartai ir varteliai",
     keywords: ["vartai", "vartų", "vartus", "varteliai", "vartelių"],
     rangePolicy: "manual_review",
+    offeringDescription:
+      "Taip, gaminame ir montuojame metalinius kiemo vartus — varstomus ir stumdomus.",
+    offeringFollowup:
+      "Jei norite, galiu paskaičiuoti orientacinę kainą — kokio pločio įvažiavimo angą turite?",
   },
 ] as const;
 
@@ -252,6 +264,8 @@ async function main() {
         label: service.label,
         keywords: service.keywords as unknown as Prisma.InputJsonArray,
         rangePolicy: service.rangePolicy,
+        offeringDescription: service.offeringDescription,
+        offeringFollowup: service.offeringFollowup,
         active: true,
       },
       update: {
@@ -260,6 +274,8 @@ async function main() {
         label: service.label,
         keywords: service.keywords as unknown as Prisma.InputJsonArray,
         rangePolicy: service.rangePolicy,
+        offeringDescription: service.offeringDescription,
+        offeringFollowup: service.offeringFollowup,
         active: true,
       },
     });
@@ -514,6 +530,10 @@ async function seedOperationalRules() {
     {
       templateKey: "decline_location",
       body: "Sveiki, ačiū už užklausą. Šioje vietovėje šiuo metu darbų neatliekame.",
+    },
+    {
+      templateKey: "offering_answer",
+      body: "Sveiki, ačiū už užklausą. {{offeringDescription}} {{offeringFollowup}}",
     },
   ] as const;
 

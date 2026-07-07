@@ -238,6 +238,56 @@ describe("decideLeadResponse", () => {
     assert.deepEqual(result.autoSendBlockedBy, []);
   });
 
+  it("answers an offering question from DB offering fields, ignoring unresolved requirements", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      intents: { ...baseInput.intents, primaryIntent: "asks_offering" },
+      resolvedRequirements: {},
+      unresolvedRequirements: [
+        missing(
+          "fence_length",
+          "Tvoros ilgis",
+          "Kiek metrų tvoros?",
+          true,
+          true,
+        ),
+      ],
+      rules: {
+        ...baseRules,
+        services: [
+          {
+            ...baseRules.services[0],
+            offeringDescription: "Taip, montuojame segmentines tvoras.",
+            offeringFollowup: "Kiek metrų reikėtų?",
+          },
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "OFFERING_ANSWER");
+    assert.equal(result.reason, "OFFERING_MATCHED");
+    assert.deepEqual(result.offeringAnswer, {
+      description: "Taip, montuojame segmentines tvoras.",
+      followup: "Kiek metrų reikėtų?",
+    });
+    assert.deepEqual(result.questionsToAsk, []);
+    assert.equal(result.autoSend, false);
+  });
+
+  it("manual-reviews an offering question when the service has no offering description", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      intents: { ...baseInput.intents, primaryIntent: "asks_offering" },
+      resolvedRequirements: {},
+      unresolvedRequirements: [],
+    });
+
+    assert.equal(result.decision, "MANUAL_REVIEW");
+    assert.equal(result.reason, "OFFERING_NOT_CONFIGURED");
+    assert.deepEqual(result.autoSendBlockedBy, ["OFFERING_NOT_CONFIGURED"]);
+    assert.equal(result.offeringAnswer ?? null, null);
+  });
+
   it("manual-reviews when all required data is present but no pricing rule matches", () => {
     const result = decideLeadResponse({
       ...baseInput,
