@@ -37,7 +37,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
         id: "services",
         label: "Paslaugos",
         href: "/dashboard/services",
-        status: "placeholder",
+        status: "live",
       },
       {
         id: "rules",
