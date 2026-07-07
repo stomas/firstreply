@@ -26,6 +26,30 @@ export function stripJsonFence(value: string): string {
   return fenced ? fenced[1].trim() : trimmed;
 }
 
+// AI kartais grąžina rėžį kaip objektą value:{min,max} (pvz. „apie 1.5-1.7").
+// Normalizuojam į value=null + valueMin/valueMax (kaip likusioje sistemoje),
+// kad zod parse nekristų. Naudojama fact schemų preprocess'e.
+export function normalizeRangeFactValue(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const fact = raw as Record<string, unknown>;
+  const value = fact.value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return raw;
+  }
+  const range = value as Record<string, unknown>;
+  if (typeof range.min !== "number" && typeof range.max !== "number") {
+    return raw;
+  }
+  return {
+    ...fact,
+    value: null,
+    valueMin: typeof range.min === "number" ? range.min : (fact.valueMin ?? null),
+    valueMax: typeof range.max === "number" ? range.max : (fact.valueMax ?? null),
+  };
+}
+
 export async function callOpenAiResponsesApi(
   request: AiModelRequest,
 ): Promise<string> {

@@ -439,6 +439,74 @@ describe("AI gap filler configuration gate", () => {
     ]);
   });
 
+  it("accepts a range value returned as an object and resolves valueMin/valueMax", async () => {
+    const result = await fillAiGaps(
+      {
+        rawText: "Reikia 75 m tvoros. Aukštis apie 1.5-1.7",
+        facts: [
+          measurementFact({
+            id: "fact_1",
+            subject: "fence",
+            subjectSource: "deterministic",
+            value: 75,
+          }),
+        ],
+        requirements: [lengthRequirement, heightRequirement],
+        resolution: {
+          resolvedRequirements: { fence_length: null, fence_height: null },
+          unresolvedRequirements: [
+            {
+              requirementKey: "fence_height",
+              label: "Tvoros aukštis",
+              question: "Koks tvoros aukštis?",
+              required: true,
+              affectsPrice: true,
+              status: "unresolved",
+              candidateFactRefs: [],
+            },
+          ],
+          conflicts: [],
+        },
+        subjects,
+      },
+      {
+        env: { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" },
+        callModel: async () =>
+          JSON.stringify({
+            bindings: [],
+            newFacts: [
+              {
+                requirementKey: "fence_height",
+                kind: "measurement",
+                dimension: "height",
+                value: { min: 1.5, max: 1.7 },
+                unit: "m",
+                evidence: "Aukštis apie 1.5-1.7",
+                confidence: 0.9,
+              },
+            ],
+            conflicts: [],
+            serviceClassification: null,
+          }),
+      },
+    );
+
+    assert.equal(result.status, "ok");
+    if (result.status !== "ok") {
+      return;
+    }
+    assert.equal(result.resolution.resolvedRequirements.fence_height?.value, null);
+    assert.equal(
+      result.resolution.resolvedRequirements.fence_height?.valueMin,
+      1.5,
+    );
+    assert.equal(
+      result.resolution.resolvedRequirements.fence_height?.valueMax,
+      1.7,
+    );
+    assert.deepEqual(result.rejectedFindings, []);
+  });
+
   it("retries invalid JSON once and returns manual review when parsing still fails", async () => {
     const calls: string[] = [];
     const result = await fillAiGaps(

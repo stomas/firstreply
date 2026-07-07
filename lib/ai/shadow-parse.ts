@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   callOpenAiResponsesApi,
   isAiConfigured,
+  normalizeRangeFactValue,
   stripJsonFence,
   type AiEnvironment,
   type AiModelCaller,
@@ -18,28 +19,9 @@ export function isShadowEnabled(env: AiEnvironment = process.env): boolean {
   return env.SHADOW_AI_PARSE === "true";
 }
 
-// AI kartais grąžina range reikšmę kaip objektą {min,max} (pvz. „apie 1.5-1.7").
-// Normalizuojam į valueMin/valueMax (kaip likusioje sistemoje), kad shadow
-// nekristų su AI_PARSE_FAILED.
-const shadowFactSchema = z.preprocess((raw) => {
-  if (!raw || typeof raw !== "object") {
-    return raw;
-  }
-  const fact = raw as Record<string, unknown>;
-  const value = fact.value;
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const range = value as Record<string, unknown>;
-    if (typeof range.min === "number" || typeof range.max === "number") {
-      return {
-        ...fact,
-        value: null,
-        valueMin: typeof range.min === "number" ? range.min : null,
-        valueMax: typeof range.max === "number" ? range.max : null,
-      };
-    }
-  }
-  return raw;
-}, z.object({
+// Range reikšmės normalizuojamos bendra normalizeRangeFactValue (openai-client),
+// kad shadow nekristų su AI_PARSE_FAILED.
+const shadowFactSchema = z.preprocess(normalizeRangeFactValue, z.object({
   requirementKey: z.string(),
   kind: z.string(),
   subject: z.string().nullable().optional(),

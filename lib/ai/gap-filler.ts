@@ -4,6 +4,7 @@ import {
   AI_NOT_CONFIGURED,
   callOpenAiResponsesApi,
   isAiConfigured,
+  normalizeRangeFactValue,
   stripJsonFence,
   type AiEnvironment,
   type AiModelCaller,
@@ -63,24 +64,27 @@ const aiBindingSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
-const aiNewFactSchema = z.object({
-  requirementKey: z.string(),
-  kind: z.string(),
-  dimension: z.string().nullable().optional(),
-  value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
-  valueMin: z.number().nullable().optional(),
-  valueMax: z.number().nullable().optional(),
-  unit: z.string().nullable().optional(),
-  evidence: z.string(),
-  confidence: z.number().min(0).max(1),
-  computation: z
-    .object({
-      op: z.enum(["multiply", "add"]),
-      inputs: z.array(z.string()),
-    })
-    .nullable()
-    .optional(),
-});
+const aiNewFactSchema = z.preprocess(
+  normalizeRangeFactValue,
+  z.object({
+    requirementKey: z.string(),
+    kind: z.string(),
+    dimension: z.string().nullable().optional(),
+    value: z.union([z.number(), z.string(), z.boolean()]).nullable(),
+    valueMin: z.number().nullable().optional(),
+    valueMax: z.number().nullable().optional(),
+    unit: z.string().nullable().optional(),
+    evidence: z.string(),
+    confidence: z.number().min(0).max(1),
+    computation: z
+      .object({
+        op: z.enum(["multiply", "add"]),
+        inputs: z.array(z.string()),
+      })
+      .nullable()
+      .optional(),
+  }),
+);
 
 const aiConflictSchema = z.object({
   factId: z.string(),
@@ -206,7 +210,7 @@ function buildAiRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su computation, nurodančiu, kurie tekste esantys faktai dauginami/sudedami (pvz. kiekis × ilgis), ir jų input faktų id iš existingFacts. NEGALIMA grąžinti išvestinio (derived) fakto be computation. Reikšmės pats neskaičiuok tiksliai — kodas perskaičiuos ir patikrins; svarbu teisingi input id ir op. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą. 7. primaryIntent: pagrindinis kliento tikslas, TIK viena iš reikšmių: requests_quote (prašo kainos), asks_offering (klausia ar tokią paslaugą teikiate/gaminate/montuojate), asks_availability (klausia termino/laisvo laiko), asks_process (klausia proceso/kaip vyksta), provides_info (tik pateikia informaciją), other. Jei neaišku — other.",
+      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su computation, nurodančiu, kurie tekste esantys faktai dauginami/sudedami (pvz. kiekis × ilgis), ir jų input faktų id iš existingFacts. NEGALIMA grąžinti išvestinio (derived) fakto be computation. Reikšmės pats neskaičiuok tiksliai — kodas perskaičiuos ir patikrins; svarbu teisingi input id ir op. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą. 7. primaryIntent: pagrindinis kliento tikslas, TIK viena iš reikšmių: requests_quote (prašo kainos), asks_offering (klausia ar tokią paslaugą teikiate/gaminate/montuojate), asks_availability (klausia termino/laisvo laiko), asks_process (klausia proceso/kaip vyksta), provides_info (tik pateikia informaciją), other. Jei neaišku — other. 8. Rėžis (pvz. 1.5-1.7) → value=null ir valueMin/valueMax skaičiai; NEGRĄŽINK value kaip objekto.",
     user: JSON.stringify({
       rawText: input.rawText,
       existingFacts: input.facts,
