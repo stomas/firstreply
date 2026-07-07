@@ -19,89 +19,83 @@ export default async function LeadDetailPage({
     const lead = await getLeadDetail(client.id, id);
 
     return (
-      <main className="min-h-screen bg-page px-6 py-8">
-        <div className="mx-auto max-w-content">
-          <div className="mb-6">
-            <Link
-              href="/dashboard"
-              className="text-sm font-bold text-brand hover:text-brand-hover"
-            >
-              Atgal į dashboard
-            </Link>
-            <h1 className="mt-2 text-3xl font-extrabold text-ink">
-              Lead detail
-            </h1>
-          </div>
+      <div className="mx-auto max-w-content">
+        <div className="mb-6">
+          <Link
+            href="/dashboard"
+            className="text-sm font-bold text-brand hover:text-brand-hover"
+          >
+            Atgal į dashboard
+          </Link>
+          <h1 className="mt-2 text-3xl font-extrabold text-ink">Lead detail</h1>
+        </div>
 
-          <LeadOverview lead={lead} />
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <Panel title="Originali užklausa">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {lead.originalMessage}
-              </p>
-            </Panel>
-            <Panel title="Parse result JSON">
-              <JsonBlock value={lead.parseResult} />
-            </Panel>
-          </div>
+        <LeadOverview lead={lead} />
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <Panel title="Originali užklausa">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">
+              {lead.originalMessage}
+            </p>
+          </Panel>
+          <Panel title="Parse result JSON">
+            <JsonBlock value={lead.parseResult} />
+          </Panel>
+        </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-3">
-            <RulesPanel lead={lead} />
-          </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <RulesPanel lead={lead} />
+        </div>
 
-          <section className="mt-5">
-            <h2 className="mb-3 text-xl font-extrabold text-ink">Responses</h2>
-            {lead.responses.length === 0 ? (
-              <div className="rounded-lg border border-line bg-white p-5 text-sm text-ink-soft">
-                Response dar nėra.
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {lead.responses.map((response) => (
-                  <div
-                    key={response.id}
-                    className="min-w-0 rounded-lg border border-line bg-white p-5 shadow-cardsoft"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="text-sm font-bold text-ink">
-                        {response.status} · {response.responseType}
-                      </div>
-                      <div className="text-sm text-ink-soft">
-                        {formatDate(response.createdAt)}
-                      </div>
+        <section className="mt-5">
+          <h2 className="mb-3 text-xl font-extrabold text-ink">Responses</h2>
+          {lead.responses.length === 0 ? (
+            <div className="rounded-lg border border-line bg-white p-5 text-sm text-ink-soft">
+              Response dar nėra.
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {lead.responses.map((response) => (
+                <div
+                  key={response.id}
+                  className="min-w-0 rounded-lg border border-line bg-white p-5 shadow-cardsoft"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-ink">
+                      {response.status} · {response.responseType}
                     </div>
-                    {response.manualReviewReason ? (
-                      <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm font-semibold text-warn-text">
-                        {response.manualReviewReason}
-                      </div>
-                    ) : null}
-                    {response.draftText ? (
-                      <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-line bg-line-soft p-4 text-sm leading-relaxed">
-                        {response.draftText}
-                      </pre>
-                    ) : null}
-                    <div className="mt-3">
-                      <div className="text-sm font-bold text-ink">
-                        Decision JSON
-                      </div>
-                      <JsonBlock value={response.decisionJson} />
+                    <div className="text-sm text-ink-soft">
+                      {formatDate(response.createdAt)}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
+                  {response.manualReviewReason ? (
+                    <div className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm font-semibold text-warn-text">
+                      {response.manualReviewReason}
+                    </div>
+                  ) : null}
+                  {response.draftText ? (
+                    <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-line bg-line-soft p-4 text-sm leading-relaxed">
+                      {response.draftText}
+                    </pre>
+                  ) : null}
+                  <div className="mt-3">
+                    <div className="text-sm font-bold text-ink">
+                      Decision JSON
+                    </div>
+                    <JsonBlock value={response.decisionJson} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     );
   } catch (error) {
     console.error("[lead-detail] failed to load:", error);
     return (
-      <main className="min-h-screen bg-page px-6 py-8">
-        <div className="mx-auto max-w-content">
-          <DashboardError message={getAppErrorMessage(error)} />
-        </div>
-      </main>
+      <div className="mx-auto max-w-content">
+        <DashboardError message={getAppErrorMessage(error)} />
+      </div>
     );
   }
 }

@@ -26,45 +26,41 @@ export default async function DashboardTestPage() {
     const canTest = counts.activeServices > 0 && hasRules;
 
     return (
-      <main className="min-h-screen bg-page px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mx-auto max-w-content">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <Link
-                href="/dashboard"
-                className="text-sm font-bold text-brand hover:text-brand-hover"
-              >
-                Atgal į dashboard
-              </Link>
-              <h1 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
-                Testavimo įrankis
-              </h1>
-            </div>
+      <div className="mx-auto max-w-content">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <Link
+              href="/dashboard"
+              className="text-sm font-bold text-brand hover:text-brand-hover"
+            >
+              Atgal į dashboard
+            </Link>
+            <h1 className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">
+              Testavimo įrankis
+            </h1>
           </div>
-
-          <RuleCountGrid counts={counts} />
-
-          {!canTest ? (
-            <div className="mt-5 rounded-lg border border-warn-border bg-warn-bg p-5 text-sm font-semibold text-warn-text">
-              Šiam klientui dar nėra suvestų taisyklių. Testavimas negalimas,
-              kol nėra bent vienos aktyvios paslaugos ir taisyklių.
-            </div>
-          ) : (
-            <section className="mt-5">
-              <TestInquiryForm services={rules.services} />
-            </section>
-          )}
         </div>
-      </main>
+
+        <RuleCountGrid counts={counts} />
+
+        {!canTest ? (
+          <div className="mt-5 rounded-lg border border-warn-border bg-warn-bg p-5 text-sm font-semibold text-warn-text">
+            Šiam klientui dar nėra suvestų taisyklių. Testavimas negalimas, kol
+            nėra bent vienos aktyvios paslaugos ir taisyklių.
+          </div>
+        ) : (
+          <section className="mt-5">
+            <TestInquiryForm services={rules.services} />
+          </section>
+        )}
+      </div>
     );
   } catch (error) {
     console.error("[dashboard-test] failed to load:", error);
     return (
-      <main className="min-h-screen bg-page px-4 py-6 sm:px-6 sm:py-8">
-        <div className="mx-auto max-w-content">
-          <DashboardError message={getAppErrorMessage(error)} />
-        </div>
-      </main>
+      <div className="mx-auto max-w-content">
+        <DashboardError message={getAppErrorMessage(error)} />
+      </div>
     );
   }
 }
