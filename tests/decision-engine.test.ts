@@ -288,6 +288,50 @@ describe("decideLeadResponse", () => {
     assert.equal(result.offeringAnswer ?? null, null);
   });
 
+  it("blocks auto-send for an AI-classified service by default (draft_for_review)", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: "service_fence",
+        confidence: 0.9,
+        source: "ai",
+        candidates: [{ id: "service_fence", confidence: 0.9 }],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, false);
+    assert.ok(result.autoSendBlockedBy.includes("SERVICE_AI_CLASSIFIED"));
+  });
+
+  it("allows auto-send for an AI-classified service when the policy opts in", () => {
+    const policy = asRecord(baseRules.autosendPolicies?.[0]?.policy) ?? {};
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: "service_fence",
+        confidence: 0.9,
+        source: "ai",
+        candidates: [{ id: "service_fence", confidence: 0.9 }],
+      },
+      rules: {
+        ...baseRules,
+        autosendPolicies: [
+          {
+            policy: {
+              ...policy,
+              serviceClassification: { aiAllowedForAutoSend: true },
+            },
+          },
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, true);
+    assert.ok(!result.autoSendBlockedBy.includes("SERVICE_AI_CLASSIFIED"));
+  });
+
   it("manual-reviews when all required data is present but no pricing rule matches", () => {
     const result = decideLeadResponse({
       ...baseInput,
@@ -303,6 +347,12 @@ describe("decideLeadResponse", () => {
     assert.equal(result.autoSend, false);
   });
 });
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
 function resolvedNumber(
   value: number,

@@ -7,9 +7,11 @@ import type {
   PrimaryIntent,
 } from "@/lib/extractor/types";
 import {
-  classifyLeadService,
+  classifyLeadServiceWithFallback,
+  type ServiceAiOutcome,
   type ServiceClassification,
 } from "@/lib/leads/service-classifier";
+import type { AiEnvironment, AiModelCaller } from "@/lib/ai/openai-client";
 import { resolveRequirements } from "@/lib/requirements/resolve-requirements";
 import type {
   ClientRules,
@@ -72,21 +74,24 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
   };
 }
 
-export function classifyParsedLeadService(
+export async function classifyParsedLeadService(
   parsed: ParsedLeadData,
   message: string,
   rules: ClientRules,
-): ParsedLeadData {
-  const serviceClassification = classifyLeadService({
-    requestedServiceId: parsed.serviceId,
-    message,
-    rules,
-  });
+  aiOptions: { env?: AiEnvironment; callModel?: AiModelCaller } = {},
+): Promise<{ parsed: ParsedLeadData; ai: ServiceAiOutcome }> {
+  const { classification, ai } = await classifyLeadServiceWithFallback(
+    { requestedServiceId: parsed.serviceId, message, rules },
+    aiOptions,
+  );
 
   return {
-    ...parsed,
-    serviceId: serviceClassification.id,
-    serviceClassification,
+    parsed: {
+      ...parsed,
+      serviceId: classification.id,
+      serviceClassification: classification,
+    },
+    ai,
   };
 }
 
@@ -136,6 +141,7 @@ export function toDecisionEngineInput(params: {
     service: {
       id: params.parsed.serviceId,
       confidence: serviceClassification?.confidence ?? 0,
+      source: serviceClassification?.source,
       candidates: serviceClassification?.candidates.map((candidate) => ({
         id: candidate.id,
         confidence: candidate.confidence,

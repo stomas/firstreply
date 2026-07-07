@@ -25,12 +25,13 @@ import type {
   ResponseType,
 } from "@/lib/rules/types";
 
-export type TraceStageStatus = "ok" | "skipped" | "manual_review";
+export type TraceStageStatus = "ok" | "skipped" | "manual_review" | "rejected";
 
 export type LeadProcessingTraceStage = {
   key:
     | "parse"
     | "service_classification"
+    | "ai_service_classification"
     | "resolver_pass_1"
     | "ai_gap_filler"
     | "resolver_pass_2"
@@ -95,11 +96,13 @@ export async function runTestLeadPipeline({
     },
   });
 
-  parsedLead = classifyParsedLeadService(
+  const serviceResult = await classifyParsedLeadService(
     parsedLead,
     input.inquiryMessage,
     rules,
+    aiOptions,
   );
+  parsedLead = serviceResult.parsed;
   trace.stages.push({
     key: "service_classification",
     label: "Service classification",
@@ -117,6 +120,33 @@ export async function runTestLeadPipeline({
         }
       : {},
   });
+
+  // AI fallback stage rodomas tik kai deterministika nepataikė ir buvo įeita į
+  // AI kelią (skipped-not-configured / ok / rejected). Kai deterministika rado
+  // paslaugą, stage nerodomas — trace seka nekinta esamiems srautams.
+  if (serviceResult.ai.reason !== "DETERMINISTIC_MATCH") {
+    const ai = serviceResult.ai;
+    trace.stages.push({
+      key: "ai_service_classification",
+      label: "AI service classification",
+      status: ai.status,
+      summary:
+        ai.status === "ok"
+          ? `AI priskyrė paslaugą: ${ai.serviceId} (conf ${ai.confidence})`
+          : ai.status === "skipped"
+            ? `AI praleistas: ${ai.reason}`
+            : `AI atmestas: ${ai.reason}`,
+      data: {
+        status: ai.status,
+        reason: ai.reason,
+        serviceId: ai.serviceId ?? null,
+        confidence: ai.confidence ?? null,
+        evidence: ai.evidence ?? null,
+        rawResponseCount: ai.rawResponses?.length ?? 0,
+        rawResponses: ai.rawResponses ?? [],
+      },
+    });
+  }
 
   parsedLead = resolveParsedLeadRequirements(parsedLead, rules);
   trace.stages.push(resolverTraceStage("resolver_pass_1", parsedLead));

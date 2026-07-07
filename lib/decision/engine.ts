@@ -268,6 +268,15 @@ function autoSendBlockers(
     blockers.push("AUTOSEND_POLICY_DISABLED");
   }
 
+  // AI-klasifikuota paslauga: pagal nutylėjimą → draft_for_review (blokuojam),
+  // nebent policy JSON aiškiai leidžia (serviceClassification.aiAllowedForAutoSend).
+  if (input.service.source === "ai") {
+    const serviceGate = asRecord(policy?.serviceClassification);
+    if (serviceGate?.aiAllowedForAutoSend !== true) {
+      blockers.push("SERVICE_AI_CLASSIFIED");
+    }
+  }
+
   const confidenceBand = asRecord(policy?.confidenceBands);
   const minConfidence = numberValue(confidenceBand?.autoSend) ?? 0;
   if (

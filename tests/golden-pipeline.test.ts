@@ -302,6 +302,54 @@ describe("golden lead pipeline", () => {
     );
   });
 
+  it("uses the AI service fallback when deterministic scoring finds no match", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        inquiryMessage: "Sveiki, reikia aptvert sklypa nuo kaimyno. Kiek kainuotų?",
+      },
+      rules,
+      leadId: "golden_ai_service",
+      isTest: true,
+      aiOptions: {
+        env: { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" },
+        callModel: async (request) => {
+          if (request.user.includes('"activeServices"')) {
+            return JSON.stringify({
+              serviceId: "service_skardines_tvoros",
+              confidence: 0.9,
+              evidence: "aptvert sklypa",
+            });
+          }
+          return JSON.stringify({
+            bindings: [],
+            newFacts: [],
+            conflicts: [],
+            serviceClassification: null,
+          });
+        },
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, "service_skardines_tvoros");
+    assert.equal(result.parsedLead.serviceClassification?.source, "ai");
+    assert.equal(result.decisionResult.decision, "ASK_MISSING_INFO");
+    assert.deepEqual(
+      result.trace.stages.map((stage) => [stage.key, stage.status]),
+      [
+        ["parse", "ok"],
+        ["service_classification", "ok"],
+        ["ai_service_classification", "ok"],
+        ["resolver_pass_1", "ok"],
+        ["ai_gap_filler", "ok"],
+        ["resolver_pass_2", "ok"],
+        ["decision", "ok"],
+        ["composer", "ok"],
+      ],
+    );
+  });
+
   it("stops with a clear config error when unresolved requirements need AI", async () => {
     try {
       await runTestLeadPipeline({

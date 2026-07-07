@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { classifyLeadService } from "../lib/leads/service-classifier";
+import {
+  classifyLeadService,
+  classifyLeadServiceWithFallback,
+} from "../lib/leads/service-classifier";
 import type { ClientRules } from "../lib/rules/types";
+
+const aiEnv = { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" };
 
 const rules: ClientRules = {
   services: [
@@ -141,5 +146,182 @@ describe("classifyLeadService", () => {
     assert.equal(classification.id, null);
     assert.equal(classification.reason, "ambiguous");
     assert.ok(classification.confidence < 0.7);
+  });
+});
+
+const singleServiceRules: ClientRules = {
+  ...rules,
+  services: [rules.services[0]],
+  serviceSubjects: (rules.serviceSubjects ?? []).filter(
+    (subject) => subject.serviceId === "service_segmentine",
+  ),
+  pricingRules: rules.pricingRules.filter(
+    (rule) => rule.serviceId === "service_segmentine",
+  ),
+};
+
+describe("classifyLeadServiceWithFallback", () => {
+  it("keeps deterministic match first and does not call AI", async () => {
+    let called = false;
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Reikia skardinės tvoros 45 m ir 1.7 m aukščio.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () => {
+          called = true;
+          return "{}";
+        },
+      },
+    );
+
+    assert.equal(classification.id, "service_skardine");
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "skipped");
+    assert.equal(ai.reason, "DETERMINISTIC_MATCH");
+    assert.equal(called, false);
+  });
+
+  it("accepts an AI service when confidence and evidence pass on a no-match text", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa nuo kaimyno.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_segmentine",
+            confidence: 0.9,
+            evidence: "aptvert sklypa",
+          }),
+      },
+    );
+
+    assert.equal(classification.id, "service_segmentine");
+    assert.equal(classification.source, "ai");
+    assert.equal(classification.reason, "ai_matched");
+    assert.equal(classification.confidence, 0.9);
+    assert.equal(ai.status, "ok");
+  });
+
+  it("rejects an AI service whose evidence is not in the text", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa nuo kaimyno.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_segmentine",
+            confidence: 0.95,
+            evidence: "visiškai kitas tekstas kurio nėra",
+          }),
+      },
+    );
+
+    assert.equal(classification.id, null);
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "EVIDENCE_NOT_FOUND");
+  });
+
+  it("rejects an AI service below the confidence threshold", async () => {
+    const { ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa nuo kaimyno.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_segmentine",
+            confidence: 0.6,
+            evidence: "aptvert sklypa",
+          }),
+      },
+    );
+
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "LOW_CONFIDENCE");
+  });
+
+  it("rejects an AI service that is not in the active list", async () => {
+    const { ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa nuo kaimyno.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_nonexistent",
+            confidence: 0.95,
+            evidence: "aptvert sklypa",
+          }),
+      },
+    );
+
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "SERVICE_NOT_IN_LIST");
+  });
+
+  it("does not auto-pick a single active service — AI must return null when nothing fits", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, ar dirbat savaitgaliais?",
+        rules: singleServiceRules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: null,
+            confidence: 0,
+            evidence: "",
+          }),
+      },
+    );
+
+    assert.equal(classification.id, null);
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "NO_SERVICE");
+  });
+
+  it("skips AI without error when it is not configured (optional step)", async () => {
+    let called = false;
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa nuo kaimyno.",
+        rules,
+      },
+      {
+        env: {},
+        callModel: async () => {
+          called = true;
+          return "{}";
+        },
+      },
+    );
+
+    assert.equal(classification.id, null);
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "skipped");
+    assert.equal(ai.reason, "NOT_CONFIGURED");
+    assert.equal(called, false);
   });
 });

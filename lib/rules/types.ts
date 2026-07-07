@@ -156,6 +156,7 @@ export type ResponseTemplateRule = {
 export type DecisionServiceInput = {
   id: string | null;
   confidence: number;
+  source?: "form_field" | "deterministic" | "ai";
   candidates?: Array<{ id: string; confidence: number }>;
 };
 

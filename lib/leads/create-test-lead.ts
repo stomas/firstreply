@@ -45,14 +45,16 @@ export async function createTestLeadAndResponse(
   const rules = await getClientRules(clientId);
   ensureTestingAllowed(rules, input);
 
-  const parsedLead = resolveParsedLeadRequirements(
-    classifyParsedLeadService(
-      parseTestInquiryLead(input),
-      input.inquiryMessage,
-      rules,
-    ),
+  // Pradinis lead įrašo momentinis snapshot'as — deterministinis (AI išjungtas
+  // per tuščią env), kad nebūtų dubliuoto AI kvietimo; autoritetingą AI
+  // klasifikaciją padaro runTestLeadPipeline žemiau.
+  const classified = await classifyParsedLeadService(
+    parseTestInquiryLead(input),
+    input.inquiryMessage,
     rules,
+    { env: {} },
   );
+  const parsedLead = resolveParsedLeadRequirements(classified.parsed, rules);
   const lead = await prisma.lead.create({
     data: {
       clientId,
@@ -98,6 +100,7 @@ export async function createTestLeadAndResponse(
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
+      serviceId: pipeline.parsedLead.serviceId,
       parseResult: pipeline.parsedLead as Prisma.InputJsonObject,
       decisionResult:
         pipeline.decisionResult as unknown as Prisma.InputJsonObject,
