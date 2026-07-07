@@ -32,6 +32,11 @@ export type ExtractedUnit =
 export type FactSource = "deterministic" | "ai" | "form_field";
 export type SubjectSource = FactSource | null;
 
+export type FactComputation = {
+  op: "multiply" | "add";
+  inputs: string[];
+};
+
 export type ExtractedFact = {
   id: string;
   kind: FactKind;
@@ -47,6 +52,8 @@ export type ExtractedFact = {
   source: FactSource;
   confidence: number;
   negated: boolean;
+  derived?: boolean;
+  computation?: FactComputation | null;
 };
 
 export type ExtractedContact = {

@@ -78,9 +78,10 @@ const wordNumberValues = new Map<string, number>(
 
 const quantityNounPattern =
   "(?:vartai|vartus|vartų|vartu|vartams|varteliai|vartelius|vartelių|varteliu|stulpai|stulpus|segmentas|segmentai|segmentus|segmentų|segmentu|segmento|segmentams|skydai|skydus|skydų|skydu|dalys|dalis|dalių|daliu)";
-const quantityValuePattern =
-  "(?:\\d+(?:[,.]\\d+)?|vienas|viena|du|dvi|trys|keturi|keturios|penki|penkios|šeši|šešios|sesi|sesios|septyni|septynios|aštuoni|aštuonios|astuoni|astuonios|devyni|devynios|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt)";
 const itemCountUnitPattern = "(?:vnt\\.?|vienetai|vienetus|vienetu|vienetų)";
+const wordNumberPattern =
+  "vienas|viena|du|dvi|trys|keturi|keturios|penki|penkios|šeši|šešios|sesi|sesios|septyni|septynios|aštuoni|aštuonios|astuoni|astuonios|devyni|devynios|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt";
+const meterWordPattern = "metras|metrai|metrų|metru|metro|metrus";
 
 export function extractDeterministicFacts(
   message: string,
@@ -397,66 +398,9 @@ function extractMeasurementFacts(
     "giu",
   );
   const singleRegex = new RegExp(
-    `\\b(?<approx>apie\\s+|~\\s*)?(?<value>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
+    `(?:\\b|(?<=[x×]))(?<approx>apie\\s+|~\\s*)?(?<value>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
     "giu",
   );
-  const perItemRegex = new RegExp(
-    `\\b(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern}\\s+)?${quantityNounPattern}\\s*(?:[,;:–-]\\s*)?(?:kiekvienas\\s+)?(?:po\\s+)?(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
-    "giu",
-  );
-  const perItemNounFirstRegex = new RegExp(
-    `\\b${quantityNounPattern}\\s*(?:[,;:–-]\\s*)?(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern})?\\s*(?:po\\s+)?(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})${unitBoundary}`,
-    "giu",
-  );
-  const perItemMultiplierRegex = new RegExp(
-    `\\b(?<count>${quantityValuePattern})\\s*(?:x|×)\\s*(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\s+${quantityNounPattern}(?=\\s|[,.;?!]|$)`,
-    "giu",
-  );
-  const perItemReversedRegex = new RegExp(
-    `\\b(?<perUnit>\\d+(?:[,.]\\d+)?)\\s*(?<unit>${unitPattern})\\s+(?:ilgio\\s+)?${quantityNounPattern}\\s+(?:apie\\s+|maždaug\\s+|mazdaug\\s+|kokius\\s+|kokias\\s+)?(?<count>${quantityValuePattern})\\s*(?:${itemCountUnitPattern})?\\b`,
-    "giu",
-  );
-
-  for (const match of [
-    ...maskedMessage.matchAll(perItemRegex),
-    ...maskedMessage.matchAll(perItemNounFirstRegex),
-    ...maskedMessage.matchAll(perItemMultiplierRegex),
-    ...maskedMessage.matchAll(perItemReversedRegex),
-  ].sort((left, right) => (left.index ?? 0) - (right.index ?? 0))) {
-    if (match.index === undefined || !match.groups) {
-      continue;
-    }
-
-    const span = { start: match.index, end: match.index + match[0].length };
-    if (overlapsAny(span, takenSpans) || overlapsAny(span, spans)) {
-      continue;
-    }
-
-    const unit = normalizeUnit(match.groups.unit);
-    const count = parseQuantityValue(match.groups.count);
-    const perUnit = parseNumber(match.groups.perUnit);
-    const subject = subjectForMeasurement(
-      originalMessage,
-      span.start,
-      span.end,
-    );
-
-    facts.push(
-      nextFact("measurement", {
-        subject,
-        subjectSource: subject ? "deterministic" : null,
-        dimension: unit === "m2" ? "area" : "length",
-        value: count * perUnit,
-        valueMin: null,
-        valueMax: null,
-        unit,
-        rawText: evidenceForSpan(originalMessage, span),
-        confidence: 1,
-        negated: isNegatedNear(originalMessage, span.start),
-      }),
-    );
-    spans.push(span);
-  }
 
   for (const match of maskedMessage.matchAll(rangeRegex)) {
     if (match.index === undefined || !match.groups) {
@@ -511,17 +455,17 @@ function extractMeasurementFacts(
     }
 
     const unit = normalizeUnit(match.groups.unit);
-    const dimension = dimensionForUnit(
-      unit,
-      originalMessage,
-      span.start,
-      span.end,
-    );
-    const subject = subjectForMeasurement(
-      originalMessage,
-      span.start,
-      span.end,
-    );
+    // Per-unit operandas („... po 2m", „2x2m") lieka atomu be subject'o ir
+    // priverstinai length (kad gretimas „aukštis" jo neperrašytų) — kompoziciją
+    // daro AI.
+    const perUnit = isPerUnitOperand(originalMessage, span.start);
+    const dimension =
+      perUnit && unit !== "m2"
+        ? "length"
+        : dimensionForUnit(unit, originalMessage, span.start, span.end);
+    const subject = perUnit
+      ? null
+      : subjectForMeasurement(originalMessage, span.start, span.end);
 
     facts.push(
       nextFact("measurement", {
@@ -534,6 +478,54 @@ function extractMeasurementFacts(
         unit,
         rawText: evidenceForSpan(originalMessage, span),
         confidence: match.groups.approx ? 0.9 : 1,
+        negated: isNegatedNear(originalMessage, span.start),
+      }),
+    );
+    spans.push(span);
+  }
+
+  // Žodinių skaičių matavimai (pvz. „du metrus") — atomas, simetriškas žodinių
+  // kiekių ekstrakcijai. Skaitiniai matavimai jau paimti aukščiau.
+  const wordMeasurementRegex = new RegExp(
+    `\\b(?<word>${wordNumberPattern})\\s+(?<unit>${meterWordPattern})(?![\\p{L}\\p{N}])`,
+    "giu",
+  );
+  for (const match of maskedMessage.matchAll(wordMeasurementRegex)) {
+    if (match.index === undefined || !match.groups) {
+      continue;
+    }
+
+    const span = { start: match.index, end: match.index + match[0].length };
+    if (overlapsAny(span, takenSpans) || overlapsAny(span, spans)) {
+      continue;
+    }
+
+    const value = wordNumberValues.get(normalizeSearchText(match.groups.word));
+    if (value === undefined) {
+      continue;
+    }
+
+    const unit = normalizeUnit(match.groups.unit);
+    const perUnit = isPerUnitOperand(originalMessage, span.start);
+    const dimension =
+      perUnit && unit !== "m2"
+        ? "length"
+        : dimensionForUnit(unit, originalMessage, span.start, span.end);
+    const subject = perUnit
+      ? null
+      : subjectForMeasurement(originalMessage, span.start, span.end);
+
+    facts.push(
+      nextFact("measurement", {
+        subject,
+        subjectSource: subject ? "deterministic" : null,
+        dimension,
+        value,
+        valueMin: null,
+        valueMax: null,
+        unit,
+        rawText: evidenceForSpan(originalMessage, span),
+        confidence: 1,
         negated: isNegatedNear(originalMessage, span.start),
       }),
     );
@@ -553,12 +545,22 @@ function extractQuantityFacts(
   ) => ExtractedFact,
 ): ExtractedFact[] {
   const matchedFacts: Array<{ fact: ExtractedFact; span: Span }> = [];
+  // Pastaba: pabaigos riba yra (?![\p{L}\p{N}]), o ne \b — /u režime \b remiasi
+  // ASCII, todėl LT raidėmis besibaigiantys daiktavardžiai (segmentų, dalių,
+  // vartų) su \b nepagaunami.
   const digitQuantityRegex = new RegExp(
-    `\\b(?<value>\\d{1,2})\\s*(?:vnt\\.?|${quantityNounPattern})\\b`,
+    `\\b(?<value>\\d{1,2})\\s*(?:${itemCountUnitPattern}|${quantityNounPattern})(?![\\p{L}\\p{N}])`,
+    "giu",
+  );
+  // Multiplikatoriaus count: „2x2m" → atominis kiekis 2 (be aritmetikos).
+  const multiplierCountRegex = /\b(?<value>\d{1,2})\s*[x×]\s*(?=\d)/giu;
+  // Žodinis kiekis prieš „po" be daiktavardžio: „trys po 2m" → kiekis 3.
+  const wordPoCountRegex = new RegExp(
+    `\\b(?<word>${wordNumberPattern})\\s+po\\b`,
     "giu",
   );
   const wordQuantityRegex = new RegExp(
-    `\\b(?<word>vienas|viena|du|dvi|trys|keturi|keturios|penki|penkios|šeši|šešios|sesi|sesios|septyni|septynios|aštuoni|aštuonios|astuoni|astuonios|devyni|devynios|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt)\\s+${quantityNounPattern}\\b`,
+    `\\b(?<word>${wordNumberPattern})\\s+${quantityNounPattern}(?![\\p{L}\\p{N}])`,
     "giu",
   );
   const localTakenSpans: Span[] = [];
@@ -611,6 +613,65 @@ function extractQuantityFacts(
       subjectSource: null,
       dimension: "count",
       value: parseNumber(match.groups.value),
+      valueMin: null,
+      valueMax: null,
+      unit: "vnt",
+      rawText: evidenceForSpan(originalMessage, span),
+      confidence: 1,
+      negated: isNegatedNear(originalMessage, span.start),
+    });
+    matchedFacts.push({ fact, span });
+    localTakenSpans.push(span);
+  }
+
+  for (const match of maskedMessage.matchAll(multiplierCountRegex)) {
+    if (match.index === undefined || !match.groups) {
+      continue;
+    }
+
+    const span = { start: match.index, end: match.index + match[0].length };
+
+    if (overlapsAny(span, takenSpans) || overlapsAny(span, localTakenSpans)) {
+      continue;
+    }
+
+    const fact = nextFact("quantity", {
+      subject: null,
+      subjectSource: null,
+      dimension: "count",
+      value: parseNumber(match.groups.value),
+      valueMin: null,
+      valueMax: null,
+      unit: "vnt",
+      rawText: evidenceForSpan(originalMessage, span),
+      confidence: 1,
+      negated: isNegatedNear(originalMessage, span.start),
+    });
+    matchedFacts.push({ fact, span });
+    localTakenSpans.push(span);
+  }
+
+  for (const match of maskedMessage.matchAll(wordPoCountRegex)) {
+    if (match.index === undefined || !match.groups) {
+      continue;
+    }
+
+    const span = { start: match.index, end: match.index + match[0].length };
+    const value = wordNumberValues.get(normalizeSearchText(match.groups.word));
+
+    if (
+      value === undefined ||
+      overlapsAny(span, takenSpans) ||
+      overlapsAny(span, localTakenSpans)
+    ) {
+      continue;
+    }
+
+    const fact = nextFact("quantity", {
+      subject: null,
+      subjectSource: null,
+      dimension: "count",
+      value,
       valueMin: null,
       valueMax: null,
       unit: "vnt",
@@ -768,9 +829,14 @@ function parseNumber(rawValue: string): number {
   return Number(rawValue.replace(",", "."));
 }
 
-function parseQuantityValue(rawValue: string): number {
-  const wordValue = wordNumberValues.get(normalizeSearchText(rawValue));
-  return wordValue ?? parseNumber(rawValue);
+function isPerUnitOperand(message: string, spanStart: number): boolean {
+  const before = message.slice(Math.max(0, spanStart - 12), spanStart);
+  // „... po 2m" — per-unito ilgis po žodžio „po".
+  if (/\bpo$/u.test(normalizeSearchText(before))) {
+    return true;
+  }
+  // „2x2m" — dešinysis daugybos operandas.
+  return /\d\s*[x×]\s*$/u.test(before);
 }
 
 function isNegatedNear(message: string, spanStart: number): boolean {

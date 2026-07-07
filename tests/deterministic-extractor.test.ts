@@ -91,82 +91,52 @@ describe("extractDeterministicFacts", () => {
     assert.equal(result.intents.isUrgent, true);
   });
 
-  it("derives total length from per-item segment wording instead of extracting the per-item length as total", () => {
+  it("extracts per-item constructs as atoms without composing the total (AI does that)", () => {
+    // Deterministika nebedaugina: „2 segmentu po 2m" → atomai kiekis 2 +
+    // per-unit ilgis 2m (subject null, kad neatsirastų klaidingas bendras ilgis).
+    // Kompoziciją (4m) daro AI su computation (žr. tests/derived-facts.test.ts).
     const result = extractDeterministicFacts(
       "reikia 2 segmentu po 2m ir 1.5m aukščio",
     );
     const measurements = result.facts.filter(
       (fact) => fact.kind === "measurement",
     );
+    const quantities = result.facts.filter((fact) => fact.kind === "quantity");
 
     assert.deepEqual(
-      measurements.map((fact) => [fact.dimension, fact.value, fact.unit]),
+      measurements.map((fact) => [fact.dimension, fact.value, fact.subject]),
       [
-        ["length", 4, "m"],
-        ["height", 1.5, "m"],
+        ["length", 2, null],
+        ["height", 1.5, null],
       ],
     );
-    assert.ok(measurements[0].rawText.includes("2 segmentu po 2m"));
-  });
-
-  it("derives total length when per-item length appears before the item count", () => {
-    const result = extractDeterministicFacts(
-      "reikia 2m segmento kokius 2 vienetus ir 1.5m aukščio",
-    );
-    const measurements = result.facts.filter(
-      (fact) => fact.kind === "measurement",
-    );
-
     assert.deepEqual(
-      measurements.map((fact) => [fact.dimension, fact.value, fact.unit]),
-      [
-        ["length", 4, "m"],
-        ["height", 1.5, "m"],
-      ],
-    );
-    assert.ok(
-      measurements[0].rawText.includes("2m segmento kokius 2 vienetus"),
+      quantities.map((fact) => fact.value),
+      [2],
     );
   });
 
-  it("parses 20 segment syntax variants as total length and height", () => {
-    const inquiries = [
-      "Hey, reikia 2 segmentu po 2m ir 1.5m aukščio. Kiek kainuos?",
-      "Reikia 2 segmentai po 2 m, aukštis 1,5 m.",
-      "Reikia 2 vnt segmentų po 2 m ir aukštis 1.5 m.",
-      "Reikia du segmentai po 2m, 1.5m aukščio.",
-      "Reikia 2 segmentus po 2 metrus, aukštis 1,5 metro.",
-      "Reikia 2 segmentai kiekvienas po 2m, 1.5m aukščio.",
-      "Reikia 2 segmentai, kiekvienas po 2m, aukštis 1.5m.",
-      "Reikia segmentų 2 vnt po 2m, aukštis 1.5m.",
-      "Reikia 2x2m segmentų, aukštis 1.5m.",
-      "Reikia 2 x 2 m segmentų, 1,5 m aukščio.",
-      "Reikia 2m segmento kokius 2 vienetus ir 1.5m aukščio.",
-      "Reikia 2 m segmentų 2 vnt, aukštis 1.5m.",
-      "Reikia 2m ilgio segmentų 2 vienetai, aukštis 1.5m.",
-      "Reikia 2 metrų segmento 2 vienetus, 1.5 m aukščio.",
-      "Reikia segmentai: 2 vnt po 2 m, aukštis 1,5 m.",
-      "Reikia segmentų - 2 vnt po 2m, aukštis 1.5m.",
-      "Kaina 2 segmentams po 2m, 1.5m aukščio?",
-      "Turim 2 dalių po 2m tvorą, aukštis 1.5m?",
-      "Reikia 2 skydų po 2m, 1.5m aukščio.",
-      "Reikia du skydai po 2m ir aukštis 1.5m.",
-    ];
-
-    for (const inquiry of inquiries) {
-      const result = extractDeterministicFacts(inquiry);
-      const measurements = result.facts.filter(
-        (fact) => fact.kind === "measurement",
+  it("captures the count atom for multiplier and item-unit wording", () => {
+    for (const [text, count] of [
+      ["Reikia 2x2m segmentų, aukštis 1.5m.", 2],
+      ["Reikia 2m segmento kokius 2 vienetus ir 1.5m aukščio.", 2],
+      ["Segmentai: trys po 2m, aukstis 1.5m.", 3],
+    ] as const) {
+      const result = extractDeterministicFacts(text);
+      const quantities = result.facts.filter(
+        (fact) => fact.kind === "quantity",
+      );
+      const perUnit = result.facts.find(
+        (fact) => fact.kind === "measurement" && fact.dimension === "length",
       );
 
       assert.deepEqual(
-        measurements.map((fact) => [fact.dimension, fact.value, fact.unit]),
-        [
-          ["length", 4, "m"],
-          ["height", 1.5, "m"],
-        ],
-        inquiry,
+        quantities.map((fact) => fact.value),
+        [count],
+        text,
       );
+      assert.equal(perUnit?.value, 2, text);
+      assert.equal(perUnit?.subject, null, text);
     }
   });
 

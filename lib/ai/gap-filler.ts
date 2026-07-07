@@ -7,6 +7,7 @@ import type {
   RequirementResolutionResult,
   ServiceSubjectRule,
 } from "@/lib/rules/types";
+import { verifyComputation } from "@/lib/verifier/computation";
 import { verifyAiEvidence } from "@/lib/verifier/evidence";
 
 export const AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED";
@@ -40,7 +41,9 @@ export type RejectedAiFinding = {
     | "EVIDENCE_NOT_FOUND"
     | "VALUE_NOT_IN_EVIDENCE"
     | "SUBJECT_NOT_ALLOWED"
-    | "PER_ITEM_MEASUREMENT_REQUIRES_DERIVED_FACT";
+    | "PER_ITEM_MEASUREMENT_REQUIRES_DERIVED_FACT"
+    | "COMPUTATION_MISMATCH"
+    | "DERIVED_FACT_REQUIRES_NUMERIC_VALUE";
 };
 
 export type AiGapFillResult =
@@ -75,6 +78,13 @@ const aiNewFactSchema = z.object({
   unit: z.string().nullable().optional(),
   evidence: z.string(),
   confidence: z.number().min(0).max(1),
+  computation: z
+    .object({
+      op: z.enum(["multiply", "add"]),
+      inputs: z.array(z.string()),
+    })
+    .nullable()
+    .optional(),
 });
 
 const aiConflictSchema = z.object({
@@ -201,7 +211,7 @@ function buildAiRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su išvestiniu totalu 4m ir evidence „2 segmentai po 2m“. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą. 7. primaryIntent: pagrindinis kliento tikslas, TIK viena iš reikšmių: requests_quote (prašo kainos), asks_offering (klausia ar tokią paslaugą teikiate/gaminate/montuojate), asks_availability (klausia termino/laisvo laiko), asks_process (klausia proceso/kaip vyksta), provides_info (tik pateikia informaciją), other. Jei neaišku — other.",
+      "Tu esi teksto faktų ekstraktorius. Grąžink TIK validų JSON pagal schemą, jokio kito teksto. Griežtos taisyklės: 1. NEKURK reikšmių, kurių nėra pateiktame tekste. 2. Kiekvienam radiniui privalomas evidence. 3. subject reikšmės TIK iš pateikto leidžiamo sąrašo. 4. Deterministinių faktų reikšmių keisti negalima. 5. Jei tekstas turi konstrukciją kaip „2 segmentai po 2m“, NEPRIRIŠK 2m kaip bendro ilgio; jei reikia bendro ilgio, grąžink newFact su computation, nurodančiu, kurie tekste esantys faktai dauginami/sudedami (pvz. kiekis × ilgis), ir jų input faktų id iš existingFacts. NEGALIMA grąžinti išvestinio (derived) fakto be computation. Reikšmės pats neskaičiuok tiksliai — kodas perskaičiuos ir patikrins; svarbu teisingi input id ir op. 6. Jei informacijos tekste nėra, grąžink requirement kaip nerastą. 7. primaryIntent: pagrindinis kliento tikslas, TIK viena iš reikšmių: requests_quote (prašo kainos), asks_offering (klausia ar tokią paslaugą teikiate/gaminate/montuojate), asks_availability (klausia termino/laisvo laiko), asks_process (klausia proceso/kaip vyksta), provides_info (tik pateikia informaciją), other. Jei neaišku — other.",
     user: JSON.stringify({
       rawText: input.rawText,
       existingFacts: input.facts,
@@ -232,6 +242,19 @@ function buildAiRequest(
             unit: "m",
             evidence: "pažodinė ištrauka",
             confidence: 0.0,
+            computation: null,
+          },
+          {
+            requirementKey: "fence_length",
+            kind: "measurement",
+            dimension: "length",
+            value: 4,
+            valueMin: null,
+            valueMax: null,
+            unit: "m",
+            evidence: "2 segmentai po 2m",
+            confidence: 0.0,
+            computation: { op: "multiply", inputs: ["fact_1", "fact_2"] },
           },
         ],
         conflicts: [{ factId: "fact_1", reason: "..." }],
@@ -356,6 +379,72 @@ function applyAiResponse(
         type: "newFact",
         target: newFact.requirementKey,
         reason: "SUBJECT_NOT_ALLOWED",
+      });
+      continue;
+    }
+
+    if (newFact.computation) {
+      // Derived faktas: evidence verifikuojame per input faktų span'us
+      // (esamas evidence verifier), NE per išvestą skaičių — 4 tekste
+      // „2 po 2m" neegzistuoja. Aritmetiką perskaičiuoja computation verifier.
+      const evidence = verifyAiEvidence({
+        originalText: input.rawText,
+        evidence: newFact.evidence,
+      });
+      if (!evidence.ok) {
+        rejectedFindings.push({
+          type: "newFact",
+          target: newFact.requirementKey,
+          reason: evidence.reason,
+        });
+        continue;
+      }
+
+      if (typeof newFact.value !== "number") {
+        rejectedFindings.push({
+          type: "newFact",
+          target: newFact.requirementKey,
+          reason: "DERIVED_FACT_REQUIRES_NUMERIC_VALUE",
+        });
+        continue;
+      }
+
+      const computed = verifyComputation({
+        facts,
+        computation: newFact.computation,
+        expectedValue: newFact.value,
+        expectedUnit: newFact.unit ?? null,
+      });
+      if (!computed.ok) {
+        rejectedFindings.push({
+          type: "newFact",
+          target: newFact.requirementKey,
+          reason: "COMPUTATION_MISMATCH",
+        });
+        continue;
+      }
+
+      aiFactCounter += 1;
+      facts.push({
+        id: `ai_fact_${aiFactCounter}`,
+        kind: newFact.kind as ExtractedFact["kind"],
+        subject,
+        subjectSource: "ai",
+        dimension: (newFact.dimension ?? null) as ExtractedFact["dimension"],
+        value: computed.value,
+        valueMin: null,
+        valueMax: null,
+        unit: computed.unit as ExtractedFact["unit"],
+        rawText: newFact.evidence,
+        evidenceVerified: true,
+        source: "ai",
+        confidence: newFact.confidence,
+        negated: false,
+        derived: true,
+        computation: {
+          op: newFact.computation.op,
+          inputs: newFact.computation.inputs,
+        },
       });
       continue;
     }

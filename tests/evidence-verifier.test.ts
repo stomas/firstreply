@@ -49,21 +49,14 @@ describe("verifyAiEvidence", () => {
     });
   });
 
-  it("accepts a derived per-item total when the evidence contains count and per-unit length", () => {
+  // Išvestinių (derived) totalų evidence verifier nebeatpažįsta per regex —
+  // 4 iš „2 po 2m" tekste neegzistuoja. Aritmetiką dabar tikrina
+  // lib/verifier/computation.ts; derived faktams value nebeperduodamas.
+  it("does not accept a derived total whose number is absent from the evidence", () => {
     const result = verifyAiEvidence({
       originalText: "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio.",
       evidence: "2 segmentu po 2m",
       value: 4,
-    });
-
-    assert.equal(result.ok, true);
-  });
-
-  it("rejects a derived per-item total when the arithmetic does not match", () => {
-    const result = verifyAiEvidence({
-      originalText: "Hey, ždž reikia 2 segmentu po 2m ir 1.5m aukščio.",
-      evidence: "2 segmentu po 2m",
-      value: 5,
     });
 
     assert.deepEqual(result, {
