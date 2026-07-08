@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ updated?: string }>;
+  searchParams?: Promise<{ updated?: string; error?: string }>;
 };
 
 export default async function DashboardRulesPage({ searchParams }: PageProps) {
@@ -54,6 +54,12 @@ export default async function DashboardRulesPage({ searchParams }: PageProps) {
         {query?.updated ? (
           <div className="mt-4 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand">
             Taisyklė išsaugota.
+          </div>
+        ) : null}
+
+        {query?.error ? (
+          <div className="mt-4 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm font-semibold text-warn-text">
+            {query.error}
           </div>
         ) : null}
 
@@ -130,9 +136,16 @@ function ServiceRulesCard({ group }: { group: DashboardRulesServiceGroup }) {
 
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         <section>
-          <h3 className="text-sm font-extrabold uppercase text-ink-muted">
-            Kainodara
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold uppercase text-ink-muted">
+              Kainodara
+            </h3>
+            <AddLink
+              href={`/dashboard/rules/pricing/new?service=${encodeURIComponent(group.serviceId)}`}
+            >
+              + Nauja taisyklė
+            </AddLink>
+          </div>
           {group.pricingRules.length === 0 ? (
             <SectionEmpty>
               Kainodaros taisyklių dar nėra — be jų kaina neskaičiuojama ir
@@ -148,9 +161,16 @@ function ServiceRulesCard({ group }: { group: DashboardRulesServiceGroup }) {
         </section>
 
         <section>
-          <h3 className="text-sm font-extrabold uppercase text-ink-muted">
-            Klausimai klientui
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-extrabold uppercase text-ink-muted">
+              Klausimai klientui
+            </h3>
+            <AddLink
+              href={`/dashboard/rules/requirements/new?service=${encodeURIComponent(group.serviceId)}`}
+            >
+              + Naujas klausimas
+            </AddLink>
+          </div>
           {group.requirements.length === 0 ? (
             <SectionEmpty>
               Klausimų dar nėra — sistema nežinos, kokios informacijos prašyti
@@ -260,6 +280,23 @@ function Badge({
     >
       {children}
     </span>
+  );
+}
+
+function AddLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-lg px-2 py-1 text-xs font-bold text-brand hover:bg-brand-tint"
+    >
+      {children}
+    </Link>
   );
 }
 

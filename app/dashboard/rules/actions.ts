@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentClient } from "@/lib/client-context";
 import {
+  createDashboardPricingRule,
+  createDashboardRequirement,
+  parseDashboardPricingRuleCreateForm,
   parseDashboardPricingRuleForm,
+  parseDashboardRequirementCreateForm,
   parseDashboardRequirementForm,
   updateDashboardPricingRule,
   updateDashboardRequirement,
@@ -44,6 +48,42 @@ export async function updateDashboardRequirementAction(formData: FormData) {
   redirect("/dashboard/rules?updated=1");
 }
 
+export async function createDashboardPricingRuleAction(formData: FormData) {
+  const parsed = parseDashboardPricingRuleCreateForm(formData);
+  if (!parsed.ok) {
+    redirectCreateWithError("pricing", parsed.serviceId, parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createDashboardPricingRule(client.id, parsed.value);
+  if (!result.ok) {
+    redirectCreateWithError("pricing", parsed.value.serviceId, result.error);
+  }
+
+  revalidatePath("/dashboard/rules");
+  redirect("/dashboard/rules?updated=1");
+}
+
+export async function createDashboardRequirementAction(formData: FormData) {
+  const parsed = parseDashboardRequirementCreateForm(formData);
+  if (!parsed.ok) {
+    redirectCreateWithError("requirements", parsed.serviceId, parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createDashboardRequirement(client.id, parsed.value);
+  if (!result.ok) {
+    redirectCreateWithError(
+      "requirements",
+      parsed.value.serviceId,
+      result.error,
+    );
+  }
+
+  revalidatePath("/dashboard/rules");
+  redirect("/dashboard/rules?updated=1");
+}
+
 function redirectWithError(
   kind: "pricing" | "requirements",
   id: string | null,
@@ -51,4 +91,16 @@ function redirectWithError(
 ): never {
   const target = id ? `/dashboard/rules/${kind}/${id}` : "/dashboard/rules";
   redirect(`${target}?error=${encodeURIComponent(error)}`);
+}
+
+function redirectCreateWithError(
+  kind: "pricing" | "requirements",
+  serviceId: string | null,
+  error: string,
+): never {
+  const encodedError = encodeURIComponent(error);
+  const target = serviceId
+    ? `/dashboard/rules/${kind}/new?service=${encodeURIComponent(serviceId)}&error=${encodedError}`
+    : `/dashboard/rules?error=${encodedError}`;
+  redirect(target);
 }

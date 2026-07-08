@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  parseDashboardPricingRuleCreateForm,
   parseDashboardPricingRuleForm,
+  parseDashboardRequirementCreateForm,
   parseDashboardRequirementForm,
+  slugifyRequirementKey,
   summarizeDashboardRules,
   type DashboardRulesServiceGroup,
 } from "../lib/dashboard/rules";
@@ -154,6 +157,118 @@ describe("dashboard rules forms", () => {
     assert.equal(result.value.required, false);
     assert.equal(result.value.affectsPrice, false);
     assert.equal(result.value.active, false);
+  });
+});
+
+function pricingCreateForm(overrides: Record<string, string> = {}): FormData {
+  const formData = new FormData();
+  const values: Record<string, string> = {
+    serviceId: "service_1",
+    name: "Nauja taisyklė",
+    ruleType: "per_unit",
+    quantityKey: "fence_length",
+    quantityUnit: "m",
+    pricePerUnit: "38",
+    priceMin: "32",
+    priceMax: "75",
+    unit: "€/m",
+    active: "on",
+    ...overrides,
+  };
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== "") {
+      formData.set(key, value);
+    }
+  }
+  return formData;
+}
+
+describe("dashboard rules create forms", () => {
+  it("parses a per-unit pricing create form", () => {
+    const formData = pricingCreateForm();
+    formData.append("requires", "fence_height");
+    const result = parseDashboardPricingRuleCreateForm(formData);
+
+    assert.ok(result.ok);
+    assert.equal(result.value.ruleType, "per_unit");
+    assert.equal(result.value.quantityKey, "fence_length");
+    assert.equal(result.value.pricePerUnit, 38);
+    assert.deepEqual(result.value.requires, ["fence_height"]);
+  });
+
+  it("requires a per-unit price only for the per_unit type", () => {
+    const missingPrice = parseDashboardPricingRuleCreateForm(
+      pricingCreateForm({ pricePerUnit: "" }),
+    );
+    const rangeEstimate = parseDashboardPricingRuleCreateForm(
+      pricingCreateForm({ ruleType: "range_estimate", pricePerUnit: "" }),
+    );
+
+    assert.ok(!missingPrice.ok);
+    assert.match(missingPrice.error, /vieneto kainą/iu);
+    assert.ok(rangeEstimate.ok);
+    assert.equal(rangeEstimate.value.pricePerUnit, null);
+  });
+
+  it("rejects a missing quantity question", () => {
+    const result = parseDashboardPricingRuleCreateForm(
+      pricingCreateForm({ quantityKey: "" }),
+    );
+
+    assert.ok(!result.ok);
+    assert.match(result.error, /kiekis/iu);
+  });
+
+  it("parses a requirement create form and slugifies the key from the label", () => {
+    const formData = new FormData();
+    formData.set("serviceId", "service_1");
+    formData.set("label", "Vartų plotis");
+    formData.set("question", "Koks vartų angos plotis?");
+    formData.set("dimension", "width");
+    formData.set("subjectKey", "gate");
+    formData.set("required", "on");
+    formData.set("active", "on");
+    const result = parseDashboardRequirementCreateForm(formData);
+
+    assert.ok(result.ok);
+    assert.equal(result.value.requirementKey, "vartu_plotis");
+    assert.equal(result.value.dimension, "width");
+    assert.equal(result.value.subjectKey, "gate");
+    assert.equal(result.value.priority, 100);
+  });
+
+  it("prefers an explicit requirement key over the label slug", () => {
+    const formData = new FormData();
+    formData.set("serviceId", "service_1");
+    formData.set("label", "Vartų plotis");
+    formData.set("question", "Koks vartų angos plotis?");
+    formData.set("dimension", "width");
+    formData.set("requirementKey", "gate_width");
+    const result = parseDashboardRequirementCreateForm(formData);
+
+    assert.ok(result.ok);
+    assert.equal(result.value.requirementKey, "gate_width");
+  });
+
+  it("rejects an unknown dimension", () => {
+    const formData = new FormData();
+    formData.set("serviceId", "service_1");
+    formData.set("label", "Kiekis");
+    formData.set("question", "Kiek vienetų?");
+    formData.set("dimension", "count");
+    const result = parseDashboardRequirementCreateForm(formData);
+
+    assert.ok(!result.ok);
+    assert.match(result.error, /matmenį/iu);
+  });
+});
+
+describe("slugifyRequirementKey", () => {
+  it("normalizes Lithuanian labels into engine-safe keys", () => {
+    assert.equal(slugifyRequirementKey("Tvoros ilgis"), "tvoros_ilgis");
+    assert.equal(slugifyRequirementKey("Vartų plotis"), "vartu_plotis");
+    assert.equal(slugifyRequirementKey("  fence_length  "), "fence_length");
+    assert.equal(slugifyRequirementKey("!!!"), "");
   });
 });
 

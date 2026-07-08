@@ -78,6 +78,63 @@ export type DashboardRequirementFormResult =
   | { ok: true; value: DashboardRequirementUpdate }
   | { ok: false; requirementId: string | null; error: string };
 
+export type DashboardRuleCreateContext = {
+  serviceId: string;
+  serviceName: string;
+  requirements: Array<{ requirementKey: string; label: string }>;
+  subjects: Array<{ subjectKey: string; labelLt: string }>;
+};
+
+export type DashboardPricingRuleCreate = {
+  serviceId: string;
+  name: string;
+  ruleType: "per_unit" | "range_estimate";
+  quantityKey: string;
+  quantityUnit: string;
+  pricePerUnit: number | null;
+  priceMin: number | null;
+  priceMax: number | null;
+  unit: string | null;
+  requires: string[];
+  autoSendAllowed: boolean;
+  active: boolean;
+  disclaimerText: string | null;
+};
+
+export type DashboardRequirementCreate = {
+  serviceId: string;
+  requirementKey: string;
+  label: string;
+  question: string;
+  subjectKey: string | null;
+  dimension: "length" | "height" | "width" | "area";
+  required: boolean;
+  affectsPrice: boolean;
+  active: boolean;
+  priority: number;
+  validationMin: number | null;
+  validationMax: number | null;
+};
+
+export type DashboardPricingRuleCreateFormResult =
+  | { ok: true; value: DashboardPricingRuleCreate }
+  | { ok: false; serviceId: string | null; error: string };
+
+export type DashboardRequirementCreateFormResult =
+  | { ok: true; value: DashboardRequirementCreate }
+  | { ok: false; serviceId: string | null; error: string };
+
+export const REQUIREMENT_DIMENSIONS: Array<{
+  value: DashboardRequirementCreate["dimension"];
+  label: string;
+  unit: string;
+}> = [
+  { value: "length", label: "Ilgis (m)", unit: "m" },
+  { value: "height", label: "Aukštis (m)", unit: "m" },
+  { value: "width", label: "Plotis (m)", unit: "m" },
+  { value: "area", label: "Plotas (m²)", unit: "m2" },
+];
+
 export async function getDashboardRules(
   clientId: string,
 ): Promise<DashboardRulesServiceGroup[]> {
@@ -140,6 +197,178 @@ export async function getDashboardRequirementEdit(
     ...toRequirementRow(requirement),
     serviceName: requirement.service.name,
   };
+}
+
+export async function getDashboardRuleCreateContext(
+  clientId: string,
+  serviceId: string,
+): Promise<DashboardRuleCreateContext | null> {
+  assertDatabaseConfigured();
+
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, clientId },
+    select: {
+      id: true,
+      name: true,
+      decisionRequirements: {
+        where: { active: true },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+        select: { requirementKey: true, label: true },
+      },
+      subjects: {
+        orderBy: [{ labelLt: "asc" }],
+        select: { subjectKey: true, labelLt: true },
+      },
+    },
+  });
+  if (!service) {
+    return null;
+  }
+
+  return {
+    serviceId: service.id,
+    serviceName: service.name,
+    requirements: service.decisionRequirements,
+    subjects: service.subjects,
+  };
+}
+
+export async function createDashboardPricingRule(
+  clientId: string,
+  create: DashboardPricingRuleCreate,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const context = await getDashboardRuleCreateContext(
+    clientId,
+    create.serviceId,
+  );
+  if (!context) {
+    return { ok: false, error: "Paslauga nerasta." };
+  }
+
+  const knownKeys = new Set(
+    context.requirements.map((requirement) => requirement.requirementKey),
+  );
+  if (!knownKeys.has(create.quantityKey)) {
+    return { ok: false, error: "Pasirinkite, iš kurio klausimo imamas kiekis." };
+  }
+  const unknownRequire = create.requires.find((key) => !knownKeys.has(key));
+  if (unknownRequire) {
+    return { ok: false, error: `Nežinomas klausimas: ${unknownRequire}.` };
+  }
+
+  // rule JSON konstruojamas kode iš patikrintų reikšmių — UI niekada
+  // nerašo laisvos struktūros.
+  const ruleJson: Record<string, unknown> = {
+    type: create.ruleType,
+    requirementKey: create.quantityKey,
+    unit: create.quantityUnit,
+    currency: "EUR",
+    requires: Array.from(new Set([create.quantityKey, ...create.requires])),
+    ...(create.ruleType === "per_unit"
+      ? { pricePerUnit: create.pricePerUnit }
+      : {}),
+  };
+
+  await prisma.pricingRule.create({
+    data: {
+      clientId,
+      serviceId: create.serviceId,
+      name: create.name,
+      priceMin: create.priceMin,
+      priceMax: create.priceMax,
+      unit: create.unit,
+      autoSendAllowed: create.autoSendAllowed,
+      active: create.active,
+      disclaimerText: create.disclaimerText,
+      rule: ruleJson as Prisma.InputJsonObject,
+    },
+  });
+
+  return { ok: true };
+}
+
+export async function createDashboardRequirement(
+  clientId: string,
+  create: DashboardRequirementCreate,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const context = await getDashboardRuleCreateContext(
+    clientId,
+    create.serviceId,
+  );
+  if (!context) {
+    return { ok: false, error: "Paslauga nerasta." };
+  }
+
+  const duplicate = await prisma.decisionRequirement.findFirst({
+    where: {
+      clientId,
+      serviceId: create.serviceId,
+      requirementKey: create.requirementKey,
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    return {
+      ok: false,
+      error: `Klausimas raktu „${create.requirementKey}“ jau yra.`,
+    };
+  }
+
+  if (
+    create.subjectKey !== null &&
+    !context.subjects.some((subject) => subject.subjectKey === create.subjectKey)
+  ) {
+    return { ok: false, error: "Pasirinkta tema nerasta." };
+  }
+
+  const dimension = REQUIREMENT_DIMENSIONS.find(
+    (candidate) => candidate.value === create.dimension,
+  );
+  if (!dimension) {
+    return { ok: false, error: "Pasirinkite matmenį." };
+  }
+
+  const expectedFact: Record<string, unknown> = {
+    kind: "measurement",
+    dimension: dimension.value,
+    units: [dimension.unit],
+    ...(create.subjectKey ? { subject: create.subjectKey } : {}),
+  };
+
+  const validation: Record<string, unknown> = {};
+  if (create.validationMin !== null) {
+    validation.min = create.validationMin;
+  }
+  if (create.validationMax !== null) {
+    validation.max = create.validationMax;
+  }
+
+  await prisma.decisionRequirement.create({
+    data: {
+      clientId,
+      serviceId: create.serviceId,
+      requirementKey: create.requirementKey,
+      label: create.label,
+      requiredFor: "auto_send",
+      questionTextIfMissing: create.question,
+      blocksAutoSend: create.required,
+      required: create.required,
+      affectsPrice: create.affectsPrice,
+      active: create.active,
+      priority: create.priority,
+      expectedFact: expectedFact as Prisma.InputJsonObject,
+      validation:
+        Object.keys(validation).length > 0
+          ? (validation as Prisma.InputJsonObject)
+          : Prisma.JsonNull,
+    },
+  });
+
+  return { ok: true };
 }
 
 export async function updateDashboardPricingRule(
@@ -354,6 +583,179 @@ export function parseDashboardRequirementForm(
       validationMax: validationMax.value,
     },
   };
+}
+
+export function parseDashboardPricingRuleCreateForm(
+  formData: FormData,
+): DashboardPricingRuleCreateFormResult {
+  const serviceId = textValue(formData, "serviceId");
+  if (!serviceId) {
+    return { ok: false, serviceId: null, error: "Paslauga nerasta." };
+  }
+
+  const name = textValue(formData, "name");
+  if (!name) {
+    return { ok: false, serviceId, error: "Įveskite taisyklės pavadinimą." };
+  }
+
+  const ruleType = textValue(formData, "ruleType");
+  if (ruleType !== "per_unit" && ruleType !== "range_estimate") {
+    return { ok: false, serviceId, error: "Pasirinkite skaičiavimo tipą." };
+  }
+
+  const quantityKey = textValue(formData, "quantityKey");
+  if (!quantityKey) {
+    return {
+      ok: false,
+      serviceId,
+      error: "Pasirinkite, iš kurio klausimo imamas kiekis.",
+    };
+  }
+
+  const priceMin = parseNumberField(formData, "priceMin");
+  const priceMax = parseNumberField(formData, "priceMax");
+  const pricePerUnit = parseNumberField(formData, "pricePerUnit");
+  const numberError = priceMin.error ?? priceMax.error ?? pricePerUnit.error;
+  if (numberError) {
+    return { ok: false, serviceId, error: numberError };
+  }
+
+  if (ruleType === "per_unit") {
+    if (pricePerUnit.value === null) {
+      return { ok: false, serviceId, error: "Įveskite vieneto kainą." };
+    }
+    if (pricePerUnit.value <= 0) {
+      return {
+        ok: false,
+        serviceId,
+        error: "Vieneto kaina turi būti didesnė už nulį.",
+      };
+    }
+  }
+
+  if (
+    priceMin.value !== null &&
+    priceMax.value !== null &&
+    priceMin.value > priceMax.value
+  ) {
+    return {
+      ok: false,
+      serviceId,
+      error: "Kaina „nuo“ negali būti didesnė už kainą „iki“.",
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      serviceId,
+      name,
+      ruleType,
+      quantityKey,
+      quantityUnit: textValue(formData, "quantityUnit") || "m",
+      pricePerUnit: ruleType === "per_unit" ? pricePerUnit.value : null,
+      priceMin: priceMin.value,
+      priceMax: priceMax.value,
+      unit: nullableTextValue(formData, "unit"),
+      requires: formData
+        .getAll("requires")
+        .map((value) => String(value).trim())
+        .filter(Boolean),
+      autoSendAllowed: formData.get("autoSendAllowed") === "on",
+      active: formData.get("active") === "on",
+      disclaimerText: nullableTextValue(formData, "disclaimerText"),
+    },
+  };
+}
+
+export function parseDashboardRequirementCreateForm(
+  formData: FormData,
+): DashboardRequirementCreateFormResult {
+  const serviceId = textValue(formData, "serviceId");
+  if (!serviceId) {
+    return { ok: false, serviceId: null, error: "Paslauga nerasta." };
+  }
+
+  const label = textValue(formData, "label");
+  if (!label) {
+    return { ok: false, serviceId, error: "Įveskite klausimo pavadinimą." };
+  }
+
+  const question = textValue(formData, "question");
+  if (!question) {
+    return {
+      ok: false,
+      serviceId,
+      error: "Įveskite klausimo tekstą klientui.",
+    };
+  }
+
+  const requirementKey = slugifyRequirementKey(
+    textValue(formData, "requirementKey") || label,
+  );
+  if (!requirementKey) {
+    return {
+      ok: false,
+      serviceId,
+      error: "Rakto nepavyko sudaryti — įveskite raktą lotyniškomis raidėmis.",
+    };
+  }
+
+  const dimension = textValue(formData, "dimension");
+  if (
+    !REQUIREMENT_DIMENSIONS.some((candidate) => candidate.value === dimension)
+  ) {
+    return { ok: false, serviceId, error: "Pasirinkite matmenį." };
+  }
+
+  const priority = parseNumberField(formData, "priority");
+  const validationMin = parseNumberField(formData, "validationMin");
+  const validationMax = parseNumberField(formData, "validationMax");
+  const numberError =
+    priority.error ?? validationMin.error ?? validationMax.error;
+  if (numberError) {
+    return { ok: false, serviceId, error: numberError };
+  }
+
+  if (
+    validationMin.value !== null &&
+    validationMax.value !== null &&
+    validationMin.value > validationMax.value
+  ) {
+    return {
+      ok: false,
+      serviceId,
+      error: "Riba „nuo“ negali būti didesnė už ribą „iki“.",
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      serviceId,
+      requirementKey,
+      label,
+      question,
+      subjectKey: nullableTextValue(formData, "subjectKey"),
+      dimension: dimension as DashboardRequirementCreate["dimension"],
+      required: formData.get("required") === "on",
+      affectsPrice: formData.get("affectsPrice") === "on",
+      active: formData.get("active") === "on",
+      priority: priority.value !== null ? Math.round(priority.value) : 100,
+      validationMin: validationMin.value,
+      validationMax: validationMax.value,
+    },
+  };
+}
+
+export function slugifyRequirementKey(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("lt-LT")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/gu, "")
+    .replace(/[^a-z0-9]+/gu, "_")
+    .replace(/^_+|_+$/gu, "");
 }
 
 export function summarizeDashboardRules(
