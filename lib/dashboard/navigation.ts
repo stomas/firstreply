@@ -49,7 +49,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
         id: "availability",
         label: "Užimtumas",
         href: "/dashboard/availability",
-        status: "placeholder",
+        status: "live",
       },
     ],
   },
