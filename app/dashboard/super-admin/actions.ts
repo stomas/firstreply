@@ -17,6 +17,22 @@ import {
   updateSuperAdminRequirement,
   updateSuperAdminSubject,
 } from "@/lib/dashboard/super-admin";
+import {
+  createSuperAdminLocationZone,
+  createSuperAdminResponseTemplate,
+  createSuperAdminScheduleRule,
+  deactivateSuperAdminResponseTemplate,
+  deleteSuperAdminLocationZone,
+  deleteSuperAdminScheduleRule,
+  parseAutosendPolicyForm,
+  parseLocationZoneForm,
+  parseResponseTemplateForm,
+  parseScheduleRuleForm,
+  saveSuperAdminAutosendPolicy,
+  updateSuperAdminLocationZone,
+  updateSuperAdminResponseTemplate,
+  updateSuperAdminScheduleRule,
+} from "@/lib/dashboard/super-admin-operational";
 
 const SUPER_ADMIN_PATH = "/dashboard/super-admin";
 
@@ -150,6 +166,170 @@ export async function deactivateSuperAdminPricingRuleAction(
   const result = await deactivateSuperAdminPricingRule(
     client.id,
     pricingRuleId,
+  );
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?deleted=1`);
+}
+
+export async function createSuperAdminLocationZoneAction(formData: FormData) {
+  const parsed = parseLocationZoneForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createSuperAdminLocationZone(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function updateSuperAdminLocationZoneAction(formData: FormData) {
+  const parsed = parseLocationZoneForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await updateSuperAdminLocationZone(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function deleteSuperAdminLocationZoneAction(
+  locationZoneId: string,
+) {
+  const client = await getCurrentClient();
+  const result = await deleteSuperAdminLocationZone(client.id, locationZoneId);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?deleted=1`);
+}
+
+export async function createSuperAdminScheduleRuleAction(formData: FormData) {
+  const parsed = parseScheduleRuleForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createSuperAdminScheduleRule(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function updateSuperAdminScheduleRuleAction(formData: FormData) {
+  const parsed = parseScheduleRuleForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await updateSuperAdminScheduleRule(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function deleteSuperAdminScheduleRuleAction(
+  scheduleRuleId: string,
+) {
+  const client = await getCurrentClient();
+  const result = await deleteSuperAdminScheduleRule(client.id, scheduleRuleId);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?deleted=1`);
+}
+
+export async function saveSuperAdminAutosendPolicyAction(formData: FormData) {
+  const parsed = parseAutosendPolicyForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await saveSuperAdminAutosendPolicy(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function createSuperAdminResponseTemplateAction(
+  formData: FormData,
+) {
+  const parsed = parseResponseTemplateForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createSuperAdminResponseTemplate(
+    client.id,
+    parsed.value,
+  );
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function updateSuperAdminResponseTemplateAction(
+  formData: FormData,
+) {
+  const parsed = parseResponseTemplateForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await updateSuperAdminResponseTemplate(
+    client.id,
+    parsed.value,
+  );
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function deactivateSuperAdminResponseTemplateAction(
+  responseTemplateId: string,
+) {
+  const client = await getCurrentClient();
+  const result = await deactivateSuperAdminResponseTemplate(
+    client.id,
+    responseTemplateId,
   );
   if (!result.ok) {
     redirectWithError(result.error);

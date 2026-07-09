@@ -14,16 +14,36 @@ import {
   type SuperAdminServiceGroup,
   type SuperAdminSubjectRow,
 } from "@/lib/dashboard/super-admin";
+import {
+  getAllowedPlaceholders,
+  getSuperAdminOperationalConfig,
+  type SuperAdminAutosendPolicyBuilder,
+  type SuperAdminAutosendPolicyRow,
+  type SuperAdminLocationZoneRow,
+  type SuperAdminOperationalConfig,
+  type SuperAdminResponseTemplateRow,
+  type SuperAdminScheduleRuleRow,
+} from "@/lib/dashboard/super-admin-operational";
 import { cn } from "@/lib/utils";
 import {
+  createSuperAdminLocationZoneAction,
   createSuperAdminPricingRuleAction,
   createSuperAdminRequirementAction,
+  createSuperAdminResponseTemplateAction,
+  createSuperAdminScheduleRuleAction,
   createSuperAdminSubjectAction,
+  deactivateSuperAdminResponseTemplateAction,
   deactivateSuperAdminPricingRuleAction,
   deactivateSuperAdminRequirementAction,
+  deleteSuperAdminLocationZoneAction,
+  deleteSuperAdminScheduleRuleAction,
+  saveSuperAdminAutosendPolicyAction,
+  updateSuperAdminLocationZoneAction,
   deleteSuperAdminSubjectAction,
   updateSuperAdminPricingRuleAction,
   updateSuperAdminRequirementAction,
+  updateSuperAdminResponseTemplateAction,
+  updateSuperAdminScheduleRuleAction,
   updateSuperAdminSubjectAction,
 } from "./actions";
 
@@ -46,6 +66,20 @@ const DIMENSIONS = [
 ] as const;
 
 const MODIFIER_ROWS = 3;
+const DEFAULT_AUTOSEND_BUILDER: SuperAdminAutosendPolicyBuilder = {
+  enabled: false,
+  requireAllRequiredResolved: true,
+  allowDeterministicSource: true,
+  allowFormFieldSource: true,
+  aiEvidenceVerifiedRequired: true,
+  aiMinConfidence: 0.85,
+  aiValidationPassedRequired: true,
+  blockIfConflicts: true,
+  blockIfRange: false,
+  autoSendConfidence: 0.85,
+  draftForReviewConfidence: 0.6,
+  aiClassifiedServiceAllowedForAutoSend: false,
+};
 
 export default async function SuperAdminPage({ searchParams }: PageProps) {
   if (!isSuperAdminEnabled()) {
@@ -55,7 +89,13 @@ export default async function SuperAdminPage({ searchParams }: PageProps) {
   try {
     const query = await searchParams;
     const client = await getCurrentClient();
-    const config = await getSuperAdminConfig(client.id);
+    const [config, operationalConfig] = await Promise.all([
+      getSuperAdminConfig(client.id),
+      getSuperAdminOperationalConfig({
+        id: client.id,
+        tenantId: client.tenantId,
+      }),
+    ]);
 
     return (
       <div className="mx-auto max-w-content">
@@ -68,9 +108,9 @@ export default async function SuperAdminPage({ searchParams }: PageProps) {
               System Config
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
-              Techninė konfigūracija request understanding ir kainodaros
-              taisyklėms. MVP 1 keičia tik dabartinio kliento paslaugas, temas,
-              advanced requirements ir pricing rules.
+              Techninė konfigūracija request understanding, kainodaros ir
+              tenant-level operational taisyklėms. MVP 2 prideda location zones,
+              schedule rules, autosend policy ir response templates.
             </p>
           </div>
           <Link
@@ -88,6 +128,8 @@ export default async function SuperAdminPage({ searchParams }: PageProps) {
           deleted={query?.deleted}
           error={query?.error}
         />
+
+        <OperationalConfigPanel config={operationalConfig} />
 
         {config.groups.length === 0 ? (
           <EmptyState />
@@ -180,6 +222,501 @@ function FlashMessages({
         </div>
       ) : null}
     </>
+  );
+}
+
+function OperationalConfigPanel({
+  config,
+}: {
+  config: SuperAdminOperationalConfig;
+}) {
+  const summaryItems = [
+    { label: "Location zones", value: config.summary.locationZonesCount },
+    { label: "Schedule rules", value: config.summary.scheduleRulesCount },
+    {
+      label: "Active templates",
+      value: config.summary.activeResponseTemplatesCount,
+    },
+    {
+      label: "Unsupported ops JSON",
+      value: config.summary.unsupportedOperationalJsonCount,
+    },
+  ];
+
+  return (
+    <section className="mt-6 rounded-lg border border-line bg-white p-5 shadow-cardsoft">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold text-ink">
+            Operational Config MVP 2
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-ink-soft">
+            Tenant-level taisyklės: location zones, bendras lead time, autosend
+            policy ir response templates. Šie nustatymai veikia visą dabartinio
+            kliento tenant kontekstą.
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Tenant ID:{" "}
+            {config.tenantId ? <code>{config.tenantId}</code> : "nėra"}
+          </p>
+        </div>
+      </div>
+
+      {!config.tenantId ? (
+        <div className="mt-4">
+          <WarningText>
+            Dabartinis klientas neturi tenantId, todėl operational config negali
+            būti redaguojamas.
+          </WarningText>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {summaryItems.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-lg border border-line bg-line-soft p-3"
+              >
+                <div className="text-xs font-extrabold uppercase text-ink-muted">
+                  {item.label}
+                </div>
+                <div className="mt-1 text-2xl font-extrabold text-ink">
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <OperationalDetails
+              title="Location Zones"
+              meta={`${config.locationZones.length} įrašai`}
+            >
+              <LocationZoneList zones={config.locationZones} />
+            </OperationalDetails>
+            <OperationalDetails
+              title="Schedule Rules"
+              meta={`${config.scheduleRules.length} įrašai`}
+            >
+              <ScheduleRuleList rules={config.scheduleRules} />
+            </OperationalDetails>
+            <OperationalDetails
+              title="Autosend Policy"
+              meta={
+                config.autosendPolicy?.missing
+                  ? "saugus default"
+                  : config.autosendPolicy?.support.supported
+                    ? "supported"
+                    : "unsupported"
+              }
+            >
+              {config.autosendPolicy ? (
+                <AutosendPolicyForm policy={config.autosendPolicy} />
+              ) : null}
+            </OperationalDetails>
+            <OperationalDetails
+              title="Response Templates"
+              meta={`${config.responseTemplates.length} įrašai`}
+            >
+              <ResponseTemplateList templates={config.responseTemplates} />
+            </OperationalDetails>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function OperationalDetails({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  meta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group rounded-lg border border-line bg-line-soft">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 marker:hidden">
+        <div>
+          <h3 className="text-base font-extrabold text-ink">{title}</h3>
+          <p className="text-xs font-semibold uppercase text-ink-muted">
+            {meta}
+          </p>
+        </div>
+        <span className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-ink-muted group-open:hidden">
+          Atidaryti
+        </span>
+        <span className="hidden rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-extrabold uppercase text-ink-muted group-open:inline-flex">
+          Suskleisti
+        </span>
+      </summary>
+      <div className="border-t border-line p-4">{children}</div>
+    </details>
+  );
+}
+
+function LocationZoneList({ zones }: { zones: SuperAdminLocationZoneRow[] }) {
+  return (
+    <div className="grid gap-4">
+      {zones.length === 0 ? (
+        <SectionEmpty>Location zones dar nėra.</SectionEmpty>
+      ) : (
+        zones.map((zone) => <LocationZoneForm key={zone.id} zone={zone} />)
+      )}
+
+      <InlineCreate title="Nauja location zone">
+        <LocationZoneForm />
+      </InlineCreate>
+    </div>
+  );
+}
+
+function LocationZoneForm({ zone }: { zone?: SuperAdminLocationZoneRow }) {
+  return (
+    <form
+      action={
+        zone
+          ? updateSuperAdminLocationZoneAction
+          : createSuperAdminLocationZoneAction
+      }
+      className="grid gap-3 rounded-lg border border-line bg-white p-4"
+    >
+      {zone ? (
+        <input type="hidden" name="locationZoneId" value={zone.id} />
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-3">
+        <TextInput
+          name="adminUnitCode"
+          label="admin unit code"
+          defaultValue={zone?.adminUnitCode}
+          placeholder="LT-VL"
+          required
+        />
+        <TextInput
+          name="zone"
+          label="zone"
+          defaultValue={zone?.zone}
+          placeholder="Vilnius"
+          required
+        />
+        <TextInput
+          name="travelFeeEur"
+          label="travel fee EUR"
+          defaultValue={formatInputNumber(zone?.travelFeeEur) || "0"}
+          placeholder="0"
+        />
+      </div>
+      <CheckboxGrid>
+        <Checkbox
+          name="served"
+          label="served"
+          defaultChecked={zone?.served ?? true}
+        />
+      </CheckboxGrid>
+      <div className="flex flex-wrap justify-end gap-2">
+        {zone ? (
+          <DeleteButton
+            action={deleteSuperAdminLocationZoneAction.bind(null, zone.id)}
+            confirmText={`Ištrinti location zone „${zone.zone}“? Veiksmas negrįžtamas.`}
+            renderAs="button"
+          />
+        ) : null}
+        <SubmitButton>
+          {zone ? "Išsaugoti location zone" : "Sukurti location zone"}
+        </SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+function ScheduleRuleList({ rules }: { rules: SuperAdminScheduleRuleRow[] }) {
+  return (
+    <div className="grid gap-4">
+      {rules.length === 0 ? (
+        <SectionEmpty>Schedule rules dar nėra.</SectionEmpty>
+      ) : (
+        rules.map((rule) => <ScheduleRuleForm key={rule.id} rule={rule} />)
+      )}
+
+      <InlineCreate title="Nauja schedule rule">
+        <ScheduleRuleForm />
+      </InlineCreate>
+    </div>
+  );
+}
+
+function ScheduleRuleForm({ rule }: { rule?: SuperAdminScheduleRuleRow }) {
+  const builder = rule?.builder;
+
+  return (
+    <form
+      action={
+        rule
+          ? updateSuperAdminScheduleRuleAction
+          : createSuperAdminScheduleRuleAction
+      }
+      className="grid gap-3 rounded-lg border border-line bg-white p-4"
+    >
+      {rule ? (
+        <input type="hidden" name="scheduleRuleId" value={rule.id} />
+      ) : null}
+      {rule && !rule.support.supported ? (
+        <WarningText>
+          Unsupported schedule JSON: {rule.support.reason} Išsaugojus forma
+          pakeis jį į lead_time_weeks shape.
+        </WarningText>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextInput
+          name="minWeeks"
+          label="min weeks"
+          defaultValue={formatInputNumber(builder?.minWeeks) || "3"}
+          placeholder="3"
+          required
+        />
+        <TextInput
+          name="maxWeeks"
+          label="max weeks"
+          defaultValue={formatInputNumber(builder?.maxWeeks) || "5"}
+          placeholder="5"
+          required
+        />
+      </div>
+      {rule ? (
+        <JsonPreview title="Read-only schedule JSON" value={rule.rulePreview} />
+      ) : null}
+      <div className="flex flex-wrap justify-end gap-2">
+        {rule ? (
+          <DeleteButton
+            action={deleteSuperAdminScheduleRuleAction.bind(null, rule.id)}
+            confirmText="Ištrinti schedule rule? Veiksmas negrįžtamas."
+            renderAs="button"
+          />
+        ) : null}
+        <SubmitButton>
+          {rule ? "Išsaugoti schedule rule" : "Sukurti schedule rule"}
+        </SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+function AutosendPolicyForm({
+  policy,
+}: {
+  policy: SuperAdminAutosendPolicyRow;
+}) {
+  const builder = policy.builder ?? DEFAULT_AUTOSEND_BUILDER;
+
+  return (
+    <form
+      action={saveSuperAdminAutosendPolicyAction}
+      className="grid gap-3 rounded-lg border border-line bg-white p-4"
+    >
+      {policy.id ? (
+        <input type="hidden" name="autosendPolicyId" value={policy.id} />
+      ) : null}
+      {policy.missing ? (
+        <WarningText>
+          Autosend policy dar nėra. Naujas policy bus sukurtas su enabled=false,
+          kol jo sąmoningai neįjungsite.
+        </WarningText>
+      ) : null}
+      {!policy.support.supported ? (
+        <WarningText>
+          Unsupported autosend policy JSON: {policy.support.reason} Išsaugojus
+          forma pakeis jį į MVP 2 builder shape.
+        </WarningText>
+      ) : null}
+      <WarningText>
+        Atsargiai: agresyvūs autosend nustatymai gali leisti realiems atsakymams
+        išeiti be rankinės peržiūros, kai siuntimo integracija bus prijungta.
+      </WarningText>
+
+      <CheckboxGrid>
+        <Checkbox
+          name="enabled"
+          label="enabled"
+          defaultChecked={builder.enabled}
+        />
+        <Checkbox
+          name="requireAllRequiredResolved"
+          label="require all required resolved"
+          defaultChecked={builder.requireAllRequiredResolved}
+        />
+        <Checkbox
+          name="blockIfConflicts"
+          label="block if conflicts"
+          defaultChecked={builder.blockIfConflicts}
+        />
+        <Checkbox
+          name="blockIfRange"
+          label="block if range"
+          defaultChecked={builder.blockIfRange}
+        />
+      </CheckboxGrid>
+
+      <fieldset className="grid gap-3 rounded-lg border border-line bg-line-soft p-3">
+        <legend className="px-1 text-sm font-extrabold text-ink">
+          Price-affecting requirement sources
+        </legend>
+        <CheckboxGrid>
+          <Checkbox
+            name="allowDeterministicSource"
+            label="allow deterministic"
+            defaultChecked={builder.allowDeterministicSource}
+          />
+          <Checkbox
+            name="allowFormFieldSource"
+            label="allow form field"
+            defaultChecked={builder.allowFormFieldSource}
+          />
+          <Checkbox
+            name="aiEvidenceVerifiedRequired"
+            label="AI evidence verified required"
+            defaultChecked={builder.aiEvidenceVerifiedRequired}
+          />
+          <Checkbox
+            name="aiValidationPassedRequired"
+            label="AI validation passed required"
+            defaultChecked={builder.aiValidationPassedRequired}
+          />
+        </CheckboxGrid>
+        <TextInput
+          name="aiMinConfidence"
+          label="AI min confidence"
+          defaultValue={formatInputNumber(builder.aiMinConfidence)}
+          placeholder="0.85"
+          required
+        />
+      </fieldset>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <TextInput
+          name="autoSendConfidence"
+          label="confidenceBands.autoSend"
+          defaultValue={formatInputNumber(builder.autoSendConfidence)}
+          placeholder="0.85"
+          required
+        />
+        <TextInput
+          name="draftForReviewConfidence"
+          label="confidenceBands.draftForReview"
+          defaultValue={formatInputNumber(builder.draftForReviewConfidence)}
+          placeholder="0.6"
+          required
+        />
+        <div className="flex items-end">
+          <Checkbox
+            name="aiClassifiedServiceAllowedForAutoSend"
+            label="AI-classified service allowed"
+            defaultChecked={builder.aiClassifiedServiceAllowedForAutoSend}
+          />
+        </div>
+      </div>
+
+      <JsonPreview title="Read-only policy JSON" value={policy.policyPreview} />
+      <div className="flex justify-end">
+        <SubmitButton>
+          {policy.missing ? "Sukurti autosend policy" : "Išsaugoti policy"}
+        </SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+function ResponseTemplateList({
+  templates,
+}: {
+  templates: SuperAdminResponseTemplateRow[];
+}) {
+  return (
+    <div className="grid gap-4">
+      {templates.length === 0 ? (
+        <SectionEmpty>Response templates dar nėra.</SectionEmpty>
+      ) : (
+        templates.map((template) => (
+          <ResponseTemplateForm key={template.id} template={template} />
+        ))
+      )}
+
+      <InlineCreate title="Naujas response template">
+        <ResponseTemplateForm />
+      </InlineCreate>
+    </div>
+  );
+}
+
+function ResponseTemplateForm({
+  template,
+}: {
+  template?: SuperAdminResponseTemplateRow;
+}) {
+  const placeholders =
+    template?.placeholders ?? getAllowedPlaceholders("custom_template");
+  const warning = template?.warning ?? null;
+
+  return (
+    <form
+      action={
+        template
+          ? updateSuperAdminResponseTemplateAction
+          : createSuperAdminResponseTemplateAction
+      }
+      className="grid gap-3 rounded-lg border border-line bg-white p-4"
+    >
+      {template ? (
+        <input type="hidden" name="responseTemplateId" value={template.id} />
+      ) : null}
+      {warning ? <WarningText>{warning}</WarningText> : null}
+      <TextInput
+        name="templateKey"
+        label="template key"
+        defaultValue={template?.templateKey}
+        placeholder="price_estimate"
+        required
+      />
+      <label className="grid gap-1 text-sm font-semibold text-ink">
+        body
+        <textarea
+          name="body"
+          required
+          rows={4}
+          defaultValue={template?.body}
+          placeholder="Sveiki, orientacinė kaina: {{priceAmount}} {{currency}}."
+          className="resize-y rounded-lg border border-line bg-white px-3 py-2 font-normal leading-relaxed"
+        />
+      </label>
+      <p className="text-xs leading-relaxed text-ink-muted">
+        Placeholder hints:{" "}
+        {placeholders.length > 0 ? placeholders.join(", ") : "nėra"}
+      </p>
+      <CheckboxGrid>
+        <Checkbox
+          name="active"
+          label="active"
+          defaultChecked={template?.active ?? true}
+        />
+      </CheckboxGrid>
+      <div className="flex flex-wrap justify-end gap-2">
+        {template?.active ? (
+          <DeleteButton
+            action={deactivateSuperAdminResponseTemplateAction.bind(
+              null,
+              template.id,
+            )}
+            label="Deaktyvuoti"
+            confirmText={`Deaktyvuoti response template „${template.templateKey}“? Jei jį naudoja sprendimo tipas, response generation gali baigtis config klaida.`}
+            renderAs="button"
+          />
+        ) : null}
+        <SubmitButton>
+          {template ? "Išsaugoti template" : "Sukurti template"}
+        </SubmitButton>
+      </div>
+    </form>
   );
 }
 

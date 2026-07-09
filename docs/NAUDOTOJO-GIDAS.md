@@ -158,12 +158,14 @@ Super Admin yra techninis System Config puslapis testavimui ir vidiniam
 administravimui. Jis matomas lokaliai/dev aplinkoje; produkcijoje pasirodo tik
 tada, kai sąmoningai įjungtas `SUPER_ADMIN_ENABLED=true`.
 
-Puslapis suskirstytas pagal paslaugas, o paslaugų blokai iš pradžių
-suskleisti. Ant kiekvieno bloko matote paslaugos ID, temų, requirements ir
-pricing skaičius bei įspėjimus, jei yra nepalaikomas JSON ar nutrūkusios
-nuorodos. Atidarykite tik tą paslaugą, kurią norite taisyti.
+Puslapis turi dvi dalis. Viršuje yra **Operational Config** — tenant-level
+nustatymai, kurie galioja visam dabartiniam klientui. Žemiau yra pagal
+paslaugas suskleisti core config blokai. Ant kiekvieno paslaugos bloko matote
+paslaugos ID, temų, requirements ir pricing skaičius bei įspėjimus, jei yra
+nepalaikomas JSON ar nutrūkusios nuorodos. Atidarykite tik tą dalį, kurią
+norite taisyti.
 
-Ką galima keisti MVP 1:
+Core config dalyje galima keisti:
 
 - **Temos** — techniniai `subjectKey`, lietuviški pavadinimai, aprašymai ir
   sinonimai, pagal kuriuos sistema pririša faktus prie paslaugos temos.
@@ -174,14 +176,26 @@ Ką galima keisti MVP 1:
   pagrindinis `requirementKey`, `requires`, vieneto kaina, valiuta ir iki
   5 `gte` modifierių.
 
+Operational Config dalyje galima keisti:
+
+- **Location zones** — administracinį kodą, zonos pavadinimą, kelionės mokestį
+  ir ar vietovė aptarnaujama.
+- **Schedule rules** — bendrą terminą savaitėmis (`lead_time_weeks`), kai
+  nėra tikslesnio užimtumo įrašo.
+- **Autosend policy** — saugos vartus automatiniam siuntimui. Jei policy dar
+  nėra, naujas sukuriamas išjungtas (`enabled=false`).
+- **Response templates** — atsakymų šablonus su placeholder užuominomis, pvz.
+  `{{priceAmount}}`, `{{currency}}`, `{{questions}}`.
+
 Sistema saugo nuo pavojingų pakeitimų: neleis ištrinti temos, kurią naudoja
 aktyvus requirement, ir neleis sugadinti aktyvios kainodaros nuorodų į
-requirements. Nepalaikomas `rule` JSON rodomas peržiūrai; jį pakeisti galima
-tik išsaugojant palaikomą builder formą.
+requirements. Nepalaikomas core ar operational JSON rodomas peržiūrai; jį
+pakeisti galima tik išsaugojant palaikomą builder formą.
 
 Po pakeitimų visada pasitikrinkite **Testavime**. Jei paleidžiate
 `npm run db:seed`, DEV kliento konfigūracija gali būti atstatyta pagal seed
-duomenis, todėl Super Admin pakeitimus verta patikrinti iš naujo.
+duomenis, įskaitant operational config, todėl Super Admin pakeitimus verta
+patikrinti iš naujo.
 
 ## Kada užklausa patenka į rankinę peržiūrą
 

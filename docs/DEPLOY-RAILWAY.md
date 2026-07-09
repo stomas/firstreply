@@ -86,7 +86,8 @@ arba sukurkite atskirą kliento eilutę DB ir atnaujinkite
 
 Jei testavote techninę konfigūraciją per `/dashboard/super-admin`, po seed'o
 patikrinkite ją dar kartą: DEV kliento paslaugos, temos, requirements ir
-kainodara gali būti perrašyti pagal seed duomenis.
+kainodara, taip pat tenant location zones, schedule rules, autosend policy ir
+response templates gali būti perrašyti pagal seed duomenis.
 
 ## 5. Patikrinimas po diegimo
 
