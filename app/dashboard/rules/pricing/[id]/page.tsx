@@ -193,9 +193,7 @@ export default async function DashboardPricingRuleEditPage({
 function CalculationInfo({
   rule,
 }: {
-  rule: NonNullable<
-    Awaited<ReturnType<typeof getDashboardPricingRuleEdit>>
-  >;
+  rule: NonNullable<Awaited<ReturnType<typeof getDashboardPricingRuleEdit>>>;
 }) {
   return (
     <section className="mb-5 rounded-lg border border-line bg-line-soft p-4">
@@ -219,9 +217,7 @@ function CalculationInfo({
         ) : null}
         {rule.requires.length > 0 ? (
           <div>
-            <dt className="inline font-semibold">
-              Kainai reikia atsakymų:{" "}
-            </dt>
+            <dt className="inline font-semibold">Kainai reikia atsakymų: </dt>
             <dd className="inline">{rule.requires.join(", ")}</dd>
           </div>
         ) : null}

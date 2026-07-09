@@ -32,9 +32,7 @@ export default async function DashboardRulesPage({ searchParams }: PageProps) {
             <div className="text-sm font-bold uppercase text-brand">
               Konfigūracija
             </div>
-            <h1 className="mt-1 text-3xl font-extrabold text-ink">
-              Taisyklės
-            </h1>
+            <h1 className="mt-1 text-3xl font-extrabold text-ink">Taisyklės</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
               Kainodara ir klausimai, pagal kuriuos sistema skaičiuoja
               orientacinę kainą ir žino, ko paklausti kliento, kai informacijos
@@ -124,9 +122,7 @@ function ServiceRulesCard({ group }: { group: DashboardRulesServiceGroup }) {
   return (
     <article className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-extrabold text-ink">
-          {group.serviceName}
-        </h2>
+        <h2 className="text-lg font-extrabold text-ink">{group.serviceName}</h2>
         {!group.serviceActive ? (
           <span className="rounded-full border border-line bg-line-soft px-3 py-1 text-xs font-extrabold uppercase text-ink-muted">
             Paslauga neaktyvi
@@ -196,7 +192,12 @@ function PricingRuleRow({ rule }: { rule: DashboardPricingRuleRow }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-3 py-3">
       <div className="min-w-0">
-        <div className={cn("font-bold", rule.active ? "text-ink" : "text-ink-muted")}>
+        <div
+          className={cn(
+            "font-bold",
+            rule.active ? "text-ink" : "text-ink-muted",
+          )}
+        >
           {rule.name}
         </div>
         <div className="mt-0.5 text-sm text-ink-soft">
@@ -272,8 +273,7 @@ function Badge({
     <span
       className={cn(
         "rounded-full border px-2.5 py-0.5 text-xs font-bold",
-        tone === "brand" &&
-          "border-brand-tintborder bg-brand-tint text-brand",
+        tone === "brand" && "border-brand-tintborder bg-brand-tint text-brand",
         tone === "muted" && "border-line bg-line-soft text-ink-muted",
         tone === "line" && "border-line bg-white text-ink-soft",
       )}
@@ -324,9 +324,8 @@ function EmptyState() {
     <section className="mt-6 rounded-lg border border-dashed border-line bg-white p-8 text-center shadow-cardsoft">
       <h2 className="text-xl font-extrabold text-ink">Taisyklių dar nėra</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
-        Kainodaros taisyklės ir klausimai suvedami kartu su paslaugomis
-        diegimo metu. Kai jie atsiras, čia galėsite juos peržiūrėti ir
-        redaguoti.
+        Kainodaros taisyklės ir klausimai suvedami kartu su paslaugomis diegimo
+        metu. Kai jie atsiras, čia galėsite juos peržiūrėti ir redaguoti.
       </p>
     </section>
   );

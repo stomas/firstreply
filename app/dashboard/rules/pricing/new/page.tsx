@@ -202,8 +202,8 @@ function PricingCreateForm({
             Kainai reikia atsakymų
           </legend>
           <p className="text-xs text-ink-muted">
-            Kaina siunčiama tik tada, kai gauti visi pažymėti atsakymai.
-            Kiekio klausimas įtraukiamas visada.
+            Kaina siunčiama tik tada, kai gauti visi pažymėti atsakymai. Kiekio
+            klausimas įtraukiamas visada.
           </p>
           {context.requirements.map((requirement) => (
             <label

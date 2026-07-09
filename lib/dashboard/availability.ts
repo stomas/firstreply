@@ -235,9 +235,7 @@ function parseAvailabilityValues(
   | { ok: true; value: DashboardAvailabilityValues }
   | { ok: false; error: string } {
   const status = textValue(formData, "status");
-  if (
-    !AVAILABILITY_STATUSES.some((candidate) => candidate.value === status)
-  ) {
+  if (!AVAILABILITY_STATUSES.some((candidate) => candidate.value === status)) {
     return { ok: false, error: "Pasirinkite užimtumo būseną." };
   }
 
@@ -245,7 +243,10 @@ function parseAvailabilityValues(
   let validUntil: Date | null = null;
   if (validUntilRaw) {
     if (!/^\d{4}-\d{2}-\d{2}$/u.test(validUntilRaw)) {
-      return { ok: false, error: "Galiojimo data turi būti formato MMMM-mm-dd." };
+      return {
+        ok: false,
+        error: "Galiojimo data turi būti formato MMMM-mm-dd.",
+      };
     }
     const parsed = new Date(`${validUntilRaw}T23:59:59.999Z`);
     if (Number.isNaN(parsed.getTime())) {

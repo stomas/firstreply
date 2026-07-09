@@ -69,8 +69,8 @@ export default async function DashboardRequirementEditPage({
             ) : null}
           </dl>
           <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-            Atpažinimo struktūra keičiama tik kartu su FirstReply komanda —
-            nuo jos priklauso, kaip tekste randamas atsakymas.
+            Atpažinimo struktūra keičiama tik kartu su FirstReply komanda — nuo
+            jos priklauso, kaip tekste randamas atsakymas.
           </p>
         </section>
 

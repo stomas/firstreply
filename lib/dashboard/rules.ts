@@ -251,7 +251,10 @@ export async function createDashboardPricingRule(
     context.requirements.map((requirement) => requirement.requirementKey),
   );
   if (!knownKeys.has(create.quantityKey)) {
-    return { ok: false, error: "Pasirinkite, iš kurio klausimo imamas kiekis." };
+    return {
+      ok: false,
+      error: "Pasirinkite, iš kurio klausimo imamas kiekis.",
+    };
   }
   const unknownRequire = create.requires.find((key) => !knownKeys.has(key));
   if (unknownRequire) {
@@ -320,7 +323,9 @@ export async function createDashboardRequirement(
 
   if (
     create.subjectKey !== null &&
-    !context.subjects.some((subject) => subject.subjectKey === create.subjectKey)
+    !context.subjects.some(
+      (subject) => subject.subjectKey === create.subjectKey,
+    )
   ) {
     return { ok: false, error: "Pasirinkta tema nerasta." };
   }
@@ -577,8 +582,7 @@ export function parseDashboardRequirementForm(
       required: formData.get("required") === "on",
       affectsPrice: formData.get("affectsPrice") === "on",
       active: formData.get("active") === "on",
-      priority:
-        priority.value !== null ? Math.round(priority.value) : 100,
+      priority: priority.value !== null ? Math.round(priority.value) : 100,
       validationMin: validationMin.value,
       validationMax: validationMax.value,
     },
@@ -842,15 +846,16 @@ function toRequirementRow(source: RequirementSource): DashboardRequirementRow {
     affectsPrice: source.affectsPrice,
     active: source.active,
     priority: source.priority,
-    validationMin:
-      typeof validation?.min === "number" ? validation.min : null,
-    validationMax:
-      typeof validation?.max === "number" ? validation.max : null,
+    validationMin: typeof validation?.min === "number" ? validation.min : null,
+    validationMax: typeof validation?.max === "number" ? validation.max : null,
     expectedFactSummary: expectedFactSummary(expectedFact),
   };
 }
 
-function modifierSummary(modifier: unknown, unit: string | null): string | null {
+function modifierSummary(
+  modifier: unknown,
+  unit: string | null,
+): string | null {
   const record = asRecord(modifier);
   const condition = asRecord(record?.if);
   const requirementKey =
@@ -915,9 +920,7 @@ function nullableTextValue(formData: FormData, key: string): string | null {
   return value ? value : null;
 }
 
-function decimalToNumber(
-  value: Prisma.Decimal | number | null,
-): number | null {
+function decimalToNumber(value: Prisma.Decimal | number | null): number | null {
   return value === null ? null : Number(value);
 }
 

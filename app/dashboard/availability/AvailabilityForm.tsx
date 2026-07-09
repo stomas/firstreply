@@ -22,11 +22,7 @@ export function AvailabilityForm({
       action={action}
       className="rounded-lg border border-line bg-white p-5 shadow-cardsoft"
     >
-      <input
-        type="hidden"
-        name={hiddenField.name}
-        value={hiddenField.value}
-      />
+      <input type="hidden" name={hiddenField.name} value={hiddenField.value} />
 
       <section className="grid gap-4">
         <SectionHeading
@@ -54,7 +50,9 @@ export function AvailabilityForm({
                 name="status"
                 value={status.value}
                 defaultChecked={
-                  rule ? rule.status === status.value : status.value === "available"
+                  rule
+                    ? rule.status === status.value
+                    : status.value === "available"
                 }
                 className="mt-0.5 h-4 w-4 accent-brand"
               />

@@ -62,8 +62,8 @@ export default async function DashboardAvailabilityEditPage({
 
         {rule.expired ? (
           <div className="mb-4 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm leading-relaxed text-warn-text">
-            Šio įrašo galiojimas pasibaigęs — atnaujinkite terminą ir
-            galiojimo datą, kad klientai vėl matytų aktualią informaciją.
+            Šio įrašo galiojimas pasibaigęs — atnaujinkite terminą ir galiojimo
+            datą, kad klientai vėl matytų aktualią informaciją.
           </div>
         ) : null}
 

@@ -33,12 +33,10 @@ export default async function DashboardAvailabilityPage({
             <div className="text-sm font-bold uppercase text-brand">
               Konfigūracija
             </div>
-            <h1 className="mt-1 text-3xl font-extrabold text-ink">
-              Užimtumas
-            </h1>
+            <h1 className="mt-1 text-3xl font-extrabold text-ink">Užimtumas</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-              Kada ir kuriuose regionuose galite priimti naujus užsakymus.
-              Šie terminai rodomi prie užklausų, kad atsakymai atitiktų realų
+              Kada ir kuriuose regionuose galite priimti naujus užsakymus. Šie
+              terminai rodomi prie užklausų, kad atsakymai atitiktų realų
               užimtumą.
             </p>
           </div>
@@ -149,8 +147,8 @@ function ServiceAvailabilityCard({
 
       {group.rules.length === 0 ? (
         <p className="mt-3 rounded-lg border border-dashed border-line bg-line-soft px-3 py-3 text-sm leading-relaxed text-ink-soft">
-          Užimtumo įrašų dar nėra — klientams nenurodomas orientacinis
-          terminas šiai paslaugai.
+          Užimtumo įrašų dar nėra — klientams nenurodomas orientacinis terminas
+          šiai paslaugai.
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-line">
@@ -232,8 +230,7 @@ function Badge({
     <span
       className={cn(
         "rounded-full border px-2.5 py-0.5 text-xs font-bold",
-        tone === "brand" &&
-          "border-brand-tintborder bg-brand-tint text-brand",
+        tone === "brand" && "border-brand-tintborder bg-brand-tint text-brand",
         tone === "muted" && "border-line bg-line-soft text-ink-muted",
         tone === "line" && "border-line bg-white text-ink-soft",
         tone === "warn" && "border-warn-border bg-warn-bg text-warn-text",
@@ -251,8 +248,8 @@ function EmptyState() {
         Užimtumo įrašų dar nėra
       </h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
-        Kai bus suvestos paslaugos, čia galėsite nurodyti, kuriuose
-        regionuose ir kokiais terminais priimate užsakymus.
+        Kai bus suvestos paslaugos, čia galėsite nurodyti, kuriuose regionuose
+        ir kokiais terminais priimate užsakymus.
       </p>
     </section>
   );
