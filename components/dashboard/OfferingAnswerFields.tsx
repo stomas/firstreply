@@ -3,20 +3,61 @@
 import { useState } from "react";
 
 type OfferingAnswerFieldsProps = {
+  serviceId: string;
   serviceLabel: string;
   defaultDescription: string;
   defaultFollowup: string;
 };
 
-// Redaguojami offering laukai su gyva atsakymo peržiūra: naudotojas iškart
-// mato, kokią žinutę gaus klientas, paklausęs „ar darote X?".
+type SuggestionResponse =
+  | { ok: true; description: string; followup: string }
+  | { ok: false; error: string };
+
+// Redaguojami offering laukai su gyva atsakymo peržiūra ir AI pasiūlymu.
+// AI kviečiamas TIK čia, konfigūravimo metu — sugeneruotas tekstas tik
+// užpildo laukus; klientams jis išeina tik savininkui paspaudus „Išsaugoti".
 export function OfferingAnswerFields({
+  serviceId,
   serviceLabel,
   defaultDescription,
   defaultFollowup,
 }: OfferingAnswerFieldsProps) {
   const [description, setDescription] = useState(defaultDescription);
   const [followup, setFollowup] = useState(defaultFollowup);
+  const [tone, setTone] = useState("dalykiskas");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
+  async function onGenerate() {
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      const response = await fetch(
+        "/api/dashboard/services/offering-suggestion",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ serviceId, tone }),
+        },
+      );
+      const json = (await response.json()) as SuggestionResponse;
+
+      if (!json.ok) {
+        setGenerationError(json.error);
+        return;
+      }
+
+      setDescription(json.description);
+      setFollowup(json.followup);
+    } catch {
+      setGenerationError(
+        "AI pasiūlymo nepavyko sugeneruoti — pabandykite dar kartą.",
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   const exampleQuestion = `Laba diena, ar teikiate paslaugą „${serviceLabel}“?`;
   const previewAnswer = [
@@ -29,6 +70,40 @@ export function OfferingAnswerFields({
 
   return (
     <div className="grid gap-4">
+      <div className="rounded-lg border border-brand-tintborder bg-brand-tint p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid gap-1 text-sm font-semibold text-ink">
+            Tonas
+            <select
+              value={tone}
+              onChange={(event) => setTone(event.target.value)}
+              className="rounded-lg border border-line bg-white px-3 py-2 font-normal"
+            >
+              <option value="dalykiskas">Dalykiškas</option>
+              <option value="draugiskas">Draugiškas</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isGenerating}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white shadow-cta hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isGenerating ? "Generuojama..." : "Sugeneruoti su AI"}
+          </button>
+          <p className="basis-full text-xs leading-relaxed text-ink-soft">
+            AI parašys tekstą iš paslaugos duomenų ir užpildys laukus žemiau.
+            Klientams niekas neišsiunčiama, kol neperžiūrėsite ir nepaspausite
+            „Išsaugoti“.
+          </p>
+        </div>
+        {generationError ? (
+          <p className="mt-2 text-sm font-semibold text-warn-text">
+            {generationError}
+          </p>
+        ) : null}
+      </div>
+
       <label className="grid gap-1 text-sm font-semibold text-ink">
         Atsakymo tekstas
         <textarea

@@ -213,6 +213,7 @@ function ServiceEditForm({ service }: { service: DashboardServiceEdit }) {
           description="Kai klientas paklausia „Ar darote segmentines tvoras?“ (neklausdamas kainos), sistema iš karto atsako šiuo tekstu. Jei jis tuščias — užklausa keliauja į rankinę peržiūrą."
         />
         <OfferingAnswerFields
+          serviceId={service.id}
           serviceLabel={service.label || service.name}
           defaultDescription={service.offeringDescription ?? ""}
           defaultFollowup={service.offeringFollowup ?? ""}

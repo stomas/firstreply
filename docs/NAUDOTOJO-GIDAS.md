@@ -75,9 +75,13 @@ Redaguodami paslaugą galite keisti:
   „Ar darote segmentines tvoras?“ (neklausdamas kainos), sistema iš karto
   atsako jūsų įrašytu tekstu (pvz. „Taip, montuojame segmentines tvoras…“)
   ir tęsiniu, kviečiančiu tęsti pokalbį (pvz. „Jei atsiųsite tvoros ilgį ir
-  aukštį, paskaičiuosiu orientacinę kainą.“). Redagavimo formoje matote
-  gyvą pokalbio peržiūrą — kaip žinutė atrodys klientui. Kol atsakymo nėra,
-  tokie klausimai eina į rankinę peržiūrą.
+  aukštį, paskaičiuosiu orientacinę kainą.“). Rašyti ranka nebūtina —
+  pasirinkite toną (dalykiškas / draugiškas) ir spauskite **„Sugeneruoti su
+  AI“**: tekstas parašomas iš paslaugos duomenų ir užpildo laukus. Formoje
+  matote gyvą pokalbio peržiūrą — kaip žinutė atrodys klientui; galite
+  taisyti ir tik tada išsaugoti. Klientams visada siunčiamas tik jūsų
+  patvirtintas tekstas. Kol atsakymo nėra, tokie klausimai eina į rankinę
+  peržiūrą.
 
 ## Taisyklės
 

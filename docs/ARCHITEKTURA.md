@@ -177,6 +177,19 @@ Rezultatas **niekur nenaudojamas sprendimams** — saugomas
 ai_missing per requirement key). Ataskaita: `npm run db:shadow-report`.
 Bet kokia shadow klaida ignoruojama — pagrindinis pipeline nenukenčia.
 
+### 6.4 Offering pasiūlymas (konfigūravimo metu, ne pipeline)
+
+`lib/ai/offering-suggestion.ts` + `POST
+/api/dashboard/services/offering-suggestion` — „Sugeneruoti su AI“ mygtukas
+paslaugos redagavimo formoje. AI iš paslaugos duomenų (pavadinimas, temos,
+raktažodžiai, kainodaros vienetai, klausimų label'iai) parašo offering
+atsakymą pasirinktu tonu (dalykiškas/draugiškas) ir tik užpildo formos
+laukus. **Invariantas nekinta**: klientams tekstas išeina tik savininkui
+peržiūrėjus ir išsaugojus; runtime atsakymai lieka deterministiniai iš DB.
+Promptas draudžia išgalvoti kainas/terminus/garantijas, kurių nėra
+duomenyse. AI nesukonfigūruotas → aiški klaida formoje, laukai lieka
+redaguojami ranka.
+
 ## 7. DB modeliai (prisma/schema.prisma)
 
 | Modelis                 | Paskirtis                                                                                                                |
