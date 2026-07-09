@@ -1,4 +1,5 @@
 import { resolveLocationText } from "@/lib/extractor/deterministic";
+import { normalizeServiceText } from "@/lib/leads/service-specificity";
 import type {
   AvailabilityRule,
   DecisionEngineInput,
@@ -23,6 +24,29 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
   }
 
   if (!input.service.id || input.service.confidence < 0.7) {
+    if (input.service.reason === "unsupported_specific_service") {
+      return {
+        ...base,
+        decision: "MANUAL_REVIEW",
+        reason: "SERVICE_UNSUPPORTED",
+        autoSendBlockedBy: ["SERVICE_UNSUPPORTED"],
+        manualReviewDraftText: buildUnsupportedServiceDraft(input),
+      };
+    }
+
+    const serviceClarificationQuestion = !input.service.id
+      ? buildServiceClarificationQuestion(input)
+      : null;
+    if (serviceClarificationQuestion) {
+      return {
+        ...base,
+        decision: "ASK_MISSING_INFO",
+        reason: "SERVICE_AMBIGUOUS",
+        questionsToAsk: [serviceClarificationQuestion],
+        autoSendBlockedBy: ["SERVICE_AMBIGUOUS"],
+      };
+    }
+
     return {
       ...base,
       decision: "MANUAL_REVIEW",
@@ -227,7 +251,70 @@ function baseDecision(): DecisionResult {
     autoSend: false,
     autoSendBlockedBy: [],
     offeringAnswer: null,
+    manualReviewDraftText: null,
   };
+}
+
+function buildUnsupportedServiceDraft(input: DecisionEngineInput): string {
+  const evidence = input.service.evidence?.trim();
+  if (evidence) {
+    return `Sveiki, ačiū už užklausą. Pagal pateiktą informaciją prašote paslaugos: „${evidence}“. Šiuo metu tokios paslaugos neteikiame.`;
+  }
+
+  return "Sveiki, ačiū už užklausą. Šiuo metu tokios paslaugos neteikiame.";
+}
+
+function buildServiceClarificationQuestion(
+  input: DecisionEngineInput,
+): string | null {
+  const candidateIds = new Set(
+    (input.service.candidates ?? []).map((candidate) => candidate.id),
+  );
+  if (candidateIds.size === 0) {
+    return null;
+  }
+
+  const candidates = input.rules.services.filter(
+    (service) => service.active && candidateIds.has(service.id),
+  );
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  if (candidates.some((service) => serviceLooksLikeFence(service.id, input))) {
+    return "Kokio tipo tvorą svarstote?";
+  }
+
+  return "Patikslinkite, kokios paslaugos reikia?";
+}
+
+function serviceLooksLikeFence(
+  serviceId: string,
+  input: DecisionEngineInput,
+): boolean {
+  const service = input.rules.services.find(
+    (candidate) => candidate.id === serviceId,
+  );
+  if (!service) {
+    return false;
+  }
+
+  const text = normalizeServiceText(
+    [
+      service.name,
+      service.label ?? "",
+      ...(service.keywords ?? []),
+      ...(input.rules.serviceSubjects ?? [])
+        .filter((subject) => subject.serviceId === serviceId)
+        .flatMap((subject) => [
+          subject.labelLt,
+          subject.descriptionLt,
+          ...subject.synonyms,
+        ]),
+    ].join(" "),
+  );
+
+  return text.split(" ").some((token) => token.startsWith("tvor"));
 }
 
 function isLocationNotServed(input: DecisionEngineInput): boolean {

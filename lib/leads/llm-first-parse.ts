@@ -23,6 +23,10 @@ import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
 import type { ParsedLeadData } from "@/lib/leads/parse-lead";
 import type { ServiceClassification } from "@/lib/leads/service-classifier";
 import {
+  serviceEvidenceIsSpecific,
+  serviceEvidenceNamesSpecificOffering,
+} from "@/lib/leads/service-specificity";
+import {
   asRecord,
   factMatchesExpectedFact,
 } from "@/lib/requirements/fact-validation";
@@ -41,6 +45,7 @@ const DEFAULT_VERIFIED_LLM_CONFIDENCE = 0.9;
 export type LlmFirstParseRejectReason =
   | "SERVICE_NOT_IN_LIST"
   | "SERVICE_EVIDENCE_NOT_FOUND"
+  | "SERVICE_EVIDENCE_NOT_SPECIFIC"
   | "SERVICE_VALUE_NOT_IN_EVIDENCE"
   | "NO_SERVICE"
   | "REQUIREMENT_NOT_ALLOWED"
@@ -229,6 +234,8 @@ function buildLlmFirstRequest(
         name: service.name,
         label: service.label,
         keywords: service.keywords ?? [],
+        offeringDescription: service.offeringDescription ?? null,
+        offeringFollowup: service.offeringFollowup ?? null,
         subjects: subjectsForService(rules, service.id).map((subject) => ({
           subjectKey: subject.subjectKey,
           labelLt: subject.labelLt,
@@ -437,6 +444,36 @@ function resolveService({
           : "SERVICE_EVIDENCE_NOT_FOUND",
     });
     return { id: null, classification: null };
+  }
+
+  if (!serviceEvidenceIsSpecific({ service, rules, evidence })) {
+    rejectedFindings.push({
+      type: "service",
+      target: response.serviceId,
+      reason: "SERVICE_EVIDENCE_NOT_SPECIFIC",
+    });
+    const reason = serviceEvidenceNamesSpecificOffering(evidence)
+      ? "unsupported_specific_service"
+      : "ambiguous";
+    return {
+      id: null,
+      classification: {
+        id: null,
+        confidence: 0.6,
+        source: "ai",
+        reason,
+        evidence,
+        evidenceVerified: true,
+        candidates: [
+          {
+            id: service.id,
+            confidence: 0.6,
+            score: 0,
+            matchedTerms: [evidence],
+          },
+        ],
+      },
+    };
   }
 
   return {

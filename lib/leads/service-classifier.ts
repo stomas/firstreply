@@ -7,6 +7,12 @@ import {
   type AiModelCaller,
   type AiModelRequest,
 } from "@/lib/ai/openai-client";
+import {
+  isGenericServiceTerm,
+  normalizeServiceText,
+  serviceEvidenceIsSpecific,
+  serviceTextTokens,
+} from "@/lib/leads/service-specificity";
 import type { ClientRules, ServiceRule } from "@/lib/rules/types";
 import { verifyAiEvidence } from "@/lib/verifier/evidence";
 
@@ -15,7 +21,8 @@ export type ServiceClassificationReason =
   | "matched_terms"
   | "no_match"
   | "ambiguous"
-  | "ai_matched";
+  | "ai_matched"
+  | "unsupported_specific_service";
 
 export type ServiceClassification = {
   id: string | null;
@@ -35,6 +42,7 @@ export type ServiceClassification = {
 export type ServiceAiRejectReason =
   | "LOW_CONFIDENCE"
   | "EVIDENCE_NOT_FOUND"
+  | "EVIDENCE_NOT_SPECIFIC"
   | "SERVICE_NOT_IN_LIST"
   | "NO_SERVICE"
   | "AI_PARSE_FAILED";
@@ -70,28 +78,6 @@ type ServiceScore = {
   matchedTerms: Set<string>;
 };
 
-const genericTerms = new Set([
-  "dev",
-  "ir",
-  "bei",
-  "su",
-  "pagal",
-  "gamyba",
-  "gamybos",
-  "montavimas",
-  "montavimo",
-  "paslauga",
-  "paslaugos",
-  "reikia",
-  "domina",
-  "tvora",
-  "tvoros",
-  "tvora",
-  "tvorai",
-  "aptverimas",
-  "sklypo",
-]);
-
 export function classifyLeadService({
   requestedServiceId,
   message,
@@ -116,7 +102,7 @@ export function classifyLeadService({
     };
   }
 
-  const normalizedMessage = normalizeText(message);
+  const normalizedMessage = normalizeServiceText(message);
   const scores = activeServices
     .map((service) => scoreService(service, rules, normalizedMessage))
     .filter((score) => score.score > 0)
@@ -191,9 +177,10 @@ export async function classifyLeadServiceWithFallback(
     deterministic.reason === "ambiguous" &&
     Boolean(topCandidate) &&
     Boolean(secondCandidate) &&
-    topCandidate.score >= 2 &&
-    secondCandidate.score >= 2 &&
-    topCandidate.score - secondCandidate.score < 2;
+    (topCandidate.score === secondCandidate.score ||
+      (topCandidate.score >= 2 &&
+        secondCandidate.score >= 2 &&
+        topCandidate.score - secondCandidate.score < 2));
   if (genuineTie) {
     return {
       classification: deterministic,
@@ -254,7 +241,10 @@ export async function classifyLeadServiceWithFallback(
     return reject("NO_SERVICE");
   }
 
-  if (!activeServices.some((service) => service.id === parsed.serviceId)) {
+  const service = activeServices.find(
+    (candidate) => candidate.id === parsed.serviceId,
+  );
+  if (!service) {
     return reject("SERVICE_NOT_IN_LIST", { serviceId: parsed.serviceId });
   }
 
@@ -271,6 +261,16 @@ export async function classifyLeadServiceWithFallback(
   });
   if (!evidence.ok) {
     return reject("EVIDENCE_NOT_FOUND", { serviceId: parsed.serviceId });
+  }
+
+  if (
+    !serviceEvidenceIsSpecific({
+      service,
+      rules: params.rules,
+      evidence: parsed.evidence,
+    })
+  ) {
+    return reject("EVIDENCE_NOT_SPECIFIC", { serviceId: parsed.serviceId });
   }
 
   return {
@@ -311,6 +311,8 @@ function buildAiServiceRequest(
         label: service.label,
         name: service.name,
         keywords: service.keywords ?? [],
+        offeringDescription: service.offeringDescription ?? null,
+        offeringFollowup: service.offeringFollowup ?? null,
         subjects: (rules.serviceSubjects ?? [])
           .filter((subject) => subject.serviceId === service.id)
           .map((subject) => ({
@@ -427,7 +429,7 @@ function scoreTerm(
   baseWeight: number,
   matchedTerms: Set<string>,
 ): number {
-  const normalizedTerm = normalizeText(term);
+  const normalizedTerm = normalizeServiceText(term);
   return scoreNormalizedTerm(
     normalizedTerm,
     normalizedMessage,
@@ -446,8 +448,12 @@ function scoreNormalizedTerm(
     return 0;
   }
 
+  if (matchedTerms.has(normalizedTerm)) {
+    return 0;
+  }
+
   matchedTerms.add(normalizedTerm);
-  return genericTerms.has(normalizedTerm) ? 1 : baseWeight;
+  return isGenericServiceTerm(normalizedTerm) ? 1 : baseWeight;
 }
 
 function confidenceForScores(topScore: number, secondScore: number): number {
@@ -468,22 +474,9 @@ function roundConfidence(value: number): number {
 }
 
 function tokens(text: string): string[] {
-  return normalizeText(text)
-    .split(" ")
-    .filter((token) => token.length >= 3);
+  return serviceTextTokens(text);
 }
 
 function hasPhrase(normalizedText: string, normalizedPhrase: string): boolean {
   return ` ${normalizedText} `.includes(` ${normalizedPhrase} `);
-}
-
-function normalizeText(value: string): string {
-  return value
-    .replace(/²/gu, "2")
-    .toLocaleLowerCase("lt-LT")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
-    .trim()
-    .replace(/\s+/gu, " ");
 }

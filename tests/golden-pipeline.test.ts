@@ -308,7 +308,7 @@ describe("golden lead pipeline", () => {
         ...baseInput(),
         serviceId: "",
         inquiryMessage:
-          "Sveiki, reikia aptvert sklypa nuo kaimyno. Kiek kainuotų?",
+          "Sveiki, reikia skardos užtvaros nuo kaimyno. Kiek kainuotų?",
       },
       rules,
       leadId: "golden_ai_service",
@@ -320,7 +320,7 @@ describe("golden lead pipeline", () => {
             return JSON.stringify({
               serviceId: "service_skardines_tvoros",
               confidence: 0.9,
-              evidence: "aptvert sklypa",
+              evidence: "skardos užtvaros",
             });
           }
           return JSON.stringify({

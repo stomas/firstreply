@@ -156,6 +156,27 @@ describe("decideLeadResponse", () => {
     assert.equal(result.reason, "SERVICE_AMBIGUOUS");
   });
 
+  it("asks for the fence type when only the generic fence category is known", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: null,
+        confidence: 0.6,
+        source: "ai",
+        evidence: "tvora",
+        evidenceVerified: true,
+        candidates: [{ id: "service_fence", confidence: 0.6 }],
+      },
+      resolvedRequirements: {},
+      unresolvedRequirements: [],
+    });
+
+    assert.equal(result.decision, "ASK_MISSING_INFO");
+    assert.equal(result.reason, "SERVICE_AMBIGUOUS");
+    assert.deepEqual(result.questionsToAsk, ["Kokio tipo tvorą svarstote?"]);
+    assert.deepEqual(result.autoSendBlockedBy, ["SERVICE_AMBIGUOUS"]);
+  });
+
   it("declines when the parsed municipality is not served", () => {
     const result = decideLeadResponse({
       ...baseInput,

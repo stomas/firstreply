@@ -157,6 +157,7 @@ export type DecisionServiceInput = {
   id: string | null;
   confidence: number;
   source?: "form_field" | "deterministic" | "ai";
+  reason?: string | null;
   evidence?: string | null;
   evidenceVerified?: boolean;
   candidates?: Array<{ id: string; confidence: number }>;
@@ -226,6 +227,7 @@ export type DecisionResult = {
   autoSendBlockedBy: string[];
   offeringAnswer?: OfferingAnswer | null;
   matchedAvailabilityRule?: MatchedAvailabilityRule | null;
+  manualReviewDraftText?: string | null;
 };
 
 export type MissingRequirement = {

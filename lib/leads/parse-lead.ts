@@ -142,6 +142,7 @@ export function toDecisionEngineInput(params: {
       id: params.parsed.serviceId,
       confidence: serviceClassification?.confidence ?? 0,
       source: serviceClassification?.source,
+      reason: serviceClassification?.reason,
       evidence: serviceClassification?.evidence ?? null,
       evidenceVerified: serviceClassification?.evidenceVerified,
       candidates: serviceClassification?.candidates.map((candidate) => ({

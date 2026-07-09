@@ -22,6 +22,8 @@ const rules: ClientRules = {
       name: "DEV Skardinės tvoros gamyba ir montavimas",
       label: "Skardinės tvoros gamyba ir montavimas",
       keywords: ["skardinė", "skardinės", "skarda", "tvora", "tvoros"],
+      offeringDescription:
+        "Taip, gaminame ir montuojame skardines tvoras - vertikalias ir horizontalias.",
       active: true,
     },
     {
@@ -147,6 +149,18 @@ describe("classifyLeadService", () => {
     assert.equal(classification.reason, "ambiguous");
     assert.ok(classification.confidence < 0.7);
   });
+
+  it("does not choose the only concrete fence service from generic fence wording", () => {
+    const classification = classifyLeadService({
+      requestedServiceId: "",
+      message: "Laba diena, kiek kainuotų tvora namui?",
+      rules: singleServiceRules,
+    });
+
+    assert.equal(classification.id, null);
+    assert.equal(classification.reason, "ambiguous");
+    assert.ok(classification.confidence < 0.7);
+  });
 });
 
 const singleServiceRules: ClientRules = {
@@ -157,6 +171,17 @@ const singleServiceRules: ClientRules = {
   ),
   pricingRules: rules.pricingRules.filter(
     (rule) => rule.serviceId === "service_segmentine",
+  ),
+};
+
+const singleSkardineRules: ClientRules = {
+  ...rules,
+  services: [rules.services[1]],
+  serviceSubjects: (rules.serviceSubjects ?? []).filter(
+    (subject) => subject.serviceId === "service_skardine",
+  ),
+  pricingRules: rules.pricingRules.filter(
+    (rule) => rule.serviceId === "service_skardine",
   ),
 };
 
@@ -256,7 +281,32 @@ describe("classifyLeadServiceWithFallback", () => {
     assert.equal(ai.reason, "AI_MATCHED");
   });
 
-  it("accepts an AI service when confidence and evidence pass on a no-match text", async () => {
+  it("includes offering descriptions so AI can match horizontal skardine fences", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, domina horizontali tvora.",
+        rules: singleSkardineRules,
+      },
+      {
+        env: aiEnv,
+        callModel: async (request) => {
+          assert.ok(request.user.includes("horizontalias"));
+          return JSON.stringify({
+            serviceId: "service_skardine",
+            confidence: 0.9,
+            evidence: "horizontali",
+          });
+        },
+      },
+    );
+
+    assert.equal(classification.id, "service_skardine");
+    assert.equal(classification.source, "ai");
+    assert.equal(ai.status, "ok");
+  });
+
+  it("rejects an AI service when evidence only names a generic fence category", async () => {
     const { classification, ai } = await classifyLeadServiceWithFallback(
       {
         requestedServiceId: "",
@@ -274,11 +324,34 @@ describe("classifyLeadServiceWithFallback", () => {
       },
     );
 
-    assert.equal(classification.id, "service_segmentine");
-    assert.equal(classification.source, "ai");
-    assert.equal(classification.reason, "ai_matched");
-    assert.equal(classification.confidence, 0.9);
-    assert.equal(ai.status, "ok");
+    assert.equal(classification.id, null);
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "EVIDENCE_NOT_SPECIFIC");
+  });
+
+  it("rejects an AI service when evidence only names a measurement term", async () => {
+    const { classification, ai } = await classifyLeadServiceWithFallback(
+      {
+        requestedServiceId: "",
+        message: "Sveiki, reikia aptvert sklypa, apie 85 metrai.",
+        rules,
+      },
+      {
+        env: aiEnv,
+        callModel: async () =>
+          JSON.stringify({
+            serviceId: "service_segmentine",
+            confidence: 0.9,
+            evidence: "85 metrai",
+          }),
+      },
+    );
+
+    assert.equal(classification.id, null);
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "rejected");
+    assert.equal(ai.reason, "EVIDENCE_NOT_SPECIFIC");
   });
 
   it("rejects an AI service whose evidence is not in the text", async () => {

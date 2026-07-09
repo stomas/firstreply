@@ -85,6 +85,182 @@ describe("LLM-first test lead parsing", () => {
     );
   });
 
+  it("rejects a concrete AI service when evidence only names a generic fence category", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        inquiryMessage:
+          "Laba diena, kiek kainuotų tvora namui? Reikia aplink kiemą, domina pigesnis variantas. Gal galite parašyti kainą?",
+      },
+      rules,
+      leadId: "llm_generic_fence",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async () =>
+          JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: "service_dev_segmentines_tvoros",
+            serviceEvidence: "tvora",
+            intents: {
+              asksPrice: true,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [],
+            missingFields: [],
+          }),
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, null);
+    assert.equal(result.parsedLead.serviceClassification?.id, null);
+    assert.deepEqual(result.parsedLead.serviceClassification?.candidates, [
+      {
+        id: "service_dev_segmentines_tvoros",
+        confidence: 0.6,
+        score: 0,
+        matchedTerms: ["tvora"],
+      },
+    ]);
+    assert.equal(result.decisionResult.decision, "ASK_MISSING_INFO");
+    assert.equal(result.decisionResult.reason, "SERVICE_AMBIGUOUS");
+    assert.deepEqual(result.decisionResult.questionsToAsk, [
+      "Kokio tipo tvorą svarstote?",
+    ]);
+    assert.equal(
+      result.evaluation.draftText,
+      "Patikslinkite: Kokio tipo tvorą svarstote?",
+    );
+    const rejectedFindings = (
+      result.trace.stages[0]?.data as {
+        rejectedFindings: Array<{ reason: string; target: string }>;
+      }
+    ).rejectedFindings;
+    assert.equal(
+      rejectedFindings.some(
+        (finding) =>
+          finding.target === "service_dev_segmentines_tvoros" &&
+          finding.reason === "SERVICE_EVIDENCE_NOT_SPECIFIC",
+      ),
+      true,
+    );
+  });
+
+  it("manual-reviews a specific unsupported fence type instead of asking for the type", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        inquiryMessage:
+          "Sveiki, norėčiau tvoros Kaune. Galvoju apie metalinę horizontalią tvorą, apie 40 metrų. Reikėtų ir vartų automatikos. Kiek maždaug kainuotų?",
+      },
+      rules,
+      leadId: "llm_unsupported_horizontal_metal_fence",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async () =>
+          JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: "service_dev_segmentines_tvoros",
+            serviceEvidence: "metalinę horizontalią tvorą",
+            intents: {
+              asksPrice: true,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [
+              llmFact({
+                requirementKey: "fence_length",
+                dimension: "length",
+                value: 40,
+                evidence: "apie 40 metrų",
+              }),
+            ],
+            missingFields: ["fence_height"],
+          }),
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, null);
+    assert.equal(
+      result.parsedLead.serviceClassification?.reason,
+      "unsupported_specific_service",
+    );
+    assert.equal(result.decisionResult.decision, "MANUAL_REVIEW");
+    assert.equal(result.decisionResult.reason, "SERVICE_UNSUPPORTED");
+    assert.deepEqual(result.decisionResult.questionsToAsk, []);
+    assert.equal(result.responseType, "manual_review");
+    assert.equal(result.autoSendAllowed, false);
+    assert.equal(
+      result.evaluation.draftText,
+      "Sveiki, ačiū už užklausą. Pagal pateiktą informaciją prašote paslaugos: „metalinę horizontalią tvorą“. Šiuo metu tokios paslaugos neteikiame.",
+    );
+    assert.deepEqual(result.evaluation.manualReviewReasons, [
+      "SERVICE_UNSUPPORTED; TEST_LEAD",
+    ]);
+  });
+
+  it("accepts a horizontal metal fence as skardine fence evidence", async () => {
+    const calls: string[] = [];
+    const skardineRules = rulesWithSkardineFence();
+
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        inquiryMessage:
+          "Sveiki, norėčiau tvoros Kaune. Galvoju apie metalinę horizontalią tvorą, apie 40 metrų. Reikėtų ir vartų automatikos. Kiek maždaug kainuotų?",
+      },
+      rules: skardineRules,
+      leadId: "llm_horizontal_metal_fence",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async (request) => {
+          calls.push(request.user);
+          return JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: "service_dev_skardines_tvoros",
+            serviceEvidence: "metalinę horizontalią tvorą",
+            intents: {
+              asksPrice: true,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [
+              llmFact({
+                requirementKey: "fence_length",
+                dimension: "length",
+                value: 40,
+                evidence: "apie 40 metrų",
+              }),
+            ],
+            missingFields: ["fence_height"],
+          });
+        },
+      },
+    });
+
+    assert.ok(calls[0].includes("horizontalias"));
+    assert.equal(result.parsedLead.serviceId, "service_dev_skardines_tvoros");
+    assert.equal(result.decisionResult.decision, "ASK_MISSING_INFO");
+    assert.deepEqual(result.decisionResult.questionsToAsk, [
+      "Kokio aukscio skardines tvoros noretumete?",
+    ]);
+  });
+
   it("asks configured missing-field questions without running the gap filler rescue pass", async () => {
     let calls = 0;
 
@@ -889,3 +1065,89 @@ const rules: ClientRules = {
     },
   ],
 };
+
+function rulesWithSkardineFence(): ClientRules {
+  return {
+    ...rules,
+    services: [
+      ...rules.services,
+      {
+        id: "service_dev_skardines_tvoros",
+        name: "DEV Skardines tvoros gamyba ir montavimas",
+        label: "Skardines tvoros gamyba ir montavimas",
+        keywords: ["skardine", "skardines", "skarda", "tvora", "tvoros"],
+        offeringDescription:
+          "Taip, gaminame ir montuojame skardines tvoras - vertikalias ir horizontalias.",
+        active: true,
+      },
+    ],
+    serviceSubjects: [
+      ...(rules.serviceSubjects ?? []),
+      {
+        serviceId: "service_dev_skardines_tvoros",
+        subjectKey: "fence",
+        labelLt: "Tvora",
+        descriptionLt: "skardine tvora, sklypo aptverimas",
+        synonyms: ["tvora", "tvoros", "skarda", "skardine"],
+      },
+      {
+        serviceId: "service_dev_skardines_tvoros",
+        subjectKey: "gate",
+        labelLt: "Vartai",
+        descriptionLt: "ivaziavimo vartai automobiliui",
+        synonyms: ["vartai", "vartu", "vartus"],
+      },
+    ],
+    pricingRules: [
+      ...rules.pricingRules,
+      {
+        id: "price_skardine_per_m",
+        serviceId: "service_dev_skardines_tvoros",
+        name: "Skardine tvora pagal metra",
+        priceMin: 20,
+        priceMax: 20,
+        unit: "EUR/m",
+        conditions: null,
+        exclusions: null,
+        disclaimerText: null,
+        autoSendAllowed: true,
+        active: true,
+        rule: {
+          type: "per_unit",
+          requirementKey: "fence_length",
+          unit: "m",
+          pricePerUnit: 20,
+          currency: "EUR",
+          requires: ["fence_length", "fence_height"],
+        },
+      },
+    ],
+    decisionRequirements: [
+      ...rules.decisionRequirements,
+      requirement({
+        id: "req_skardine_fence_length",
+        serviceId: "service_dev_skardines_tvoros",
+        requirementKey: "fence_length",
+        label: "Tvoros ilgis",
+        question: "Kiek metru skardines tvoros reiketu?",
+        subject: "fence",
+        dimension: "length",
+        units: ["m"],
+        min: 1,
+        max: 500,
+      }),
+      requirement({
+        id: "req_skardine_fence_height",
+        serviceId: "service_dev_skardines_tvoros",
+        requirementKey: "fence_height",
+        label: "Tvoros aukstis",
+        question: "Kokio aukscio skardines tvoros noretumete?",
+        subject: "fence",
+        dimension: "height",
+        units: ["m"],
+        min: 0.8,
+        max: 3,
+      }),
+    ],
+  };
+}

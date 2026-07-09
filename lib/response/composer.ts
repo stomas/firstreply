@@ -46,7 +46,7 @@ export function composeResponseDraft({
         prepareTemplate(findTemplate(rules, templateKey), templateValues),
         templateValues,
       )
-    : null;
+    : (decisionResult.manualReviewDraftText ?? null);
   const autoSendBlockedBy = autoSendBlockers({
     decisionResult,
     rules,
