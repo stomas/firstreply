@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DASHBOARD_NAV_SECTIONS } from "@/lib/dashboard/navigation";
-import type { DashboardNavItem } from "@/lib/dashboard/navigation";
+import type {
+  DashboardNavItem,
+  DashboardNavSection,
+} from "@/lib/dashboard/navigation";
 import { cn } from "@/lib/utils";
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+  sections,
+}: {
+  sections: DashboardNavSection[];
+}) {
   const pathname = usePathname();
 
   return (
@@ -33,7 +39,7 @@ export function DashboardSidebar() {
         aria-label="Dashboard navigacija"
         className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-8 lg:block lg:overflow-visible lg:pb-0"
       >
-        {DASHBOARD_NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div
             key={section.label}
             className="flex shrink-0 gap-2 lg:mb-7 lg:block lg:shrink"

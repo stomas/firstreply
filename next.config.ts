@@ -4,6 +4,10 @@ import path from "path";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Leidžia patikros build'ams naudoti atskirą katalogą (NEXT_DIST_DIR),
+  // kad `next build` neperrašytų `.next`, iš kurio gyvena veikiantis dev
+  // serveris. Railway/dev be šio kintamojo — įprastas `.next`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async redirects() {
     return [
       {

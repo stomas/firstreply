@@ -1,3 +1,8 @@
+import {
+  isSuperAdminEnabled,
+  type SuperAdminEnv,
+} from "@/lib/dashboard/super-admin-access";
+
 export type DashboardNavItem = {
   id: string;
   label: string;
@@ -90,6 +95,41 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
   },
 ];
 
-export function getDashboardNavigationItems(): DashboardNavItem[] {
-  return DASHBOARD_NAV_SECTIONS.flatMap((section) => section.items);
+export function getDashboardNavigationSections(
+  env: SuperAdminEnv = process.env,
+): DashboardNavSection[] {
+  if (!isSuperAdminEnabled(env)) {
+    return DASHBOARD_NAV_SECTIONS;
+  }
+
+  return DASHBOARD_NAV_SECTIONS.map((section) => {
+    if (section.label !== "Konfigūracija") {
+      return section;
+    }
+
+    if (section.items.some((item) => item.id === "super-admin")) {
+      return section;
+    }
+
+    return {
+      ...section,
+      items: [
+        ...section.items,
+        {
+          id: "super-admin",
+          label: "Super Admin",
+          href: "/dashboard/super-admin",
+          status: "live",
+        },
+      ],
+    };
+  });
+}
+
+export function getDashboardNavigationItems(
+  env: SuperAdminEnv = process.env,
+): DashboardNavItem[] {
+  return getDashboardNavigationSections(env).flatMap(
+    (section) => section.items,
+  );
 }
