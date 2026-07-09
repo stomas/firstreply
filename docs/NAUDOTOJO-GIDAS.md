@@ -47,7 +47,9 @@ Prieš keisdami konfigūraciją ar norėdami patikrinti, kaip sistema elgiasi:
 
 1. Atidarykite **Testavimas**.
 2. Įrašykite užklausą taip, kaip ją parašytų klientas (galite palikti
-   „Auto-detect“ — sistema pati atpažins paslaugą).
+   „Auto-detect“ — sistema pati atpažins paslaugą). Kainos ar termino
+   klausimai ir skuba taip pat atpažįstami automatiškai iš teksto — nieko
+   papildomai žymėti nereikia.
 3. Spauskite pateikti ir peržiūrėkite rezultatą: parengtą atsakymą arba
    priežastį, kodėl atsakymas keliauja į peržiūrą.
 

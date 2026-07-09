@@ -44,9 +44,6 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
       customerPhone: String(formData.get("customerPhone") ?? ""),
       city: String(formData.get("city") ?? ""),
       inquiryMessage: String(formData.get("inquiryMessage") ?? ""),
-      asksPrice: formData.get("asksPrice") === "on",
-      asksAvailability: formData.get("asksAvailability") === "on",
-      isUrgent: formData.get("isUrgent") === "on",
     };
 
     try {
@@ -128,14 +125,10 @@ export function TestInquiryForm({ services }: { services: ServiceOption[] }) {
             <FieldError message={fields.inquiryMessage} />
           </label>
 
-          <div className="grid gap-2 text-sm text-ink">
-            <Checkbox name="asksPrice" label="Klientas klausia kainos" />
-            <Checkbox
-              name="asksAvailability"
-              label="Klientas klausia termino / kada galite pradėti"
-            />
-            <Checkbox name="isUrgent" label="Skubu" />
-          </div>
+          <p className="text-xs leading-relaxed text-ink-muted">
+            Kainos, termino klausimai ir skuba atpažįstami automatiškai iš
+            užklausos teksto — kaip ir su tikra kliento žinute.
+          </p>
 
           <button
             type="submit"
@@ -185,19 +178,6 @@ function TextInput({
         className="min-w-0 rounded-lg border border-line px-3 py-2 font-normal"
       />
       <FieldError message={error} />
-    </label>
-  );
-}
-
-function Checkbox({ name, label }: { name: string; label: string }) {
-  return (
-    <label className="flex min-w-0 items-start gap-2">
-      <input
-        name={name}
-        type="checkbox"
-        className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
-      />
-      <span className="min-w-0 leading-snug">{label}</span>
     </label>
   );
 }
