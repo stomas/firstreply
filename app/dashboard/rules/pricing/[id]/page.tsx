@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardError } from "@/components/dashboard/DashboardError";
+import { DeleteButton } from "@/components/dashboard/DeleteButton";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import { getDashboardPricingRuleEdit } from "@/lib/dashboard/rules";
-import { updateDashboardPricingRuleAction } from "../../actions";
+import {
+  deleteDashboardPricingRuleAction,
+  updateDashboardPricingRuleAction,
+} from "../../actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -178,6 +182,17 @@ export default async function DashboardPricingRuleEditPage({
             </button>
           </div>
         </form>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white p-4 shadow-cardsoft">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Ištrynimas negrįžtamas. Jei norite tik laikinai išjungti, viršuje
+            nuimkite „Taisyklė aktyvi“.
+          </p>
+          <DeleteButton
+            action={deleteDashboardPricingRuleAction.bind(null, rule.id)}
+            confirmText={`Ištrinti kainodaros taisyklę „${rule.name}“? Veiksmas negrįžtamas.`}
+          />
+        </div>
       </div>
     );
   } catch (error) {

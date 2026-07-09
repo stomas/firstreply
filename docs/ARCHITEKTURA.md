@@ -93,11 +93,24 @@ Sprendimai (`DecisionResultDecision`):
 | `PRICE_ESTIMATE`   | Visi būtini requirements išspręsti ir suveikė `per_unit` kainodaros taisyklė.                                                |
 | `ASK_MISSING_INFO` | Trūksta būtinų atsakymų — klausimai iš `decision_requirements.question_text_if_missing`.                                     |
 | `DECLINE_TEMPLATE` | Neaptarnaujama lokacija (pagal `location_zones`).                                                                            |
-| `MANUAL_REVIEW`    | Visa kita: `SERVICE_AMBIGUOUS`, `NO_PRICING_RULE`, `OFFERING_NOT_CONFIGURED` ir kt.                                          |
+| `MANUAL_REVIEW`    | Visa kita: `SERVICE_AMBIGUOUS`, `NO_PRICING_RULE`, `AVAILABILITY_UNAVAILABLE`, `OFFERING_NOT_CONFIGURED` ir kt.              |
 
 Kainos skaičiavimas: tik `rule.type === "per_unit"` —
 `kiekis × (pricePerUnit + modifiers)`. `range_estimate` taisyklės kainos
 neskaičiuoja (→ `NO_PRICING_RULE` / manual review su rėžiais).
+
+**Užimtumo matchinimas** (`findAvailabilityMatch`): iš paslaugos
+`availability_rules` atmetami pasibaigusio galiojimo įrašai
+(`valid_until < input.now`), tikslus regiono atitikmuo (lead `location.raw`
+arba formos `city`, normalizuota be diakritikų) turi pirmenybę prieš įrašą be
+regiono („kitur“). Poveikis: `status: "unavailable"` → `MANUAL_REVIEW /
+AVAILABILITY_UNAVAILABLE` (prieš klausimų uždavimą); matchintas
+`earliestStartText` turi pirmenybę prieš `ScheduleRule` terminą
+(`leadTime.text`; `minWeeks`/`maxWeeks` tada `null`); `status: "limited"` →
+autosend blokeris `AVAILABILITY_LIMITED`; įrašo `autoSendAllowed: false` →
+blokeris `AVAILABILITY_AUTOSEND_DISABLED`. Matchintas įrašas grąžinamas per
+`DecisionResult.matchedAvailabilityRule` (matomas evaluation/trace). Be
+match'o — elgsena kaip anksčiau (terminas iš `ScheduleRule`).
 
 `rule` JSON pavyzdys (žr. `prisma/seed.ts`):
 
@@ -166,19 +179,19 @@ Bet kokia shadow klaida ignoruojama — pagrindinis pipeline nenukenčia.
 
 ## 7. DB modeliai (prisma/schema.prisma)
 
-| Modelis                 | Paskirtis                                                                                                              |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `Client`                | Klientas (verslas). Kontekstas per `FIRSTREPLY_DEFAULT_CLIENT_ID`.                                                     |
-| `Service`               | Paslauga: `keywords` (JSON), `offering_description/followup` (pasiūlos atsakymams).                                    |
-| `ServiceSubject`        | Atpažinimo temos (subject key, label, sinonimai) — naudoja resolver'is ir klasifikatorius.                             |
-| `PricingRule`           | Kainodara: rėžiai rodymui + `rule` JSON skaičiavimui (§5).                                                             |
-| `DecisionRequirement`   | Klausimas klientui: `requirement_key`, `expected_fact` JSON (kind/subject/dimension/units), `validation` {min,max}.    |
-| `AvailabilityRule`      | Užimtumas pagal regioną: status, terminas, galiojimas. **Šiuo metu informacinis** (žr. §9).                            |
-| `LocationZone`          | Aptarnaujamos savivaldybės (decline logika).                                                                           |
-| `ScheduleRule`          | `lead_time_weeks` — terminas atsakymuose.                                                                              |
-| `AutosendPolicy`        | Auto-send politikos JSON (§5).                                                                                         |
-| `ResponseTemplate`      | Atsakymų šablonai: `price_estimate`, `ask_missing_info`, `decline_location`, `offering_answer` (su `{{placeholder}}`). |
-| `Lead` / `LeadResponse` | Užklausa + atsakymo įrašas (`decisionJson` su pilnu trace).                                                            |
+| Modelis                 | Paskirtis                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `Client`                | Klientas (verslas). Kontekstas per `FIRSTREPLY_DEFAULT_CLIENT_ID`.                                                       |
+| `Service`               | Paslauga: `keywords` (JSON), `offering_description/followup` (pasiūlos atsakymams).                                      |
+| `ServiceSubject`        | Atpažinimo temos (subject key, label, sinonimai) — naudoja resolver'is ir klasifikatorius.                               |
+| `PricingRule`           | Kainodara: rėžiai rodymui + `rule` JSON skaičiavimui (§5).                                                               |
+| `DecisionRequirement`   | Klausimas klientui: `requirement_key`, `expected_fact` JSON (kind/subject/dimension/units), `validation` {min,max}.      |
+| `AvailabilityRule`      | Užimtumas pagal regioną: status, terminas, galiojimas. Naudojamas sprendimų variklyje terminui ir autosend vartams (§5). |
+| `LocationZone`          | Aptarnaujamos savivaldybės (decline logika).                                                                             |
+| `ScheduleRule`          | `lead_time_weeks` — terminas atsakymuose.                                                                                |
+| `AutosendPolicy`        | Auto-send politikos JSON (§5).                                                                                           |
+| `ResponseTemplate`      | Atsakymų šablonai: `price_estimate`, `ask_missing_info`, `decline_location`, `offering_answer` (su `{{placeholder}}`).   |
+| `Lead` / `LeadResponse` | Užklausa + atsakymo įrašas (`decisionJson` su pilnu trace).                                                              |
 
 Migracijos — `prisma/migrations` (deploy: `npm run db:migrate`), seed —
 `prisma/seed.ts` (idempotentiškas upsert, DEV klientas su 3 paslaugomis).
@@ -189,30 +202,25 @@ Visi puslapiai — server komponentai su server actions; klaidos grąžinamos pe
 `?error=`, sėkmė per `?updated=1`. Duomenų sluoksniai `lib/dashboard/*` laiko
 grynas (testuojamas) formų parsinimo funkcijas atskirai nuo Prisma užklausų.
 
-| Puslapis                                                 | Kas jame                                                                                                                                                                                                   |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/dashboard`                                             | Užklausų sąrašas.                                                                                                                                                                                          |
-| `/dashboard/leads/[id]`                                  | Lead detail: parse result, decision JSON, taisyklės, atsakymai.                                                                                                                                            |
-| `/dashboard/test`                                        | Testavimo įrankis — pilnas pipeline be siuntimo.                                                                                                                                                           |
-| `/dashboard/services` (+`/[id]`)                         | Paslaugų parengtis ir redagavimas (pavadinimai, raktažodžiai, temos, pasiūlos aprašymas).                                                                                                                  |
-| `/dashboard/rules` (+pricing/requirements `[id]`, `new`) | Kainodara ir klausimai: peržiūra, redagavimas, kūrimas. **Struktūriniai engine laukai (`rule` JSON raktai, `expectedFact`) iš UI nekeičiami** — kūrimo formos generuoja struktūrą kode iš select reikšmių. |
-| `/dashboard/availability` (+`[id]`, `new`)               | Užimtumo įrašai. Deaktyvavimas per `valid_until` (schema neturi `active`).                                                                                                                                 |
+| Puslapis                                                 | Kas jame                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/dashboard`                                             | Užklausų sąrašas.                                                                                                                                                                                                                                                                                                                                |
+| `/dashboard/leads/[id]`                                  | Lead detail: parse result, decision JSON, taisyklės, atsakymai.                                                                                                                                                                                                                                                                                  |
+| `/dashboard/test`                                        | Testavimo įrankis — pilnas pipeline be siuntimo.                                                                                                                                                                                                                                                                                                 |
+| `/dashboard/services` (+`/[id]`)                         | Paslaugų parengtis ir redagavimas (pavadinimai, raktažodžiai, temos, pasiūlos aprašymas).                                                                                                                                                                                                                                                        |
+| `/dashboard/rules` (+pricing/requirements `[id]`, `new`) | Kainodara ir klausimai: peržiūra, redagavimas, kūrimas, trynimas (su patvirtinimu; klausimo, kurį naudoja aktyvi kainodara — `requirementKey`/`requires`/`modifiers` — ištrinti neleidžiama). **Struktūriniai engine laukai (`rule` JSON raktai, `expectedFact`) iš UI nekeičiami** — kūrimo formos generuoja struktūrą kode iš select reikšmių. |
+| `/dashboard/availability` (+`[id]`, `new`)               | Užimtumo įrašai: peržiūra, redagavimas, kūrimas, trynimas. Laikinas paslėpimas — per `valid_until` (schema neturi `active`).                                                                                                                                                                                                                     |
 
 ## 9. Žinomos ribos (svarbu testuojant)
 
-1. **AvailabilityRule nenaudojamas atsakymo terminui** — terminas eina iš
-   `ScheduleRule.lead_time_weeks`; `matchedAvailabilityRule` visada `null`.
-   Užimtumo puslapio duomenys rodomi lead detail ir parengties skaičiuose.
-2. **`range_estimate` kainodara neskaičiuoja sumos** — tokie lead'ai eina į
+1. **`range_estimate` kainodara neskaičiuoja sumos** — tokie lead'ai eina į
    manual review su kainos rėžiais.
-3. **Rėžinis atsakymas į kainą veikiantį klausimą** (pvz. aukštis „1.5–1.7“)
+2. **Rėžinis atsakymas į kainą veikiantį klausimą** (pvz. aukštis „1.5–1.7“)
    → `per_unit` skaičiavimas reikalauja skaliaro → `NO_PRICING_RULE` /
    manual review. Tai sąmoninga saugi elgsena.
-4. **Auth nėra** — vienas klientas per env kintamąjį.
-5. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
+3. **Auth nėra** — vienas klientas per env kintamąjį.
+4. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
    leistų; siuntimo integracija dar nepadaryta.
-6. Trynimo UI nėra (taisyklės/klausimai deaktyvuojami per `active`,
-   užimtumas — per galiojimo datą).
 
 ## 10. Testai ir kokybės vartai
 

@@ -15,7 +15,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ updated?: string; error?: string }>;
+  searchParams?: Promise<{
+    updated?: string;
+    deleted?: string;
+    error?: string;
+  }>;
 };
 
 export default async function DashboardRulesPage({ searchParams }: PageProps) {
@@ -52,6 +56,12 @@ export default async function DashboardRulesPage({ searchParams }: PageProps) {
         {query?.updated ? (
           <div className="mt-4 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand">
             Taisyklė išsaugota.
+          </div>
+        ) : null}
+
+        {query?.deleted ? (
+          <div className="mt-4 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand">
+            Įrašas ištrintas.
           </div>
         ) : null}
 

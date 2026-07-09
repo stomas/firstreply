@@ -148,6 +148,7 @@ export function toDecisionEngineInput(params: {
       })),
     },
     location: params.parsed.location,
+    city: params.parsed.city,
     intents: {
       asksPrice: params.parsed.asksPrice,
       asksAvailability: params.parsed.asksAvailability,

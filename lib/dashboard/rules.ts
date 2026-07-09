@@ -589,6 +589,79 @@ export function parseDashboardRequirementForm(
   };
 }
 
+export async function deleteDashboardPricingRule(
+  clientId: string,
+  pricingRuleId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const deleted = await prisma.pricingRule.deleteMany({
+    where: { id: pricingRuleId, clientId },
+  });
+
+  return deleted.count > 0
+    ? { ok: true }
+    : { ok: false, error: "Kainodaros taisyklė nerasta." };
+}
+
+export async function deleteDashboardRequirement(
+  clientId: string,
+  requirementId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const requirement = await prisma.decisionRequirement.findFirst({
+    where: { id: requirementId, clientId },
+    select: { id: true, serviceId: true, requirementKey: true },
+  });
+  if (!requirement) {
+    return { ok: false, error: "Klausimas nerastas." };
+  }
+
+  // Apsauga: klausimo raktas gali būti naudojamas kainodaros skaičiavime
+  // (requirementKey / requires). Ištrynus tokį klausimą kaina nustotų
+  // skaičiuotis — todėl pirma reikia atlaisvinti kainodarą.
+  const pricingRules = await prisma.pricingRule.findMany({
+    where: { clientId, serviceId: requirement.serviceId, active: true },
+    select: { name: true, rule: true },
+  });
+  const blockingRule = pricingRules.find((pricingRule) =>
+    requirementKeyInUse(requirement.requirementKey, pricingRule.rule),
+  );
+  if (blockingRule) {
+    return {
+      ok: false,
+      error: `Klausimo ištrinti negalima — jį naudoja kainodaros taisyklė „${blockingRule.name}“. Pirmiausia pakeiskite arba deaktyvuokite tą taisyklę.`,
+    };
+  }
+
+  await prisma.decisionRequirement.delete({ where: { id: requirement.id } });
+  return { ok: true };
+}
+
+export function requirementKeyInUse(
+  requirementKey: string,
+  ruleJson: unknown,
+): boolean {
+  const rule = asRecord(ruleJson);
+  if (!rule) {
+    return false;
+  }
+
+  if (rule.requirementKey === requirementKey) {
+    return true;
+  }
+  if (Array.isArray(rule.requires) && rule.requires.includes(requirementKey)) {
+    return true;
+  }
+
+  const modifiers = Array.isArray(rule.modifiers) ? rule.modifiers : [];
+  return modifiers.some((modifier) => {
+    const condition = asRecord(asRecord(modifier)?.if);
+    return condition?.requirementKey === requirementKey;
+  });
+}
+
 export function parseDashboardPricingRuleCreateForm(
   formData: FormData,
 ): DashboardPricingRuleCreateFormResult {

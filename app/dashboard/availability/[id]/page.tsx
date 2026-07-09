@@ -3,9 +3,13 @@ import { notFound } from "next/navigation";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
+import { DeleteButton } from "@/components/dashboard/DeleteButton";
 import { getDashboardAvailabilityEdit } from "@/lib/dashboard/availability";
 import { AvailabilityForm } from "../AvailabilityForm";
-import { updateDashboardAvailabilityAction } from "../actions";
+import {
+  deleteDashboardAvailabilityAction,
+  updateDashboardAvailabilityAction,
+} from "../actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +77,17 @@ export default async function DashboardAvailabilityEditPage({
           rule={rule}
           submitLabel="Išsaugoti"
         />
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white p-4 shadow-cardsoft">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Ištrynimas negrįžtamas. Laikinam paslėpimui užtenka praėjusios
+            galiojimo datos.
+          </p>
+          <DeleteButton
+            action={deleteDashboardAvailabilityAction.bind(null, rule.id)}
+            confirmText={`Ištrinti užimtumo įrašą „${rule.location ?? "Kiti regionai"}“? Veiksmas negrįžtamas.`}
+          />
+        </div>
       </div>
     );
   } catch (error) {

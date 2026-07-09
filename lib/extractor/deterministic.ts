@@ -204,6 +204,14 @@ function extractPhone(message: string, spans: Span[]): ExtractedContact | null {
   return null;
 }
 
+// Viešas resolveris laisvo teksto vietovei → admin unit (naudoja tą patį
+// alias žemėlapį kaip lead parse). Naudojamas ir užimtumo įrašų regionams
+// palyginti su lead lokacija pagal kodą, ne pagal linksniuotą tekstą.
+export function resolveLocationText(text: string): AdminUnitLocation | null {
+  const trimmed = text.trim();
+  return trimmed ? extractLocation(trimmed) : null;
+}
+
 function extractLocation(message: string): AdminUnitLocation | null {
   const normalizedText = normalizeSearchText(message);
   const textTokens = normalizedText.split(" ").filter(Boolean);

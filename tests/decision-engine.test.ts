@@ -288,6 +288,155 @@ describe("decideLeadResponse", () => {
     assert.equal(result.offeringAnswer ?? null, null);
   });
 
+  it("uses the region availability term instead of the schedule rule and exposes the match", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_vilnius",
+            location: "Vilniaus rajone",
+            status: "available",
+            earliestStartText: "Per 2-4 savaites",
+            autoSendAllowed: true,
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.leadTime?.text, "Per 2-4 savaites");
+    assert.equal(result.matchedAvailabilityRule?.id, "avail_vilnius");
+    assert.equal(result.autoSend, true);
+  });
+
+  it("prefers the exact region entry over the empty-location fallback", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_kitur",
+            location: "",
+            status: "limited",
+            earliestStartText: "Terminas tikslinamas",
+            autoSendAllowed: false,
+          }),
+          availabilityRule({
+            id: "avail_vilnius",
+            location: "Vilniaus rajone",
+            status: "available",
+            earliestStartText: "Per 2-4 savaites",
+            autoSendAllowed: true,
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.matchedAvailabilityRule?.id, "avail_vilnius");
+    assert.equal(result.leadTime?.text, "Per 2-4 savaites");
+  });
+
+  it("falls back to the empty-location entry and blocks auto-send for limited status", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      location: null,
+      city: "Klaipėda",
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_vilnius",
+            location: "Vilnius",
+            status: "available",
+            earliestStartText: "Per 2-4 savaites",
+            autoSendAllowed: true,
+          }),
+          availabilityRule({
+            id: "avail_kitur",
+            location: "",
+            status: "limited",
+            earliestStartText: "Terminą tiksliname individualiai",
+            autoSendAllowed: false,
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.matchedAvailabilityRule?.id, "avail_kitur");
+    assert.equal(result.leadTime?.text, "Terminą tiksliname individualiai");
+    assert.equal(result.autoSend, false);
+    assert.ok(result.autoSendBlockedBy.includes("AVAILABILITY_LIMITED"));
+    assert.ok(
+      result.autoSendBlockedBy.includes("AVAILABILITY_AUTOSEND_DISABLED"),
+    );
+  });
+
+  it("ignores expired availability entries and keeps the schedule fallback", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_expired",
+            location: "Vilniaus rajone",
+            status: "available",
+            earliestStartText: "Per 1-2 savaites",
+            autoSendAllowed: true,
+            validUntil: "2026-01-01T00:00:00Z",
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.matchedAvailabilityRule ?? null, null);
+    assert.equal(result.leadTime?.text, "3-5 sav.");
+  });
+
+  it("sends unavailable regions to manual review before asking questions", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      resolvedRequirements: {},
+      unresolvedRequirements: [
+        {
+          requirementKey: "fence_length",
+          label: "Tvoros ilgis",
+          question: "Kiek metrų tvoros reikėtų?",
+          required: true,
+          affectsPrice: true,
+          status: "unresolved",
+          candidateFactRefs: [],
+        },
+      ],
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_stop",
+            location: "Vilniaus rajone",
+            status: "unavailable",
+            earliestStartText: null,
+            autoSendAllowed: false,
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "MANUAL_REVIEW");
+    assert.equal(result.reason, "AVAILABILITY_UNAVAILABLE");
+    assert.equal(result.matchedAvailabilityRule?.id, "avail_stop");
+  });
+
   it("blocks auto-send for an AI-classified service by default (draft_for_review)", () => {
     const result = decideLeadResponse({
       ...baseInput,
@@ -347,6 +496,26 @@ describe("decideLeadResponse", () => {
     assert.equal(result.autoSend, false);
   });
 });
+
+function availabilityRule(overrides: {
+  id: string;
+  location: string;
+  status: string;
+  earliestStartText: string | null;
+  autoSendAllowed: boolean;
+  validUntil?: string;
+}) {
+  return {
+    id: overrides.id,
+    serviceId: "service_fence",
+    location: overrides.location,
+    status: overrides.status,
+    earliestStartText: overrides.earliestStartText,
+    noteForCustomer: null,
+    validUntil: overrides.validUntil ?? null,
+    autoSendAllowed: overrides.autoSendAllowed,
+  };
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)

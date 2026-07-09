@@ -1,7 +1,10 @@
+import { resolveLocationText } from "@/lib/extractor/deterministic";
 import type {
+  AvailabilityRule,
   DecisionEngineInput,
   DecisionResult,
   LeadTimeEstimate,
+  MatchedAvailabilityRule,
   PricingRule,
   ResolvedRequirementValue,
   RuleJson,
@@ -67,6 +70,19 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     };
   }
 
+  // Užimtumas: jei kliento regione šiuo metu užsakymų nepriimama, tolesni
+  // klausimai/kaina beprasmiai — savininkas atsako pats.
+  const availability = findAvailabilityMatch(input);
+  if (availability && availability.status === "unavailable") {
+    return {
+      ...base,
+      decision: "MANUAL_REVIEW",
+      reason: "AVAILABILITY_UNAVAILABLE",
+      autoSendBlockedBy: ["AVAILABILITY_UNAVAILABLE"],
+      matchedAvailabilityRule: toMatchedAvailabilityRule(availability),
+    };
+  }
+
   const requiredMissing = input.unresolvedRequirements
     .filter((requirement) => requirement.required)
     .sort((a, b) => Number(b.affectsPrice) - Number(a.affectsPrice));
@@ -98,15 +114,103 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     priceEstimate.pricingRuleId,
   );
 
+  if (availability) {
+    if (availability.status === "limited") {
+      autoSendBlockedBy.push("AVAILABILITY_LIMITED");
+    }
+    if (!availability.autoSendAllowed) {
+      autoSendBlockedBy.push("AVAILABILITY_AUTOSEND_DISABLED");
+    }
+  }
+
   return {
     ...base,
     decision: "PRICE_ESTIMATE",
     reason: "PRICE_RULE_MATCHED",
     priceEstimate,
-    leadTime: findLeadTime(input.rules.scheduleRules ?? []),
+    leadTime: findLeadTime(input.rules.scheduleRules ?? [], availability),
     autoSend: autoSendBlockedBy.length === 0,
     autoSendBlockedBy,
+    matchedAvailabilityRule: availability
+      ? toMatchedAvailabilityRule(availability)
+      : null,
   };
+}
+
+// Užimtumo įrašo parinkimas: paslaugos įrašai be pasibaigusio galiojimo;
+// tikslus regiono atitikmuo turi pirmenybę prieš įrašą be regiono („kitur").
+function findAvailabilityMatch(
+  input: DecisionEngineInput,
+): AvailabilityRule | null {
+  const serviceId = input.service.id;
+  if (!serviceId) {
+    return null;
+  }
+
+  const now = input.now ?? new Date();
+  const candidates = (input.rules.availabilityRules ?? []).filter((rule) => {
+    if (rule.serviceId !== serviceId) {
+      return false;
+    }
+    if (!rule.validUntil) {
+      return true;
+    }
+    return new Date(rule.validUntil).getTime() >= now.getTime();
+  });
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  // Tikslus atitikmuo pagal admin unit kodą (linksniai netrukdo: „Vilniuje"
+  // ir „Vilnius" → tas pats kodas); atsarginis palyginimas — normalizuotas
+  // tekstas (laisviems regionų pavadinimams, kurių alias žemėlapis nežino).
+  const leadCode =
+    input.location?.adminUnit.code ??
+    resolveLocationText(input.city ?? "")?.adminUnit.code ??
+    null;
+  const leadText = normalizeLocation(input.location?.raw ?? input.city ?? "");
+
+  if (leadCode || leadText) {
+    const exact = candidates.find((rule) => {
+      const ruleLocation = rule.location ?? "";
+      if (!normalizeLocation(ruleLocation)) {
+        return false;
+      }
+      const ruleCode = resolveLocationText(ruleLocation)?.adminUnit.code;
+      if (ruleCode && leadCode) {
+        return ruleCode === leadCode;
+      }
+      return normalizeLocation(ruleLocation) === leadText;
+    });
+    if (exact) {
+      return exact;
+    }
+  }
+
+  return (
+    candidates.find((rule) => !normalizeLocation(rule.location ?? "")) ?? null
+  );
+}
+
+function toMatchedAvailabilityRule(
+  rule: AvailabilityRule,
+): MatchedAvailabilityRule {
+  return {
+    id: rule.id,
+    earliestStartText: rule.earliestStartText,
+    validUntil: rule.validUntil
+      ? new Date(rule.validUntil).toISOString()
+      : null,
+  };
+}
+
+function normalizeLocation(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("lt-LT")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
 }
 
 function baseDecision(): DecisionResult {
@@ -227,7 +331,17 @@ function modifierDelta(input: DecisionEngineInput, modifiers: unknown): number {
 
 function findLeadTime(
   scheduleRules: Array<{ rule: RuleJson }>,
+  availability: AvailabilityRule | null = null,
 ): LeadTimeEstimate | null {
+  // Regiono užimtumo terminas turi pirmenybę prieš bendrą schedule taisyklę.
+  if (availability?.earliestStartText?.trim()) {
+    return {
+      minWeeks: null,
+      maxWeeks: null,
+      text: availability.earliestStartText.trim(),
+    };
+  }
+
   for (const scheduleRule of scheduleRules) {
     const rule = asRecord(scheduleRule.rule);
     if (rule?.type !== "lead_time_weeks") {

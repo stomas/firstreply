@@ -5,6 +5,7 @@ import {
   parseDashboardPricingRuleForm,
   parseDashboardRequirementCreateForm,
   parseDashboardRequirementForm,
+  requirementKeyInUse,
   slugifyRequirementKey,
   summarizeDashboardRules,
   type DashboardRulesServiceGroup,
@@ -260,6 +261,40 @@ describe("dashboard rules create forms", () => {
 
     assert.ok(!result.ok);
     assert.match(result.error, /matmenį/iu);
+  });
+});
+
+describe("requirementKeyInUse", () => {
+  const perUnitRule = {
+    type: "per_unit",
+    requirementKey: "fence_length",
+    unit: "m",
+    pricePerUnit: 38,
+    requires: ["fence_length", "fence_height"],
+    modifiers: [
+      {
+        if: { requirementKey: "fence_height", gte: 1.7 },
+        pricePerUnitDelta: 6,
+      },
+    ],
+  };
+
+  it("detects usage via requirementKey, requires and modifiers", () => {
+    assert.equal(requirementKeyInUse("fence_length", perUnitRule), true);
+    assert.equal(requirementKeyInUse("fence_height", perUnitRule), true);
+    assert.equal(
+      requirementKeyInUse("fence_height", {
+        ...perUnitRule,
+        requires: ["fence_length"],
+      }),
+      true,
+    );
+  });
+
+  it("returns false for unused keys and malformed rule JSON", () => {
+    assert.equal(requirementKeyInUse("gate_width", perUnitRule), false);
+    assert.equal(requirementKeyInUse("fence_length", null), false);
+    assert.equal(requirementKeyInUse("fence_length", "not json"), false);
   });
 });
 

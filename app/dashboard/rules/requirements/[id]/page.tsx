@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardError } from "@/components/dashboard/DashboardError";
+import { DeleteButton } from "@/components/dashboard/DeleteButton";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import { getDashboardRequirementEdit } from "@/lib/dashboard/rules";
-import { updateDashboardRequirementAction } from "../../actions";
+import {
+  deleteDashboardRequirementAction,
+  updateDashboardRequirementAction,
+} from "../../actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -194,6 +198,18 @@ export default async function DashboardRequirementEditPage({
             </button>
           </div>
         </form>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-white p-4 shadow-cardsoft">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            Ištrynimas negrįžtamas. Jei klausimą naudoja kainodaros taisyklė,
+            sistema neleis jo ištrinti. Laikinam išjungimui nuimkite „Klausimas
+            aktyvus“.
+          </p>
+          <DeleteButton
+            action={deleteDashboardRequirementAction.bind(null, requirement.id)}
+            confirmText={`Ištrinti klausimą „${requirement.label}“? Veiksmas negrįžtamas.`}
+          />
+        </div>
       </div>
     );
   } catch (error) {

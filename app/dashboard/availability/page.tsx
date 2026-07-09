@@ -14,7 +14,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ updated?: string; error?: string }>;
+  searchParams?: Promise<{
+    updated?: string;
+    deleted?: string;
+    error?: string;
+  }>;
 };
 
 export default async function DashboardAvailabilityPage({
@@ -53,6 +57,12 @@ export default async function DashboardAvailabilityPage({
         {query?.updated ? (
           <div className="mt-4 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand">
             Užimtumo įrašas išsaugotas.
+          </div>
+        ) : null}
+
+        {query?.deleted ? (
+          <div className="mt-4 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand">
+            Užimtumo įrašas ištrintas.
           </div>
         ) : null}
 

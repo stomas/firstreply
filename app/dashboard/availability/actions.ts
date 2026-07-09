@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getCurrentClient } from "@/lib/client-context";
 import {
   createDashboardAvailabilityRule,
+  deleteDashboardAvailabilityRule,
   parseDashboardAvailabilityCreateForm,
   parseDashboardAvailabilityUpdateForm,
   updateDashboardAvailabilityRule,
@@ -29,6 +30,19 @@ export async function createDashboardAvailabilityAction(formData: FormData) {
 
   revalidatePath("/dashboard/availability");
   redirect("/dashboard/availability?updated=1");
+}
+
+export async function deleteDashboardAvailabilityAction(ruleId: string) {
+  const client = await getCurrentClient();
+  const result = await deleteDashboardAvailabilityRule(client.id, ruleId);
+  if (!result.ok) {
+    redirect(
+      `/dashboard/availability/${ruleId}?error=${encodeURIComponent(result.error)}`,
+    );
+  }
+
+  revalidatePath("/dashboard/availability");
+  redirect("/dashboard/availability?deleted=1");
 }
 
 export async function updateDashboardAvailabilityAction(formData: FormData) {

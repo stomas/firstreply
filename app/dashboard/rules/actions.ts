@@ -6,6 +6,8 @@ import { getCurrentClient } from "@/lib/client-context";
 import {
   createDashboardPricingRule,
   createDashboardRequirement,
+  deleteDashboardPricingRule,
+  deleteDashboardRequirement,
   parseDashboardPricingRuleCreateForm,
   parseDashboardPricingRuleForm,
   parseDashboardRequirementCreateForm,
@@ -82,6 +84,28 @@ export async function createDashboardRequirementAction(formData: FormData) {
 
   revalidatePath("/dashboard/rules");
   redirect("/dashboard/rules?updated=1");
+}
+
+export async function deleteDashboardPricingRuleAction(pricingRuleId: string) {
+  const client = await getCurrentClient();
+  const result = await deleteDashboardPricingRule(client.id, pricingRuleId);
+  if (!result.ok) {
+    redirectWithError("pricing", pricingRuleId, result.error);
+  }
+
+  revalidatePath("/dashboard/rules");
+  redirect("/dashboard/rules?deleted=1");
+}
+
+export async function deleteDashboardRequirementAction(requirementId: string) {
+  const client = await getCurrentClient();
+  const result = await deleteDashboardRequirement(client.id, requirementId);
+  if (!result.ok) {
+    redirectWithError("requirements", requirementId, result.error);
+  }
+
+  revalidatePath("/dashboard/rules");
+  redirect("/dashboard/rules?deleted=1");
 }
 
 function redirectWithError(

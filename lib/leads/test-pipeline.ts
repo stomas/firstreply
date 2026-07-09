@@ -472,7 +472,8 @@ function toLeadEvaluationResult(params: {
       params.decisionResult,
       params.rules,
     ),
-    matchedAvailabilityRule: null,
+    matchedAvailabilityRule:
+      params.decisionResult.matchedAvailabilityRule ?? null,
     manualReviewReasons: params.composed.manualReviewReason
       ? [params.composed.manualReviewReason]
       : [],

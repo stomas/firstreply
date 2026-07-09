@@ -181,8 +181,10 @@ export type DecisionIntentsInput = {
 export type DecisionEngineInput = RequirementResolutionResult & {
   service: DecisionServiceInput;
   location: DecisionLocationInput;
+  city?: string | null;
   intents: DecisionIntentsInput;
   rules: ClientRules;
+  now?: Date;
 };
 
 export type DecisionResultDecision =
@@ -207,8 +209,8 @@ export type PriceEstimate = {
 };
 
 export type LeadTimeEstimate = {
-  minWeeks: number;
-  maxWeeks: number;
+  minWeeks: number | null;
+  maxWeeks: number | null;
   text: string;
 };
 
@@ -221,6 +223,7 @@ export type DecisionResult = {
   autoSend: boolean;
   autoSendBlockedBy: string[];
   offeringAnswer?: OfferingAnswer | null;
+  matchedAvailabilityRule?: MatchedAvailabilityRule | null;
 };
 
 export type MissingRequirement = {

@@ -175,6 +175,21 @@ export async function updateDashboardAvailabilityRule(
   return { ok: true };
 }
 
+export async function deleteDashboardAvailabilityRule(
+  clientId: string,
+  ruleId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const deleted = await prisma.availabilityRule.deleteMany({
+    where: { id: ruleId, clientId },
+  });
+
+  return deleted.count > 0
+    ? { ok: true }
+    : { ok: false, error: "Užimtumo įrašas nerastas." };
+}
+
 export function parseDashboardAvailabilityCreateForm(
   formData: FormData,
 ): DashboardAvailabilityCreateFormResult {

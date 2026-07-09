@@ -112,17 +112,34 @@ kliento tekste.
 > kiekis), todėl pirmiausia sukurkite klausimą, tada kainodarą. Jei paslauga
 > klausimų dar neturi, vedlys pats jus nukreips.
 
+Nebereikalingą taisyklę ar klausimą galite **ištrinti** redagavimo puslapio
+apačioje (su patvirtinimu). Trynimas negrįžtamas — laikinam išjungimui
+naudokite „aktyvi/aktyvus“ žymę. Klausimo, kurį naudoja aktyvi kainodaros
+taisyklė, sistema ištrinti neleis — pirmiausia pakeiskite ar deaktyvuokite
+tą taisyklę.
+
 ## Užimtumas
 
-Užimtumo įrašai nurodo, kada ir kur galite priimti naujus užsakymus:
+Užimtumo įrašai nurodo, kada ir kur galite priimti naujus užsakymus. Jie
+tiesiogiai veikia atsakymus: kliento regiono terminas įrašomas į atsakymą
+vietoj bendrojo termino.
 
 - **Regionas** — pvz. „Vilnius“. Palikus tuščią, įrašas galioja visiems
-  kitiems regionams („Kiti regionai“).
-- **Būsena** — _Priimame užsakymus_, _Ribotos galimybės_ (terminas
-  tikslinamas) arba _Nepriimame_.
+  kitiems regionams („Kiti regionai“). Kliento regionas atpažįstamas iš
+  užklausos teksto arba formos miesto laukelio.
+- **Būsena** — _Priimame užsakymus_ (terminas siunčiamas), _Ribotos
+  galimybės_ (terminas rodomas, bet atsakymas eina per jūsų peržiūrą) arba
+  _Nepriimame_ (užklausa atiduodama jums — sistema pati neatsisako kliento).
 - **Anksčiausias terminas** — tekstas klientui, pvz. „Per 3-5 savaites“.
-- **Galioja iki** — pasibaigus datai įrašas pažymimas **Nebegalioja** ir
-  laukia atnaujinimo. Taip seni terminai niekada nepateikiami kaip aktualūs.
+  Būtent šis tekstas patenka į atsakymą.
+- **Galioja iki** — pasibaigus datai įrašas pažymimas **Nebegalioja**,
+  nebenaudojamas atsakymuose ir laukia atnaujinimo. Taip seni terminai
+  niekada nepateikiami kaip aktualūs.
+- **Auto-send** — jei įrašui neleidžiamas, atsakymai su šiuo terminu visada
+  eina per jūsų peržiūrą.
+
+Nebereikalingą įrašą galite **ištrinti** redagavimo puslapyje (su
+patvirtinimu). Laikinam paslėpimui užtenka praėjusios galiojimo datos.
 
 ## Kada užklausa patenka į rankinę peržiūrą
 
@@ -134,6 +151,7 @@ atiduodama jums su priežastimi:
 | Paslauga dviprasmiška         | Klientas parašė tik „tvora“, o jūs turite kelias tvorų paslaugas — patikslinkite su klientu.                          |
 | Nėra kainodaros taisyklės     | Paslauga neturi aktyvios kainodaros arba atsakymas gautas rėžiu (pvz. „aukštis 1.5–1.7“) — kainą patvirtinkite patys. |
 | Trūksta informacijos          | Sistema parengė klausimus klientui — peržiūrėkite ir išsiųskite.                                                      |
+| Regione nepriimami užsakymai  | Užimtumo įraše kliento regionui pažymėta „Nepriimame“ — atsakykite pats arba atnaujinkite užimtumą.                   |
 | Pasiūlos aprašymas nesuvestas | Klientas klausė „ar darote X?“, bet paslauga neturi aprašymo — įrašykite jį Paslaugų puslapyje.                       |
 
 ## Geros praktikos
