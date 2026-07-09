@@ -56,7 +56,7 @@ describe("dashboard services", () => {
       "raktažodžiai",
       "kainodaros taisyklė",
       "sprendimo klausimai",
-      "paslaugos aprašymas",
+      "atsakymas į „ar darote?“",
     ]);
     assert.equal(cards[2].status, "inactive");
   });

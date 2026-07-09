@@ -71,9 +71,13 @@ Redaguodami paslaugą galite keisti:
 - **Raktažodžius ir temas** — žodžius, pagal kuriuos sistema supranta, kad
   klientas kalba apie šią paslaugą (pvz. „tvora, tvoros, segmentinė“). Kuo
   daugiau natūralių formų, tuo geriau atpažįstama.
-- **Paslaugos aprašymą** — tekstą, kuriuo atsakoma, kai klientas klausia
-  „ar darote X?“ (pvz. „Taip, montuojame segmentines tvoras…“), ir papildomą
-  klausimą po jo.
+- **Atsakymą į klausimą „ar tai darote?“** — kai klientas paklausia
+  „Ar darote segmentines tvoras?“ (neklausdamas kainos), sistema iš karto
+  atsako jūsų įrašytu tekstu (pvz. „Taip, montuojame segmentines tvoras…“)
+  ir tęsiniu, kviečiančiu tęsti pokalbį (pvz. „Jei atsiųsite tvoros ilgį ir
+  aukštį, paskaičiuosiu orientacinę kainą.“). Redagavimo formoje matote
+  gyvą pokalbio peržiūrą — kaip žinutė atrodys klientui. Kol atsakymo nėra,
+  tokie klausimai eina į rankinę peržiūrą.
 
 ## Taisyklės
 
@@ -148,13 +152,13 @@ patvirtinimu). Laikinam paslėpimui užtenka praėjusios galiojimo datos.
 Sistema sąmoningai neatspėja — jei kažko trūksta ar neaišku, užklausa
 atiduodama jums su priežastimi:
 
-| Priežastis                    | Ką reiškia / ką daryti                                                                                                |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Paslauga dviprasmiška         | Klientas parašė tik „tvora“, o jūs turite kelias tvorų paslaugas — patikslinkite su klientu.                          |
-| Nėra kainodaros taisyklės     | Paslauga neturi aktyvios kainodaros arba atsakymas gautas rėžiu (pvz. „aukštis 1.5–1.7“) — kainą patvirtinkite patys. |
-| Trūksta informacijos          | Sistema parengė klausimus klientui — peržiūrėkite ir išsiųskite.                                                      |
-| Regione nepriimami užsakymai  | Užimtumo įraše kliento regionui pažymėta „Nepriimame“ — atsakykite pats arba atnaujinkite užimtumą.                   |
-| Pasiūlos aprašymas nesuvestas | Klientas klausė „ar darote X?“, bet paslauga neturi aprašymo — įrašykite jį Paslaugų puslapyje.                       |
+| Priežastis                   | Ką reiškia / ką daryti                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Paslauga dviprasmiška        | Klientas parašė tik „tvora“, o jūs turite kelias tvorų paslaugas — patikslinkite su klientu.                          |
+| Nėra kainodaros taisyklės    | Paslauga neturi aktyvios kainodaros arba atsakymas gautas rėžiu (pvz. „aukštis 1.5–1.7“) — kainą patvirtinkite patys. |
+| Trūksta informacijos         | Sistema parengė klausimus klientui — peržiūrėkite ir išsiųskite.                                                      |
+| Regione nepriimami užsakymai | Užimtumo įraše kliento regionui pažymėta „Nepriimame“ — atsakykite pats arba atnaujinkite užimtumą.                   |
+| Nėra atsakymo į „ar darote?“ | Klientas klausė „ar darote X?“, bet paslauga neturi atsakymo teksto — įrašykite jį Paslaugų puslapyje.                |
 
 ## Geros praktikos
 

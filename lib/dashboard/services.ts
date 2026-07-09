@@ -502,7 +502,7 @@ function missingSetupForService({
     missing.push("sprendimo klausimai");
   }
   if (!hasOfferingDescription) {
-    missing.push("paslaugos aprašymas");
+    missing.push("atsakymas į „ar darote?“");
   }
 
   return missing;

@@ -145,11 +145,15 @@ function ServiceCard({ service }: { service: DashboardServiceCard }) {
           </div>
         </InfoBlock>
 
-        <InfoBlock title="Klientui">
+        <InfoBlock title="Atsakymas į „ar darote?“">
           {service.hasOfferingDescription ? (
-            <MutedText>Paslaugos aprašymas paruoštas.</MutedText>
+            <MutedText>
+              Atsakymas paruoštas — klientai jį gauna iškart.
+            </MutedText>
           ) : (
-            <MutedText>Trūksta trumpo aprašymo pasiūlos klausimams.</MutedText>
+            <MutedText>
+              Atsakymo nėra — „ar darote?“ klausimai eina į rankinę peržiūrą.
+            </MutedText>
           )}
           <div className="mt-3 text-xs text-ink-muted">
             {service.optionalQuestionCount > 0

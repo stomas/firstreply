@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardError } from "@/components/dashboard/DashboardError";
+import { OfferingAnswerFields } from "@/components/dashboard/OfferingAnswerFields";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import { getDashboardServiceEdit } from "@/lib/dashboard/services";
@@ -208,29 +209,14 @@ function ServiceEditForm({ service }: { service: DashboardServiceEdit }) {
 
       <section className="mt-7 grid gap-4 border-t border-line pt-6">
         <SectionHeading
-          title="Klientui"
-          description="Trumpas tekstas naudojamas, kai klientas klausia ar tokią paslaugą teikiate."
+          title="Atsakymas į klausimą „ar tai darote?“"
+          description="Kai klientas paklausia „Ar darote segmentines tvoras?“ (neklausdamas kainos), sistema iš karto atsako šiuo tekstu. Jei jis tuščias — užklausa keliauja į rankinę peržiūrą."
         />
-        <label className="grid gap-1 text-sm font-semibold text-ink">
-          Paslaugos aprašymas
-          <textarea
-            name="offeringDescription"
-            rows={4}
-            defaultValue={service.offeringDescription ?? ""}
-            placeholder="Taip, montuojame segmentines tvoras..."
-            className="resize-y rounded-lg border border-line px-3 py-2 font-normal leading-relaxed"
-          />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold text-ink">
-          Papildomas klausimas klientui
-          <textarea
-            name="offeringFollowup"
-            rows={3}
-            defaultValue={service.offeringFollowup ?? ""}
-            placeholder="Jei norite, galiu paskaičiuoti orientacinę kainą..."
-            className="resize-y rounded-lg border border-line px-3 py-2 font-normal leading-relaxed"
-          />
-        </label>
+        <OfferingAnswerFields
+          serviceLabel={service.label || service.name}
+          defaultDescription={service.offeringDescription ?? ""}
+          defaultFollowup={service.offeringFollowup ?? ""}
+        />
       </section>
 
       <div className="mt-7 flex flex-wrap items-center justify-end gap-3 border-t border-line pt-5">
