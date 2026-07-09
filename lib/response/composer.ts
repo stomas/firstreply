@@ -125,20 +125,50 @@ function renderTemplate(
   template: string,
   values: Record<string, string>,
 ): string {
-  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/gu, (_, key) => {
-    return values[key] ?? "";
-  });
+  return (
+    template
+      .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/gu, (_, key) => {
+        return values[key] ?? "";
+      })
+      // Reikšmė su tašku gale („3-5 sav.") + šablono taškas → „sav.." —
+      // sulipdome į vieną tašką (daugtaškio nekeičiame).
+      .replace(/(?<!\.)\.\.(?!\.)/gu, ".")
+  );
 }
 
 function prepareTemplate(
   template: string,
   values: Record<string, string>,
 ): string {
-  if (values.leadTimeWeeks.trim()) {
-    return template;
+  const leadTime = values.leadTimeWeeks.trim();
+  if (!leadTime) {
+    return removePlaceholderSentences(template, "leadTimeWeeks");
   }
 
-  return removePlaceholderSentences(template, "leadTimeWeeks");
+  // Sakinio formos terminas (admin įrašė pilną sakinį, pvz. „Terminą reikia
+  // tikslinti individualiai") pakeičia visą šablono sakinį — kitaip gaunasi
+  // robotiškas „Preliminarus terminas: Terminą reikia tikslinti...".
+  // Trumpa frazė („3-5 sav.", „po 2 savaičių") lieka po šablono etikete.
+  if (/^\p{Lu}/u.test(leadTime)) {
+    return replacePlaceholderSentence(template, "leadTimeWeeks", leadTime);
+  }
+
+  return template;
+}
+
+function replacePlaceholderSentence(
+  template: string,
+  placeholder: string,
+  sentence: string,
+): string {
+  const pattern = new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, "iu");
+  const replacement = /[.!?]$/u.test(sentence) ? sentence : `${sentence}.`;
+  const parts = template.split(/(?<=[.!?])\s+|\n+/u);
+
+  return parts
+    .map((part) => (pattern.test(part) ? replacement : part))
+    .join(" ")
+    .trim();
 }
 
 function removePlaceholderSentences(

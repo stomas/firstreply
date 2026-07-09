@@ -365,7 +365,7 @@ describe("LLM-first test lead parsing", () => {
     assert.equal(result.parsedLead.isUrgent, true);
     assert.equal(result.decisionResult.decision, "PRICE_ESTIMATE");
     assert.equal(result.decisionResult.leadTime?.text, "3-5 sav.");
-    assert.equal(result.draftText, "Kaina: 600 EUR. Terminas: 3-5 sav..");
+    assert.equal(result.draftText, "Kaina: 600 EUR. Terminas: 3-5 sav.");
     assert.equal(result.autoSendAllowed, false);
     assert.ok(result.composed?.autoSendBlockedBy.includes("URGENT"));
   });

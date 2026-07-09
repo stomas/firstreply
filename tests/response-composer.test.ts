@@ -135,11 +135,55 @@ describe("composeResponseDraft", () => {
 
     assert.equal(
       result.draftText,
-      "Sveiki, orientacinė kaina: 1980 EUR. Terminas: 3-5 sav..",
+      "Sveiki, orientacinė kaina: 1980 EUR. Terminas: 3-5 sav.",
     );
     assert.equal(result.responseType, "price_estimate");
     assert.equal(result.autoSendAllowed, false);
     assert.deepEqual(result.autoSendBlockedBy, ["TEST_LEAD"]);
+  });
+
+  it("replaces the whole lead-time sentence when the lead time is a full sentence", () => {
+    const result = composeResponseDraft({
+      decisionResult: {
+        ...priceDecision(),
+        leadTime: {
+          minWeeks: null,
+          maxWeeks: null,
+          text: "Terminą reikia tikslinti individualiai",
+        },
+      },
+      rules: baseRules,
+      resolvedRequirements: {
+        fence_length: resolvedRequirement("deterministic", 0.98),
+        fence_height: resolvedRequirement("deterministic", 0.98),
+      },
+      isTest: false,
+    });
+
+    assert.equal(
+      result.draftText,
+      "Sveiki, orientacinė kaina: 1980 EUR. Terminą reikia tikslinti individualiai.",
+    );
+  });
+
+  it("keeps a short lowercase lead-time phrase after the template label", () => {
+    const result = composeResponseDraft({
+      decisionResult: {
+        ...priceDecision(),
+        leadTime: { minWeeks: null, maxWeeks: null, text: "po 2 savaičių" },
+      },
+      rules: baseRules,
+      resolvedRequirements: {
+        fence_length: resolvedRequirement("deterministic", 0.98),
+        fence_height: resolvedRequirement("deterministic", 0.98),
+      },
+      isTest: false,
+    });
+
+    assert.equal(
+      result.draftText,
+      "Sveiki, orientacinė kaina: 1980 EUR. Terminas: po 2 savaičių.",
+    );
   });
 
   it("removes the lead-time sentence when a price estimate has no lead time", () => {
