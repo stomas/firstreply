@@ -255,6 +255,17 @@ describe("decideLeadResponse", () => {
     assert.deepEqual(result.autoSendBlockedBy, []);
   });
 
+  it("prepares a price estimate for an urgent lead but blocks auto-send", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      intents: { ...baseInput.intents, isUrgent: true },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, false);
+    assert.deepEqual(result.autoSendBlockedBy, ["URGENT"]);
+  });
+
   it("answers an offering question from DB offering fields, ignoring unresolved requirements", () => {
     const result = decideLeadResponse({
       ...baseInput,

@@ -9,7 +9,10 @@ import {
   type AiModelCaller,
   type AiModelRequest,
 } from "@/lib/ai/openai-client";
-import { resolveLocationText } from "@/lib/extractor/deterministic";
+import {
+  extractIntents,
+  resolveLocationText,
+} from "@/lib/extractor/deterministic";
 import type {
   AdminUnitLocation,
   ExtractedContacts,
@@ -322,6 +325,10 @@ function applyLlmFirstResponse({
   rejectedFindings: LlmFirstRejectedFinding[];
 } {
   const rejectedFindings: LlmFirstRejectedFinding[] = [];
+  // Deterministiniai intentai OR'inami su LLM (kaip legacy kelyje
+  // parse-lead.ts): LLM gali praleisti terminą/skubą, bet raktažodžiai
+  // („galėtumėte“, „terminas“, „skubu“) yra patikimi signalai.
+  const deterministicIntents = extractIntents(input.inquiryMessage);
   const service = resolveService({ input, rules, response, rejectedFindings });
   const location = resolveLlmLocation({
     rawText: input.inquiryMessage,
@@ -347,12 +354,17 @@ function applyLlmFirstResponse({
       asksPrice:
         input.asksPrice ||
         response.intents.asksPrice ||
-        response.intents.primaryIntent === "requests_quote",
+        response.intents.primaryIntent === "requests_quote" ||
+        deterministicIntents.asksPrice,
       asksAvailability:
         input.asksAvailability ||
         response.intents.asksAvailability ||
-        response.intents.primaryIntent === "asks_availability",
-      isUrgent: input.isUrgent || response.intents.isUrgent,
+        response.intents.primaryIntent === "asks_availability" ||
+        deterministicIntents.asksAvailability,
+      isUrgent:
+        input.isUrgent ||
+        response.intents.isUrgent ||
+        deterministicIntents.isUrgent,
       primaryIntent: primaryIntentFromInput(input, response.intents),
       hasAttachments: false,
       source: "dashboard_test_form",

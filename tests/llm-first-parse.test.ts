@@ -300,6 +300,76 @@ describe("LLM-first test lead parsing", () => {
     );
   });
 
+  it("detects availability and urgency deterministically when the LLM misses them", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        asksPrice: false,
+        inquiryMessage:
+          "Sveiki, ar galėtumėte įrengti tvorą dar šį mėnesį? Objektas Trakuose, reikia apie 60 m segmentinės tvoros, 1,7 m aukščio, su stulpais ir montavimu. Vartai nereikalingi. Labai svarbu terminas, nes atsikraustom su šunimi.",
+      },
+      rules,
+      leadId: "llm_urgent_intent_missed",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async () =>
+          JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: "service_dev_segmentines_tvoros",
+            serviceEvidence: "segmentinės tvoros",
+            intents: {
+              asksPrice: false,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [
+              llmFact({
+                requirementKey: "fence_length",
+                dimension: "length",
+                value: 60,
+                evidence: "apie 60 m segmentinės tvoros",
+                confidence: 0.98,
+              }),
+              llmFact({
+                requirementKey: "fence_height",
+                dimension: "height",
+                value: 1.7,
+                evidence: "1,7 m aukščio",
+                confidence: 0.99,
+              }),
+              {
+                requirementKey: "gate_width",
+                kind: "selection",
+                subject: "gate",
+                dimension: null,
+                value: false,
+                valueMin: null,
+                valueMax: null,
+                unit: null,
+                evidence: "Vartai nereikalingi",
+                confidence: 0.99,
+                negated: true,
+              },
+            ],
+            missingFields: [],
+          }),
+      },
+    });
+
+    assert.equal(result.parsedLead.asksAvailability, true);
+    assert.equal(result.parsedLead.isUrgent, true);
+    assert.equal(result.decisionResult.decision, "PRICE_ESTIMATE");
+    assert.equal(result.decisionResult.leadTime?.text, "3-5 sav.");
+    assert.equal(result.draftText, "Kaina: 600 EUR. Terminas: 3-5 sav..");
+    assert.equal(result.autoSendAllowed, false);
+    assert.ok(result.composed?.autoSendBlockedBy.includes("URGENT"));
+  });
+
   it("accepts a horizontal metal fence as skardine fence evidence", async () => {
     const calls: string[] = [];
     const skardineRules = rulesWithSkardineFence();

@@ -460,6 +460,13 @@ function autoSendBlockers(
   pricingRuleId: string,
 ): string[] {
   const blockers: string[] = [];
+
+  // Skubi užklausa: draft'as su kaina paruošiamas, bet siunčia žmogus —
+  // skuba gali reikšti kitą kainodarą ar terminų derinimą.
+  if (input.intents.isUrgent) {
+    blockers.push("URGENT");
+  }
+
   const pricingRule = input.rules.pricingRules.find(
     (rule) => rule.id === pricingRuleId,
   );

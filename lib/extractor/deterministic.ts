@@ -244,7 +244,10 @@ function toLocation(alias: AliasEntry, confidence: number): AdminUnitLocation {
   };
 }
 
-function extractIntents(message: string): ExtractedIntents {
+// Naudojama ir LLM-first kelyje kaip deterministinis saugiklis — LLM gali
+// praleisti intentą (pvz. grąžinti asksAvailability=false, nors tekste
+// „ar galėtumėte ... dar šį mėnesį“), todėl intentai OR'inami.
+export function extractIntents(message: string): ExtractedIntents {
   const normalized = normalizeSearchText(message);
   const asksPrice =
     /\b(kiek\s+kain\w*|kaina|kainos|kainuot\w*|pasiulym\w*|samata|saskaita)\b/u.test(
@@ -258,7 +261,10 @@ function extractIntents(message: string): ExtractedIntents {
   return {
     asksPrice,
     asksAvailability,
-    isUrgent: /\b(skubiai|skubu|kuo greiciau|nedelsiant)\b/u.test(normalized),
+    isUrgent:
+      /\b(skub\w*|kuo greiciau|nedelsiant|dar si (?:menesi|savaite)|svarb\w*\s+termin\w*|termin\w*\s+(?:labai\s+)?svarb\w*)\b/u.test(
+        normalized,
+      ),
     primaryIntent: detectPrimaryIntent(normalized, {
       asksPrice,
       asksAvailability,

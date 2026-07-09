@@ -152,6 +152,10 @@ confidence juostos, `SERVICE_AI_CLASSIFIED` blokeris (AI klasifikuota paslauga
 → default draft_for_review, atrakinama per
 `policy.serviceClassification.aiAllowedForAutoSend: true`).
 
+**Skuba** (`isUrgent`): kainos draft'as paruošiamas įprastai, bet pridedamas
+`URGENT` autosend blokeris — siunčia žmogus, nes skuba gali reikšti kitą
+kainodarą ar terminų derinimą.
+
 ## 6. AI integracija — keturi kvietimai, viena taisyklė
 
 Visi AI kvietimai eina per `lib/ai/openai-client.ts` (`temperature: 0`, JSON
@@ -165,6 +169,12 @@ LLM gauna iš DB užkrautą aktyvių paslaugų, `ServiceSubject`,
 `DecisionRequirement.expectedFact`, `DecisionRequirement.validation` ir
 `LocationZone` santrauką. Jis gali grąžinti tik JSON su `serviceId`, intentais,
 lokacijos tekstu ir faktais; nežinomos reikšmės turi būti `null`.
+
+Intentai (`asksPrice` / `asksAvailability` / `isUrgent`) OR'inami iš trijų
+šaltinių: formos laukų, LLM atsakymo ir deterministinės raktažodžių
+atpažinties (`extractIntents` iš `lib/extractor/deterministic.ts`) — LLM gali
+praleisti intentą (pvz. „ar galėtumėte ... dar šį mėnesį“, „labai svarbu
+terminas“), o raktažodžiai yra patikimas saugiklis.
 
 Post-validation taisyklės:
 
