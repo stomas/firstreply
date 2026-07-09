@@ -61,6 +61,7 @@ imamas iš `FIRSTREPLY_DEFAULT_CLIENT_ID` env kintamojo
 | `lib/leads/create-test-lead.ts`                             | Testavimo įrankio lead'o sukūrimas + persistencija.                                                                                             |
 | `lib/rules/get-client-rules.ts`                             | Visų kliento taisyklių užkrovimas iš DB į `ClientRules`.                                                                                        |
 | `lib/dashboard/{services,rules,availability,navigation}.ts` | Dashboard duomenų sluoksniai: užklausos, formų parsinimas (gryni, testuojami), atnaujinimai/kūrimas.                                            |
+| `lib/dashboard/super-admin*.ts`                             | Test/dev System Config sluoksnis: feature flag'as, read modelis, builderių parseriai, JSON generavimas ir reference guard'ai.                   |
 
 ## 4. Lead pipeline
 
@@ -215,14 +216,46 @@ Visi puslapiai — server komponentai su server actions; klaidos grąžinamos pe
 `?error=`, sėkmė per `?updated=1`. Duomenų sluoksniai `lib/dashboard/*` laiko
 grynas (testuojamas) formų parsinimo funkcijas atskirai nuo Prisma užklausų.
 
-| Puslapis                                                 | Kas jame                                                                                                                                                                                                                                                                                                                                         |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/dashboard`                                             | Užklausų sąrašas.                                                                                                                                                                                                                                                                                                                                |
-| `/dashboard/leads/[id]`                                  | Lead detail: parse result, decision JSON, taisyklės, atsakymai.                                                                                                                                                                                                                                                                                  |
-| `/dashboard/test`                                        | Testavimo įrankis — pilnas pipeline be siuntimo.                                                                                                                                                                                                                                                                                                 |
-| `/dashboard/services` (+`/[id]`)                         | Paslaugų parengtis ir redagavimas (pavadinimai, raktažodžiai, temos, pasiūlos aprašymas).                                                                                                                                                                                                                                                        |
-| `/dashboard/rules` (+pricing/requirements `[id]`, `new`) | Kainodara ir klausimai: peržiūra, redagavimas, kūrimas, trynimas (su patvirtinimu; klausimo, kurį naudoja aktyvi kainodara — `requirementKey`/`requires`/`modifiers` — ištrinti neleidžiama). **Struktūriniai engine laukai (`rule` JSON raktai, `expectedFact`) iš UI nekeičiami** — kūrimo formos generuoja struktūrą kode iš select reikšmių. |
-| `/dashboard/availability` (+`[id]`, `new`)               | Užimtumo įrašai: peržiūra, redagavimas, kūrimas, trynimas. Laikinas paslėpimas — per `valid_until` (schema neturi `active`).                                                                                                                                                                                                                     |
+| Puslapis                                                 | Kas jame                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/dashboard`                                             | Užklausų sąrašas.                                                                                                                                                                                                                                                                                                                                                   |
+| `/dashboard/leads/[id]`                                  | Lead detail: parse result, decision JSON, taisyklės, atsakymai.                                                                                                                                                                                                                                                                                                     |
+| `/dashboard/test`                                        | Testavimo įrankis — pilnas pipeline be siuntimo.                                                                                                                                                                                                                                                                                                                    |
+| `/dashboard/services` (+`/[id]`)                         | Paslaugų parengtis ir redagavimas (pavadinimai, raktažodžiai, temos, pasiūlos aprašymas).                                                                                                                                                                                                                                                                           |
+| `/dashboard/rules` (+pricing/requirements `[id]`, `new`) | Kainodara ir klausimai: peržiūra, redagavimas, kūrimas, trynimas (su patvirtinimu; klausimo, kurį naudoja aktyvi kainodara — `requirementKey`/`requires`/`modifiers` — ištrinti neleidžiama). Įprastame rules UI struktūriniai engine laukai (`rule` JSON raktai, `expectedFact`) nekaitaliojami ranka — kūrimo formos generuoja struktūrą kode iš select reikšmių. |
+| `/dashboard/availability` (+`[id]`, `new`)               | Užimtumo įrašai: peržiūra, redagavimas, kūrimas, trynimas. Laikinas paslėpimas — per `valid_until` (schema neturi `active`).                                                                                                                                                                                                                                        |
+| `/dashboard/super-admin`                                 | Super Admin / System Config MVP 1: techninis dabartinio kliento temų, advanced requirements ir pricing `rule` builderių redagavimas. Matomas lokaliai/dev arba produkcijoje tik su `SUPER_ADMIN_ENABLED=true`.                                                                                                                                                      |
+
+### 8.1 Super Admin / System Config MVP 1
+
+Super Admin yra testavimo ir vidinio konfigūravimo įrankis, ne galutinio
+kliento admin produktas. Route'as ir navigacijos punktas įjungti, kai
+`NODE_ENV !== "production"` arba `SUPER_ADMIN_ENABLED=true`; produkcijoje be
+flag'o route'as grąžina `notFound()`.
+
+Puslapis dirba tik su dabartiniu klientu iš `getCurrentClient()` — nėra
+cross-client selektoriaus. Read modelis (`getSuperAdminConfig`) sugrupuoja
+`Service`, `ServiceSubject`, `DecisionRequirement` ir `PricingRule` pagal
+paslaugas; UI paslaugų blokus rodo suskleistus per
+`SuperAdminServiceDetails`, kad būtų matomas bendras config vaizdas.
+
+MVP 1 leidžia:
+
+- kurti, redaguoti ir trinti `ServiceSubject` temas (`subjectKey`, label,
+  aprašymas, sinonimai);
+- redaguoti advanced `DecisionRequirement` laukus:
+  `requirementKey`, `expectedFact` (`measurement` + subject/dimension/units),
+  `validation` (`min`/`max`), `required`, `affectsPrice`, `active`, `priority`;
+- kurti ir redaguoti pricing builderį dabartinio engine palaikomoms
+  `pricing_rules.rule` formoms: `per_unit` ir `range_estimate`, įskaitant
+  `requirementKey`, `requires` ir `gte` modifierius.
+
+Reference guard'ai saugo runtime konfigūraciją: temos trynimas blokuojamas, jei
+ją naudoja aktyvus requirement; requirement key/service/active pakeitimai
+blokuojami, jei aktyvi kainodara remiasi tuo key; aktyvios kainodaros
+reference'ai turi rodyti į aktyvius tos pačios paslaugos requirements.
+Nepalaikomas JSON rodomas kaip read-only preview ir gali būti pakeistas tik
+išsaugant palaikomą builder shape.
 
 ## 9. Žinomos ribos (svarbu testuojant)
 
@@ -234,11 +267,13 @@ grynas (testuojamas) formų parsinimo funkcijas atskirai nuo Prisma užklausų.
 3. **Auth nėra** — vienas klientas per env kintamąjį.
 4. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
    leistų; siuntimo integracija dar nepadaryta.
+5. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento
+   konfigūraciją, todėl po `npm run db:seed` patikrinkite `/dashboard/test`.
 
 ## 10. Testai ir kokybės vartai
 
 ```bash
-npm test            # node:test, visi tests/*.test.ts (šiuo metu 133)
+npm test            # node:test, visi tests/*.test.ts (šiuo metu 161)
 npm run typecheck   # tsc --noEmit
 npm run lint        # next lint
 npm run build       # next build

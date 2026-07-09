@@ -18,14 +18,15 @@ užklausų atsakoma automatiškai ir tuo mažiau patenka į rankinę peržiūrą
 
 ## Meniu apžvalga
 
-| Skiltis                                                    | Kam skirta                                               |
-| ---------------------------------------------------------- | -------------------------------------------------------- |
-| **Užklausos**                                              | Visos gautos užklausos ir jų būsenos.                    |
-| **Testavimas**                                             | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą. |
-| **Paslaugos**                                              | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.       |
-| **Taisyklės**                                              | Kainodara ir klausimai klientams.                        |
-| **Užimtumas**                                              | Kada ir kuriuose regionuose priimate užsakymus.          |
-| Atsakymai, Follow-up, Ataskaitos, Integracijos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                          |
+| Skiltis                                                    | Kam skirta                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------ |
+| **Užklausos**                                              | Visos gautos užklausos ir jų būsenos.                        |
+| **Testavimas**                                             | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą.     |
+| **Paslaugos**                                              | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.           |
+| **Taisyklės**                                              | Kainodara ir klausimai klientams.                            |
+| **Užimtumas**                                              | Kada ir kuriuose regionuose priimate užsakymus.              |
+| **Super Admin**                                            | Testinė techninė konfigūracija, matoma tik dev/admin režimu. |
+| Atsakymai, Follow-up, Ataskaitos, Integracijos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                              |
 
 ---
 
@@ -150,6 +151,37 @@ vietoj bendrojo termino.
 
 Nebereikalingą įrašą galite **ištrinti** redagavimo puslapyje (su
 patvirtinimu). Laikinam paslėpimui užtenka praėjusios galiojimo datos.
+
+## Super Admin
+
+Super Admin yra techninis System Config puslapis testavimui ir vidiniam
+administravimui. Jis matomas lokaliai/dev aplinkoje; produkcijoje pasirodo tik
+tada, kai sąmoningai įjungtas `SUPER_ADMIN_ENABLED=true`.
+
+Puslapis suskirstytas pagal paslaugas, o paslaugų blokai iš pradžių
+suskleisti. Ant kiekvieno bloko matote paslaugos ID, temų, requirements ir
+pricing skaičius bei įspėjimus, jei yra nepalaikomas JSON ar nutrūkusios
+nuorodos. Atidarykite tik tą paslaugą, kurią norite taisyti.
+
+Ką galima keisti MVP 1:
+
+- **Temos** — techniniai `subjectKey`, lietuviški pavadinimai, aprašymai ir
+  sinonimai, pagal kuriuos sistema pririša faktus prie paslaugos temos.
+- **Advanced requirements** — `requirementKey`, klausimo tekstas,
+  `expectedFact` matavimas (tema, dimensija, vienetai), validacijos ribos,
+  prioritetas ir aktyvumo žymės.
+- **Pricing builder** — palaikomos `per_unit` ir `range_estimate` taisyklės,
+  pagrindinis `requirementKey`, `requires`, vieneto kaina, valiuta ir iki
+  5 `gte` modifierių.
+
+Sistema saugo nuo pavojingų pakeitimų: neleis ištrinti temos, kurią naudoja
+aktyvus requirement, ir neleis sugadinti aktyvios kainodaros nuorodų į
+requirements. Nepalaikomas `rule` JSON rodomas peržiūrai; jį pakeisti galima
+tik išsaugojant palaikomą builder formą.
+
+Po pakeitimų visada pasitikrinkite **Testavime**. Jei paleidžiate
+`npm run db:seed`, DEV kliento konfigūracija gali būti atstatyta pagal seed
+duomenis, todėl Super Admin pakeitimus verta patikrinti iš naujo.
 
 ## Kada užklausa patenka į rankinę peržiūrą
 

@@ -39,6 +39,7 @@ App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais 
 | `OPENAI_API_KEY`               | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
 | `OPENAI_MODEL`                 | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
 | `SHADOW_AI_PARSE`              | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
+| `SUPER_ADMIN_ENABLED`          | Ne            | `true` produkcijoje įjungia `/dashboard/super-admin`. Default išjungta; naudokite tik sąmoningam vidiniam/test konfigūravimui.                                                          |
 | `LEAD_WEBHOOK_URL`             | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
 
 `NODE_ENV=production` ir `PORT` Railway nustato pats — jų kurti nereikia.
@@ -83,6 +84,10 @@ paleiskite seed, tada per dashboard susiveskite tikrus pavadinimus/kainas,
 arba sukurkite atskirą kliento eilutę DB ir atnaujinkite
 `FIRSTREPLY_DEFAULT_CLIENT_ID`.
 
+Jei testavote techninę konfigūraciją per `/dashboard/super-admin`, po seed'o
+patikrinkite ją dar kartą: DEV kliento paslaugos, temos, requirements ir
+kainodara gali būti perrašyti pagal seed duomenis.
+
 ## 5. Patikrinimas po diegimo
 
 Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
@@ -113,6 +118,7 @@ Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
 | Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu. |
 | SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                         |
 | Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                            |
+| Super Admin nematomas produkcijoje             | Tai numatyta. Įjunkite tik laikinai/sąmoningai su `SUPER_ADMIN_ENABLED=true` ir redeploy.                        |
 
 ## Atnaujinimai
 

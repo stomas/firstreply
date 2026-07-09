@@ -31,8 +31,8 @@ describe("SuperAdminServiceDetails", () => {
     assert.match(html, /<details/u);
     assert.equal(html.includes("<details open"), false);
     assert.match(html, /Segmentinės tvoros/u);
-    assert.match(html, /Temos<!-- -->: <!-- -->2/u);
-    assert.match(html, /Requirements<!-- -->: <!-- -->3/u);
-    assert.match(html, /Pricing<!-- -->: <!-- -->1/u);
+    assert.match(html, /Temos: 2/u);
+    assert.match(html, /Requirements: 3/u);
+    assert.match(html, /Pricing: 1/u);
   });
 });

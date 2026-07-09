@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DeleteButton } from "@/components/dashboard/DeleteButton";
 import { DashboardError } from "@/components/dashboard/DashboardError";
+import { SuperAdminServiceDetails } from "@/components/dashboard/SuperAdminServiceDetails";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import {
@@ -91,7 +92,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps) {
         {config.groups.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="mt-6 grid gap-6">
+          <div className="mt-6 grid gap-4">
             {config.groups.map((group) => (
               <ServiceConfigCard
                 key={group.serviceId}
@@ -189,26 +190,54 @@ function ServiceConfigCard({
   group: SuperAdminServiceGroup;
   config: SuperAdminConfig;
 }) {
+  const unsupportedCount =
+    group.pricingRules.filter((rule) => !rule.support.supported).length +
+    group.requirements.filter(
+      (requirement) => !requirement.expectedFactSupported,
+    ).length;
+  const activeRequirementKeys = new Set(
+    group.requirements
+      .filter((requirement) => requirement.active)
+      .map((requirement) => requirement.requirementKey),
+  );
+  const brokenReferencesCount = group.pricingRules.reduce((count, rule) => {
+    if (!rule.active || !rule.builder) {
+      return count;
+    }
+    const referencedKeys = new Set([
+      rule.builder.requirementKey,
+      ...rule.builder.requiresText
+        .split(",")
+        .map((key) => key.trim())
+        .filter(Boolean),
+      ...rule.builder.modifiers.map((modifier) => modifier.requirementKey),
+    ]);
+    return (
+      count +
+      Array.from(referencedKeys).filter(
+        (key) => !activeRequirementKeys.has(key),
+      ).length
+    );
+  }, 0);
+
   return (
-    <article className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-ink">
-            {group.serviceName}
-          </h2>
-          <p className="mt-1 text-sm text-ink-soft">
-            Service ID: <code>{group.serviceId}</code>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {!group.serviceActive ? <Badge tone="muted">Neaktyvi</Badge> : null}
-          <Link
-            href="/dashboard/test"
-            className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft"
-          >
-            Test this configuration
-          </Link>
-        </div>
+    <SuperAdminServiceDetails
+      serviceName={group.serviceName}
+      serviceId={group.serviceId}
+      serviceActive={group.serviceActive}
+      subjectsCount={group.subjects.length}
+      requirementsCount={group.requirements.length}
+      pricingRulesCount={group.pricingRules.length}
+      unsupportedCount={unsupportedCount}
+      brokenReferencesCount={brokenReferencesCount}
+    >
+      <div className="mt-4 flex justify-end">
+        <Link
+          href="/dashboard/test"
+          className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft"
+        >
+          Test this configuration
+        </Link>
       </div>
 
       <ConfigSection
@@ -231,7 +260,7 @@ function ServiceConfigCard({
       >
         <PricingRuleList group={group} />
       </ConfigSection>
-    </article>
+    </SuperAdminServiceDetails>
   );
 }
 
@@ -942,25 +971,6 @@ function SectionEmpty({ children }: { children: React.ReactNode }) {
     <p className="rounded-lg border border-dashed border-line bg-line-soft px-3 py-3 text-sm leading-relaxed text-ink-soft">
       {children}
     </p>
-  );
-}
-
-function Badge({
-  tone,
-  children,
-}: {
-  tone: "muted";
-  children: React.ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        "rounded-full border px-3 py-1 text-xs font-extrabold uppercase",
-        tone === "muted" && "border-line bg-line-soft text-ink-muted",
-      )}
-    >
-      {children}
-    </span>
   );
 }
 
