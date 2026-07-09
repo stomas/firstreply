@@ -142,6 +142,21 @@ describe("composeResponseDraft", () => {
     assert.deepEqual(result.autoSendBlockedBy, ["TEST_LEAD"]);
   });
 
+  it("removes the lead-time sentence when a price estimate has no lead time", () => {
+    const result = composeResponseDraft({
+      decisionResult: { ...priceDecision(), leadTime: null },
+      rules: baseRules,
+      resolvedRequirements: {
+        fence_length: resolvedRequirement("deterministic", 0.98),
+        fence_height: resolvedRequirement("deterministic", 0.98),
+      },
+      isTest: false,
+    });
+
+    assert.equal(result.draftText, "Sveiki, orientacinė kaina: 1980 EUR.");
+    assert.equal(result.autoSendAllowed, true);
+  });
+
   it("blocks auto-send when price-affecting AI requirements fail policy gates", () => {
     const result = composeResponseDraft({
       decisionResult: priceDecision(),

@@ -33,15 +33,19 @@ export function composeResponseDraft({
 }: ComposeResponseInput): ComposedResponseDraft {
   const responseType = responseTypeForDecision(decisionResult.decision);
   const templateKey = templateKeyForDecision(decisionResult.decision);
+  const templateValues = {
+    questions: decisionResult.questionsToAsk.join(" "),
+    priceAmount: formatNumber(decisionResult.priceEstimate?.amount),
+    currency: decisionResult.priceEstimate?.currency ?? "",
+    leadTimeWeeks: decisionResult.leadTime?.text ?? "",
+    offeringDescription: decisionResult.offeringAnswer?.description ?? "",
+    offeringFollowup: decisionResult.offeringAnswer?.followup ?? "",
+  };
   const draftText = templateKey
-    ? renderTemplate(findTemplate(rules, templateKey), {
-        questions: decisionResult.questionsToAsk.join(" "),
-        priceAmount: formatNumber(decisionResult.priceEstimate?.amount),
-        currency: decisionResult.priceEstimate?.currency ?? "",
-        leadTimeWeeks: decisionResult.leadTime?.text ?? "",
-        offeringDescription: decisionResult.offeringAnswer?.description ?? "",
-        offeringFollowup: decisionResult.offeringAnswer?.followup ?? "",
-      })
+    ? renderTemplate(
+        prepareTemplate(findTemplate(rules, templateKey), templateValues),
+        templateValues,
+      )
     : null;
   const autoSendBlockedBy = autoSendBlockers({
     decisionResult,
@@ -124,6 +128,31 @@ function renderTemplate(
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/gu, (_, key) => {
     return values[key] ?? "";
   });
+}
+
+function prepareTemplate(
+  template: string,
+  values: Record<string, string>,
+): string {
+  if (values.leadTimeWeeks.trim()) {
+    return template;
+  }
+
+  return removePlaceholderSentences(template, "leadTimeWeeks");
+}
+
+function removePlaceholderSentences(
+  template: string,
+  placeholder: string,
+): string {
+  const pattern = new RegExp(`\\{\\{\\s*${placeholder}\\s*\\}\\}`, "iu");
+  const parts = template.split(/(?<=[.!?])\s+|\n+/u);
+  const withoutPlaceholderSentences = parts
+    .filter((part) => !pattern.test(part))
+    .join(" ")
+    .trim();
+
+  return withoutPlaceholderSentences || template.replace(pattern, "").trim();
 }
 
 function autoSendBlockers({

@@ -139,6 +139,8 @@ service **Variables** tab.
 | `FIRSTREPLY_DEFAULT_CLIENT_ID` | Dashboard | Server only | Temporary server-side client resolution until auth exists. Must match a real `clients.id`.                         |
 | `OPENAI_API_KEY`               | Test tool | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
 | `OPENAI_MODEL`                 | Test tool | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
+| `LLM_FIRST_PARSE`              | No        | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
+| `SHADOW_AI_PARSE`              | No        | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
 | `NODE_ENV`                     | Auto      | Server      | `development` locally; Railway sets `production` automatically.                                                    |
 
 > **Security:** `LEAD_WEBHOOK_URL` is a server-only secret — it is never

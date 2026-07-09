@@ -335,6 +335,7 @@ function hasResolvedRequirementValue(
   }
 
   return (
+    resolved.value === false ||
     hasUsableValue(resolved.value) ||
     typeof resolved.valueMin === "number" ||
     typeof resolved.valueMax === "number"

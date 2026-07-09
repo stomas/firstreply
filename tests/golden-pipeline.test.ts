@@ -180,7 +180,7 @@ describe("golden lead pipeline", () => {
     assert.deepEqual(result.evaluation.missingRequirements, []);
     assert.equal(
       result.evaluation.draftText,
-      "Sveiki, orientacinė kaina: 4950 EUR. Terminas: 3-5 sav..",
+      "Sveiki, orientacinė kaina: 4950 EUR.",
     );
     assert.deepEqual(
       result.trace.stages.map((stage) => [stage.key, stage.status]),

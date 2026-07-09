@@ -12,6 +12,11 @@ import {
   toDecisionEngineInput,
   type ParsedLeadData,
 } from "@/lib/leads/parse-lead";
+import {
+  isLlmFirstParseEnabled,
+  parseTestInquiryLeadLlmFirst,
+  type LlmFirstParseResult,
+} from "@/lib/leads/llm-first-parse";
 import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
 import {
   isShadowEnabled,
@@ -85,76 +90,69 @@ export async function runTestLeadPipeline({
   aiOptions = {},
 }: RunTestLeadPipelineInput): Promise<TestLeadPipelineResult> {
   const trace: LeadProcessingTrace = { stages: [] };
-  let parsedLead = parseTestInquiryLead(input);
+  const llmFirstEnabled = isLlmFirstParseEnabled(aiOptions.env ?? process.env);
+  let llmFirstResult: LlmFirstParseResult | null = null;
+  let parsedLead: ParsedLeadData;
 
-  trace.stages.push({
-    key: "parse",
-    label: "Parse",
-    status: "ok",
-    summary: `${parsedLead.facts.length} faktai, ${parsedLead.location ? "vieta rasta" : "vieta nerasta"}`,
-    data: {
-      serviceId: parsedLead.serviceId,
-      city: parsedLead.city,
-      location: parsedLead.location,
-      intents: {
-        asksPrice: parsedLead.asksPrice,
-        asksAvailability: parsedLead.asksAvailability,
-        isUrgent: parsedLead.isUrgent,
-      },
-      facts: parsedLead.facts,
-    },
-  });
+  if (llmFirstEnabled) {
+    llmFirstResult = await parseTestInquiryLeadLlmFirst(
+      { input, rules },
+      aiOptions,
+    );
+    parsedLead = llmFirstResult.parsed;
+    trace.stages.push(llmFirstParseTraceStage(llmFirstResult));
 
-  const serviceResult = await classifyParsedLeadService(
-    parsedLead,
-    input.inquiryMessage,
-    rules,
-    aiOptions,
-  );
-  parsedLead = serviceResult.parsed;
-  trace.stages.push({
-    key: "service_classification",
-    label: "Service classification",
-    status: parsedLead.serviceId ? "ok" : "manual_review",
-    summary: parsedLead.serviceId
-      ? `Paslauga nustatyta: ${parsedLead.serviceId}`
-      : "Paslauga nenustatyta arba dviprasmiška",
-    data: parsedLead.serviceClassification
-      ? {
-          id: parsedLead.serviceClassification.id,
-          confidence: parsedLead.serviceClassification.confidence,
-          source: parsedLead.serviceClassification.source,
-          reason: parsedLead.serviceClassification.reason,
-          candidates: parsedLead.serviceClassification.candidates,
-        }
-      : {},
-  });
+    if (llmFirstResult.status === "manual_review") {
+      return manualReviewPipelineResult({
+        parsedLead,
+        reason: llmFirstResult.reason,
+        leadId,
+        trace,
+      });
+    }
+  } else {
+    parsedLead = parseTestInquiryLead(input);
+    trace.stages.push(parseTraceStage(parsedLead));
+  }
 
-  // AI fallback stage rodomas tik kai deterministika nepataikė ir buvo įeita į
-  // AI kelią (skipped-not-configured / ok / rejected). Kai deterministika rado
-  // paslaugą, stage nerodomas — trace seka nekinta esamiems srautams.
-  if (serviceResult.ai.reason !== "DETERMINISTIC_MATCH") {
-    const ai = serviceResult.ai;
-    trace.stages.push({
-      key: "ai_service_classification",
-      label: "AI service classification",
-      status: ai.status,
-      summary:
-        ai.status === "ok"
-          ? `AI priskyrė paslaugą: ${ai.serviceId} (conf ${ai.confidence})`
-          : ai.status === "skipped"
-            ? `AI praleistas: ${ai.reason}`
-            : `AI atmestas: ${ai.reason}`,
-      data: {
+  if (!llmFirstEnabled) {
+    const serviceResult = await classifyParsedLeadService(
+      parsedLead,
+      input.inquiryMessage,
+      rules,
+      aiOptions,
+    );
+    parsedLead = serviceResult.parsed;
+    trace.stages.push(serviceClassificationTraceStage(parsedLead));
+
+    // AI fallback stage rodomas tik kai deterministika nepataikė ir buvo įeita į
+    // AI kelią (skipped-not-configured / ok / rejected). Kai deterministika rado
+    // paslaugą, stage nerodomas — trace seka nekinta esamiems srautams.
+    if (serviceResult.ai.reason !== "DETERMINISTIC_MATCH") {
+      const ai = serviceResult.ai;
+      trace.stages.push({
+        key: "ai_service_classification",
+        label: "AI service classification",
         status: ai.status,
-        reason: ai.reason,
-        serviceId: ai.serviceId ?? null,
-        confidence: ai.confidence ?? null,
-        evidence: ai.evidence ?? null,
-        rawResponseCount: ai.rawResponses?.length ?? 0,
-        rawResponses: ai.rawResponses ?? [],
-      },
-    });
+        summary:
+          ai.status === "ok"
+            ? `AI priskyrė paslaugą: ${ai.serviceId} (conf ${ai.confidence})`
+            : ai.status === "skipped"
+              ? `AI praleistas: ${ai.reason}`
+              : `AI atmestas: ${ai.reason}`,
+        data: {
+          status: ai.status,
+          reason: ai.reason,
+          serviceId: ai.serviceId ?? null,
+          confidence: ai.confidence ?? null,
+          evidence: ai.evidence ?? null,
+          rawResponseCount: ai.rawResponses?.length ?? 0,
+          rawResponses: ai.rawResponses ?? [],
+        },
+      });
+    }
+  } else {
+    trace.stages.push(serviceClassificationTraceStage(parsedLead));
   }
 
   parsedLead = resolveParsedLeadRequirements(parsedLead, rules);
@@ -163,8 +161,13 @@ export async function runTestLeadPipeline({
   // Offering klausimas atsakomas TIK iš DB faktų (decision engine OFFERING_ANSWER),
   // todėl neišspręsti reikalavimai jo neblokuoja ir AI čia nekviečiamas.
   const skipAiForOffering = parsedLead.primaryIntent === "asks_offering";
+  const skipAiForLlmFirst = llmFirstResult?.status === "ok";
 
-  if (!skipAiForOffering && needsAiGapFiller(parsedLead)) {
+  if (
+    !skipAiForOffering &&
+    !skipAiForLlmFirst &&
+    needsAiGapFiller(parsedLead)
+  ) {
     try {
       assertAiGapFillerConfigured(parsedLead, aiOptions.env);
     } catch (error) {
@@ -261,9 +264,11 @@ export async function runTestLeadPipeline({
       key: "ai_gap_filler",
       label: "AI gap filler",
       status: "skipped",
-      summary: skipAiForOffering
-        ? "AI praleistas: offering klausimas — reikalavimai neblokuoja"
-        : "AI nereikalingas: visi privalomi reikalavimai išspręsti",
+      summary: skipAiForLlmFirst
+        ? "AI praleistas: LLM-first parse jau yra autoritetingas"
+        : skipAiForOffering
+          ? "AI praleistas: offering klausimas — reikalavimai neblokuoja"
+          : "AI nereikalingas: visi privalomi reikalavimai išspręsti",
       data: {},
     });
   }
@@ -395,6 +400,82 @@ function attachTrace(error: AppConfigError, trace: LeadProcessingTrace): void {
   (error as AppConfigError & { trace?: LeadProcessingTrace }).trace = trace;
 }
 
+function parseTraceStage(parsedLead: ParsedLeadData): LeadProcessingTraceStage {
+  return {
+    key: "parse",
+    label: "Parse",
+    status: "ok",
+    summary: `${parsedLead.facts.length} faktai, ${parsedLead.location ? "vieta rasta" : "vieta nerasta"}`,
+    data: {
+      parserVersion: parsedLead.parserVersion,
+      serviceId: parsedLead.serviceId,
+      city: parsedLead.city,
+      location: parsedLead.location,
+      intents: {
+        asksPrice: parsedLead.asksPrice,
+        asksAvailability: parsedLead.asksAvailability,
+        isUrgent: parsedLead.isUrgent,
+      },
+      facts: parsedLead.facts,
+    },
+  };
+}
+
+function llmFirstParseTraceStage(
+  result: LlmFirstParseResult,
+): LeadProcessingTraceStage {
+  const parsedLead = result.parsed;
+
+  return {
+    key: "parse",
+    label: "Parse",
+    status: result.status === "ok" ? "ok" : "manual_review",
+    summary:
+      result.status === "ok"
+        ? `LLM-first: ${parsedLead.facts.length} faktai, ${parsedLead.location ? "vieta rasta" : "vieta nerasta"}`
+        : `LLM-first: ${result.reason}`,
+    data: {
+      parserVersion: parsedLead.parserVersion,
+      mode: "llm_first",
+      serviceId: parsedLead.serviceId,
+      city: parsedLead.city,
+      location: parsedLead.location,
+      intents: {
+        asksPrice: parsedLead.asksPrice,
+        asksAvailability: parsedLead.asksAvailability,
+        isUrgent: parsedLead.isUrgent,
+      },
+      facts: parsedLead.facts,
+      rawResponseCount: result.rawResponses.length,
+      rawResponses: result.rawResponses,
+      rejectedFindings: result.status === "ok" ? result.rejectedFindings : [],
+      rawParse: result.status === "ok" ? result.rawParse : null,
+    },
+  };
+}
+
+function serviceClassificationTraceStage(
+  parsedLead: ParsedLeadData,
+): LeadProcessingTraceStage {
+  return {
+    key: "service_classification",
+    label: "Service classification",
+    status: parsedLead.serviceId ? "ok" : "manual_review",
+    summary: parsedLead.serviceId
+      ? `Paslauga nustatyta: ${parsedLead.serviceId}`
+      : "Paslauga nenustatyta arba dviprasmiška",
+    data: parsedLead.serviceClassification
+      ? {
+          id: parsedLead.serviceClassification.id,
+          confidence: parsedLead.serviceClassification.confidence,
+          source: parsedLead.serviceClassification.source,
+          reason: parsedLead.serviceClassification.reason,
+          candidates: parsedLead.serviceClassification.candidates,
+        }
+      : {},
+  };
+}
+
 function resolverTraceStage(
   key: "resolver_pass_1" | "resolver_pass_2",
   parsedLead: ParsedLeadData,
@@ -416,7 +497,33 @@ function resolverTraceStage(
   };
 }
 
-function manualReviewDecision(reason: "AI_PARSE_FAILED"): DecisionResult {
+function manualReviewPipelineResult(params: {
+  parsedLead: ParsedLeadData;
+  reason: string;
+  leadId: string;
+  trace: LeadProcessingTrace;
+}): TestLeadPipelineResult {
+  const decisionResult = manualReviewDecision(params.reason);
+
+  return {
+    parsedLead: params.parsedLead,
+    decisionResult,
+    composed: null,
+    responseStatus: "manual_review",
+    responseType: "manual_review",
+    draftText: null,
+    autoSendAllowed: false,
+    manualReviewReason: params.reason,
+    evaluation: manualReviewEvaluation({
+      leadId: params.leadId,
+      serviceId: params.parsedLead.serviceId,
+      reason: params.reason,
+    }),
+    trace: params.trace,
+  };
+}
+
+function manualReviewDecision(reason: string): DecisionResult {
   return {
     decision: "MANUAL_REVIEW",
     reason,

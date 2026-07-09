@@ -70,9 +70,11 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     };
   }
 
-  // Užimtumas: jei kliento regione šiuo metu užsakymų nepriimama, tolesni
-  // klausimai/kaina beprasmiai — savininkas atsako pats.
-  const availability = findAvailabilityMatch(input);
+  // Užimtumas taikomas tik kai klientas klausia termino / atvykimo laiko.
+  // Price-only užklausoje ribotas užimtumas neturi blokuoti preliminarios kainos.
+  const availability = input.intents.asksAvailability
+    ? findAvailabilityMatch(input)
+    : null;
   if (availability && availability.status === "unavailable") {
     return {
       ...base,
@@ -128,7 +130,9 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     decision: "PRICE_ESTIMATE",
     reason: "PRICE_RULE_MATCHED",
     priceEstimate,
-    leadTime: findLeadTime(input.rules.scheduleRules ?? [], availability),
+    leadTime: input.intents.asksAvailability
+      ? findLeadTime(input.rules.scheduleRules ?? [], availability)
+      : null,
     autoSend: autoSendBlockedBy.length === 0,
     autoSendBlockedBy,
     matchedAvailabilityRule: availability
@@ -382,17 +386,12 @@ function autoSendBlockers(
     blockers.push("AUTOSEND_POLICY_DISABLED");
   }
 
-  // AI-klasifikuota paslauga: pagal nutylėjimą → draft_for_review (blokuojam),
-  // nebent policy JSON aiškiai leidžia (serviceClassification.aiAllowedForAutoSend).
-  if (input.service.source === "ai") {
-    const serviceGate = asRecord(policy?.serviceClassification);
-    if (serviceGate?.aiAllowedForAutoSend !== true) {
-      blockers.push("SERVICE_AI_CLASSIFIED");
-    }
-  }
-
   const confidenceBand = asRecord(policy?.confidenceBands);
   const minConfidence = numberValue(confidenceBand?.autoSend) ?? 0;
+  blockers.push(
+    ...serviceClassificationBlockers(input.service, policy, minConfidence),
+  );
+
   if (
     Object.values(input.resolvedRequirements).some(
       (requirement) =>
@@ -400,6 +399,39 @@ function autoSendBlockers(
     )
   ) {
     blockers.push("CONFIDENCE_BELOW_AUTOSEND_BAND");
+  }
+
+  return blockers;
+}
+
+function serviceClassificationBlockers(
+  service: DecisionEngineInput["service"],
+  policy: Record<string, unknown> | null,
+  defaultMinConfidence: number,
+): string[] {
+  if (service.source !== "ai") {
+    return [];
+  }
+
+  const serviceGate = asRecord(policy?.serviceClassification);
+  if (serviceGate?.aiAllowedForAutoSend === true) {
+    return [];
+  }
+
+  const aiAllowedIf = asRecord(serviceGate?.aiAllowedIf);
+  const minConfidence =
+    numberValue(aiAllowedIf?.minConfidence) || defaultMinConfidence || 0.85;
+  const blockers: string[] = [];
+
+  if (
+    aiAllowedIf?.evidenceVerified !== false &&
+    service.evidenceVerified !== true
+  ) {
+    blockers.push("SERVICE_AI_EVIDENCE_BLOCKED");
+  }
+
+  if (service.confidence < minConfidence) {
+    blockers.push("SERVICE_AI_CONFIDENCE_BLOCKED");
   }
 
   return blockers;

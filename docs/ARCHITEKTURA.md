@@ -49,6 +49,8 @@ imamas iš `FIRSTREPLY_DEFAULT_CLIENT_ID` env kintamojo
 | `lib/extractor/types.ts`                                    | `ExtractedFact`, `PrimaryIntent`, `FactComputation` tipai.                                                                                      |
 | `lib/leads/service-classifier.ts`                           | Paslaugos atpažinimas: keyword scoring (deterministinis) + AI fallback (`classifyLeadServiceWithFallback`).                                     |
 | `lib/leads/parse-lead.ts`                                   | Lead parse orkestracija: faktai → klasifikacija → requirements.                                                                                 |
+| `lib/leads/llm-first-parse.ts`                              | Eksperimentinis `/dashboard/test` LLM-first parseris už `LLM_FIRST_PARSE=true`; schemą kuria iš `ClientRules`, faktus verifikuoja kode.         |
+| `lib/requirements/fact-validation.ts`                       | Bendri `expectedFact` ir `validation` helperiai, naudojami resolver'io ir LLM-first post-validation.                                            |
 | `lib/requirements/resolve-requirements.ts`                  | Faktų priskyrimas requirement'ams pagal `expectedFact` (kind/subject/dimension/units) + `validation` ribos.                                     |
 | `lib/ai/openai-client.ts`                                   | Bendras OpenAI wrapper: `callOpenAiResponsesApi`, `isAiConfigured`, `stripJsonFence`, `normalizeRangeFactValue`. Visi AI kvietimai eina per jį. |
 | `lib/ai/gap-filler.ts`                                      | AI spragų pildymas: subject bindings + nauji/derived faktai su computation.                                                                     |
@@ -66,7 +68,8 @@ imamas iš `FIRSTREPLY_DEFAULT_CLIENT_ID` env kintamojo
 ## 4. Lead pipeline
 
 `runTestLeadPipeline` (`lib/leads/test-pipeline.ts`) vykdo visus žingsnius ir
-kiekvienam prideda `trace.stages` įrašą (matomas lead detail „Decision JSON“):
+kiekvienam prideda `trace.stages` įrašą (matomas lead detail „Decision JSON“).
+Pagal nutylėjimą naudojamas deterministinis parse kelias:
 
 ```
 parse                      deterministiniai faktai, intentai, miestas
@@ -79,6 +82,16 @@ decision                   sprendimų variklis (žr. §5)
 composer                   juodraštis iš šablonų + autosend vartai
 shadow_parse               TIK kai SHADOW_AI_PARSE=true (žr. §6.3)
 ```
+
+`LLM_FIRST_PARSE=true` įjungia eksperimentinį kelią tik `/dashboard/test`
+srautui: `parse` stage kviečia LLM-first parserį, kuris schemą susikuria iš
+aktyvių `ClientRules` (paslaugos, temos, requirements, validation,
+location_zones). Priimti AI faktai konvertuojami į įprastus `ExtractedFact`
+įrašus (`source: "ai"`, `evidenceVerified: true`), tada naudojamas tas pats
+`resolveRequirements`, `decideLeadResponse` ir `composeResponseDraft`.
+Šiame kelyje `ai_gap_filler` sąmoningai praleidžiamas: trūkstami ar atmesti
+laukeliai tampa `ASK_MISSING_INFO` / `MANUAL_REVIEW`, o ne antru AI
+gelbėjimo bandymu. Public landing lead forma šio flag'o nenaudoja.
 
 Testiniai lead'ai (`isTest: true`) eina **identišką** pipeline, tik visada
 blokuojami nuo auto-send (`TEST_LEAD` blokeris).
@@ -139,11 +152,34 @@ confidence juostos, `SERVICE_AI_CLASSIFIED` blokeris (AI klasifikuota paslauga
 → default draft_for_review, atrakinama per
 `policy.serviceClassification.aiAllowedForAutoSend: true`).
 
-## 6. AI integracija — trys kvietimai, viena taisyklė
+## 6. AI integracija — keturi kvietimai, viena taisyklė
 
 Visi AI kvietimai eina per `lib/ai/openai-client.ts` (`temperature: 0`, JSON
 atsakymas, 1 retry po parse klaidos). **Kertinis invariantas: AI niekada
 tiesiogiai nerašo sprendimo — kiekvienas AI radinys verifikuojamas kodu.**
+
+### 6.0 LLM-first parse (eksperimentinis dashboard test kelias)
+
+`LLM_FIRST_PARSE=true` veikia tik `runTestLeadPipeline` / `/dashboard/test`.
+LLM gauna iš DB užkrautą aktyvių paslaugų, `ServiceSubject`,
+`DecisionRequirement.expectedFact`, `DecisionRequirement.validation` ir
+`LocationZone` santrauką. Jis gali grąžinti tik JSON su `serviceId`, intentais,
+lokacijos tekstu ir faktais; nežinomos reikšmės turi būti `null`.
+
+Post-validation taisyklės:
+
+- `serviceId` turi būti aktyvi paslauga arba formos pasirinkta paslauga;
+- kiekvienas `requirementKey` turi priklausyti pasirinktai paslaugai;
+- `subject`, `kind`, `dimension` ir `unit` turi sutapti su DB
+  `expectedFact`;
+- kiekvienas AI faktas turi pažodinį `evidence`, tikrinamą per
+  `verifyAiEvidence`;
+- `allowedValues` turi pirmenybę prieš `min/max`; ribas tikrina tas pats
+  resolver'is, todėl out-of-range faktai tampa `VALUE_OUT_OF_RANGE` konfliktais;
+- lokacija visada resolver'inama per `resolveLocationText`; modelio
+  `adminUnitCode` nelaikomas autoritetingu;
+- kainos, terminai, availability, auto-send ir atsakymo tekstas iš LLM
+  ignoruojami.
 
 ### 6.1 Gap filler (privalomas, kai yra spragų)
 

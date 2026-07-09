@@ -216,7 +216,7 @@ describe("decideLeadResponse", () => {
     assert.equal(result.autoSend, false);
   });
 
-  it("calculates a price estimate only from pricing_rules JSON and schedule rules", () => {
+  it("calculates a price estimate without lead time for price-only requests", () => {
     const result = decideLeadResponse(baseInput);
 
     assert.equal(result.decision, "PRICE_ESTIMATE");
@@ -229,11 +229,7 @@ describe("decideLeadResponse", () => {
       unitPrice: 44,
       amount: 1980,
     });
-    assert.deepEqual(result.leadTime, {
-      minWeeks: 3,
-      maxWeeks: 5,
-      text: "3-5 sav.",
-    });
+    assert.equal(result.leadTime, null);
     assert.equal(result.autoSend, true);
     assert.deepEqual(result.autoSendBlockedBy, []);
   });
@@ -288,9 +284,35 @@ describe("decideLeadResponse", () => {
     assert.equal(result.offeringAnswer ?? null, null);
   });
 
+  it("does not apply limited availability blockers to a price-only request", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      now: new Date("2026-07-09T00:00:00Z"),
+      rules: {
+        ...baseRules,
+        availabilityRules: [
+          availabilityRule({
+            id: "avail_limited",
+            location: "Vilniaus rajone",
+            status: "limited",
+            earliestStartText: "Terminą tiksliname individualiai",
+            autoSendAllowed: false,
+          }),
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.matchedAvailabilityRule ?? null, null);
+    assert.equal(result.leadTime, null);
+    assert.equal(result.autoSend, true);
+    assert.deepEqual(result.autoSendBlockedBy, []);
+  });
+
   it("uses the region availability term instead of the schedule rule and exposes the match", () => {
     const result = decideLeadResponse({
       ...baseInput,
+      intents: { ...baseInput.intents, asksAvailability: true },
       now: new Date("2026-07-09T00:00:00Z"),
       rules: {
         ...baseRules,
@@ -315,6 +337,7 @@ describe("decideLeadResponse", () => {
   it("prefers the exact region entry over the empty-location fallback", () => {
     const result = decideLeadResponse({
       ...baseInput,
+      intents: { ...baseInput.intents, asksAvailability: true },
       now: new Date("2026-07-09T00:00:00Z"),
       rules: {
         ...baseRules,
@@ -344,6 +367,7 @@ describe("decideLeadResponse", () => {
   it("falls back to the empty-location entry and blocks auto-send for limited status", () => {
     const result = decideLeadResponse({
       ...baseInput,
+      intents: { ...baseInput.intents, asksAvailability: true },
       location: null,
       city: "Klaipėda",
       now: new Date("2026-07-09T00:00:00Z"),
@@ -381,6 +405,7 @@ describe("decideLeadResponse", () => {
   it("ignores expired availability entries and keeps the schedule fallback", () => {
     const result = decideLeadResponse({
       ...baseInput,
+      intents: { ...baseInput.intents, asksAvailability: true },
       now: new Date("2026-07-09T00:00:00Z"),
       rules: {
         ...baseRules,
@@ -405,6 +430,7 @@ describe("decideLeadResponse", () => {
   it("sends unavailable regions to manual review before asking questions", () => {
     const result = decideLeadResponse({
       ...baseInput,
+      intents: { ...baseInput.intents, asksAvailability: true },
       resolvedRequirements: {},
       unresolvedRequirements: [
         {
@@ -437,23 +463,95 @@ describe("decideLeadResponse", () => {
     assert.equal(result.matchedAvailabilityRule?.id, "avail_stop");
   });
 
-  it("blocks auto-send for an AI-classified service by default (draft_for_review)", () => {
+  it("allows a verified AI-classified service above the confidence threshold", () => {
     const result = decideLeadResponse({
       ...baseInput,
       service: {
         id: "service_fence",
         confidence: 0.9,
         source: "ai",
+        evidence: "segmentinė tvora",
+        evidenceVerified: true,
+        candidates: [{ id: "service_fence", confidence: 0.9 }],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, true);
+    assert.deepEqual(result.autoSendBlockedBy, []);
+  });
+
+  it("uses the evidence gate for legacy aiAllowedForAutoSend=false policies", () => {
+    const policy = asRecord(baseRules.autosendPolicies?.[0]?.policy) ?? {};
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: "service_fence",
+        confidence: 0.9,
+        source: "ai",
+        evidence: "segmentinė tvora",
+        evidenceVerified: true,
+        candidates: [{ id: "service_fence", confidence: 0.9 }],
+      },
+      rules: {
+        ...baseRules,
+        autosendPolicies: [
+          {
+            policy: {
+              ...policy,
+              serviceClassification: { aiAllowedForAutoSend: false },
+            },
+          },
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, true);
+    assert.deepEqual(result.autoSendBlockedBy, []);
+  });
+
+  it("blocks an AI-classified service when evidence was not verified", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: "service_fence",
+        confidence: 0.9,
+        source: "ai",
+        evidence: "segmentinė tvora",
+        evidenceVerified: false,
         candidates: [{ id: "service_fence", confidence: 0.9 }],
       },
     });
 
     assert.equal(result.decision, "PRICE_ESTIMATE");
     assert.equal(result.autoSend, false);
-    assert.ok(result.autoSendBlockedBy.includes("SERVICE_AI_CLASSIFIED"));
+    assert.ok(result.autoSendBlockedBy.includes("SERVICE_AI_EVIDENCE_BLOCKED"));
+    assert.ok(!result.autoSendBlockedBy.includes("SERVICE_AI_CLASSIFIED"));
   });
 
-  it("allows auto-send for an AI-classified service when the policy opts in", () => {
+  it("blocks an AI-classified service below the confidence threshold", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      service: {
+        id: "service_fence",
+        confidence: 0.7,
+        source: "ai",
+        evidence: "segmentinė tvora",
+        evidenceVerified: true,
+        candidates: [{ id: "service_fence", confidence: 0.7 }],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.equal(result.autoSend, false);
+    assert.ok(
+      result.autoSendBlockedBy.includes("SERVICE_AI_CONFIDENCE_BLOCKED"),
+    );
+    assert.ok(!result.autoSendBlockedBy.includes("SERVICE_AI_CLASSIFIED"));
+  });
+
+  it("keeps the legacy unconditional allow policy for AI-classified services", () => {
     const policy = asRecord(baseRules.autosendPolicies?.[0]?.policy) ?? {};
     const result = decideLeadResponse({
       ...baseInput,

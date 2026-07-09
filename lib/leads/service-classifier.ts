@@ -22,6 +22,8 @@ export type ServiceClassification = {
   confidence: number;
   source: "form_field" | "deterministic" | "ai";
   reason: ServiceClassificationReason;
+  evidence?: string | null;
+  evidenceVerified?: boolean;
   candidates: Array<{
     id: string;
     confidence: number;
@@ -277,6 +279,8 @@ export async function classifyLeadServiceWithFallback(
       confidence: parsed.confidence,
       source: "ai",
       reason: "ai_matched",
+      evidence: parsed.evidence,
+      evidenceVerified: true,
       candidates: deterministic.candidates,
     },
     ai: {

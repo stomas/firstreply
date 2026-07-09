@@ -157,6 +157,8 @@ export type DecisionServiceInput = {
   id: string | null;
   confidence: number;
   source?: "form_field" | "deterministic" | "ai";
+  evidence?: string | null;
+  evidenceVerified?: boolean;
   candidates?: Array<{ id: string; confidence: number }>;
 };
 

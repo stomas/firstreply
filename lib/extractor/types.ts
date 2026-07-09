@@ -39,6 +39,7 @@ export type FactComputation = {
 
 export type ExtractedFact = {
   id: string;
+  requirementKey?: string | null;
   kind: FactKind;
   subject: string | null;
   subjectSource: SubjectSource;
