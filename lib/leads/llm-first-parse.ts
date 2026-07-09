@@ -24,6 +24,7 @@ import type { ParsedLeadData } from "@/lib/leads/parse-lead";
 import type { ServiceClassification } from "@/lib/leads/service-classifier";
 import {
   serviceEvidenceIsSpecific,
+  findUnsupportedOfferingEvidence,
   serviceEvidenceNamesSpecificOffering,
 } from "@/lib/leads/service-specificity";
 import {
@@ -405,6 +406,28 @@ function resolveService({
   }
 
   if (!response.serviceId) {
+    // LLM nerado paslaugos — bet jei tekste įvardinta konkreti pasiūlos
+    // rūšis, kurios nepadengia nė viena aktyvi paslauga, tai nėra
+    // dviprasmybė: klientas prašo neteikiamo produkto.
+    const unsupportedEvidence = findUnsupportedOfferingEvidence({
+      rules,
+      text: input.inquiryMessage,
+    });
+    if (unsupportedEvidence) {
+      return {
+        id: null,
+        classification: {
+          id: null,
+          confidence: 0.6,
+          source: "ai",
+          reason: "unsupported_specific_service",
+          evidence: unsupportedEvidence,
+          evidenceVerified: true,
+          candidates: [],
+        },
+      };
+    }
+
     return { id: null, classification: null };
   }
 
@@ -452,17 +475,24 @@ function resolveService({
       target: response.serviceId,
       reason: "SERVICE_EVIDENCE_NOT_SPECIFIC",
     });
-    const reason = serviceEvidenceNamesSpecificOffering(evidence)
-      ? "unsupported_specific_service"
-      : "ambiguous";
+    // Nepakanka žiūrėti tik į LLM evidence iškarpą — LLM gali grąžinti vien
+    // bendrinį žodį („tvoros"), nors tekste įvardinta konkreti neteikiama
+    // rūšis („metalinę horizontalią"). Tikriname visą užklausos tekstą.
+    const unsupportedEvidence =
+      findUnsupportedOfferingEvidence({
+        rules,
+        text: input.inquiryMessage,
+      }) ?? (serviceEvidenceNamesSpecificOffering(evidence) ? evidence : null);
     return {
       id: null,
       classification: {
         id: null,
         confidence: 0.6,
         source: "ai",
-        reason,
-        evidence,
+        reason: unsupportedEvidence
+          ? "unsupported_specific_service"
+          : "ambiguous",
+        evidence: unsupportedEvidence ?? evidence,
         evidenceVerified: true,
         candidates: [
           {

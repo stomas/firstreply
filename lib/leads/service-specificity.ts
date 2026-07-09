@@ -120,6 +120,72 @@ export function serviceEvidenceNamesSpecificOffering(
   );
 }
 
+// Ieško VISAME užklausos tekste (ne tik LLM evidence iškarpoje) konkrečios
+// pasiūlos rūšies (pvz. „metalinę horizontalią"), kurios nepadengia nė vienos
+// aktyvios paslaugos terminai. Jei bent vienas konkretus terminas atitinka
+// kurią nors paslaugą — grąžinama null (rūšis gali būti teikiama, sprendžia
+// klasifikacija). Grąžinama pažodinė teksto atkarpa draft'ui.
+export function findUnsupportedOfferingEvidence({
+  rules,
+  text,
+}: {
+  rules: ClientRules;
+  text: string;
+}): string | null {
+  const words = Array.from(text.matchAll(/[\p{Letter}\p{Number}²]+/gu));
+  const supportedTerms = new Set<string>();
+  for (const service of rules.services) {
+    if (!service.active) {
+      continue;
+    }
+    for (const term of distinctiveTermsForService(service, rules)) {
+      supportedTerms.add(term);
+    }
+  }
+
+  const unsupportedIndexes: number[] = [];
+  for (let index = 0; index < words.length; index += 1) {
+    const token = normalizeServiceText(words[index][0]);
+    if (
+      token.length < 3 ||
+      !specificOfferingTermPrefixes.some((prefix) => token.startsWith(prefix))
+    ) {
+      continue;
+    }
+
+    const supported = Array.from(supportedTerms).some((term) =>
+      serviceSpecificTermsMatch(token, term),
+    );
+    if (supported) {
+      return null;
+    }
+
+    unsupportedIndexes.push(index);
+  }
+
+  if (unsupportedIndexes.length === 0) {
+    return null;
+  }
+
+  // Pažodinė atkarpa: ištisinė nepadengtų rūšies žodžių seka nuo pirmojo,
+  // pridedant iškart einantį bendrinį daiktavardį („tvorą"), kad citata
+  // draft'e skambėtų natūraliai.
+  const first = unsupportedIndexes[0];
+  let last = first;
+  while (unsupportedIndexes.includes(last + 1)) {
+    last += 1;
+  }
+
+  const next = words[last + 1];
+  if (next && genericServiceTerms.has(normalizeServiceText(next[0]))) {
+    last += 1;
+  }
+
+  const start = words[first].index ?? 0;
+  const end = (words[last].index ?? 0) + words[last][0].length;
+  return text.slice(start, end);
+}
+
 function distinctiveTermsForService(
   service: ServiceRule,
   rules: ClientRules,

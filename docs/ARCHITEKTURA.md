@@ -181,6 +181,17 @@ Post-validation taisyklės:
 - kainos, terminai, availability, auto-send ir atsakymo tekstas iš LLM
   ignoruojami.
 
+Neteikiamos konkrečios rūšies atpažinimas: kai LLM parinktos paslaugos
+evidence nėra pakankamai specifinis (arba LLM iš viso negrąžina paslaugos),
+`findUnsupportedOfferingEvidence` tikrina **visą užklausos tekstą** (ne tik
+LLM evidence iškarpą, nes ji gali būti vien bendrinis žodis, pvz. „tvoros“).
+Jei tekste įvardinta konkreti pasiūlos rūšis (pvz. „metalinę horizontalią“),
+kurios nepadengia nė vienos aktyvios paslaugos terminai, klasifikacija tampa
+`unsupported_specific_service` → decision engine grąžina `MANUAL_REVIEW /
+SERVICE_UNSUPPORTED` su draft'u „tokios paslaugos neteikiame“ vietoj
+patikslinančio klausimo. Jei rūšies terminas atitinka bent vieną aktyvią
+paslaugą — lieka `ambiguous` (sprendžia klasifikacija / patikslinimas).
+
 ### 6.1 Gap filler (privalomas, kai yra spragų)
 
 Kai po pirmo resolver'io lieka neišspręstų requirements. AI grąžina:

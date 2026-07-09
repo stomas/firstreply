@@ -209,6 +209,97 @@ describe("LLM-first test lead parsing", () => {
     ]);
   });
 
+  it("manual-reviews an unsupported fence type even when LLM evidence names only the generic word", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        inquiryMessage:
+          "Sveiki, norėčiau tvoros Kaune. Galvoju apie metalinę horizontalią tvorą, apie 40 metrų. Reikėtų ir vartų automatikos. Kiek maždaug kainuotų?",
+      },
+      rules,
+      leadId: "llm_unsupported_generic_evidence",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async () =>
+          JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: "service_dev_segmentines_tvoros",
+            serviceEvidence: "tvoros",
+            intents: {
+              asksPrice: true,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [],
+            missingFields: [],
+          }),
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, null);
+    assert.equal(
+      result.parsedLead.serviceClassification?.reason,
+      "unsupported_specific_service",
+    );
+    assert.equal(result.decisionResult.decision, "MANUAL_REVIEW");
+    assert.equal(result.decisionResult.reason, "SERVICE_UNSUPPORTED");
+    assert.equal(result.responseType, "manual_review");
+    assert.equal(
+      result.evaluation.draftText,
+      "Sveiki, ačiū už užklausą. Pagal pateiktą informaciją prašote paslaugos: „metalinę horizontalią tvorą“. Šiuo metu tokios paslaugos neteikiame.",
+    );
+  });
+
+  it("manual-reviews an unsupported fence type when LLM returns no service at all", async () => {
+    const result = await runTestLeadPipeline({
+      input: {
+        ...baseInput(),
+        serviceId: "",
+        city: "",
+        inquiryMessage:
+          "Sveiki, norėčiau tvoros Kaune. Galvoju apie metalinę horizontalią tvorą, apie 40 metrų. Kiek maždaug kainuotų?",
+      },
+      rules,
+      leadId: "llm_unsupported_no_service",
+      isTest: true,
+      aiOptions: {
+        env: llmEnv,
+        callModel: async () =>
+          JSON.stringify({
+            schemaVersion: "lead_parse_v3_llm_first",
+            serviceId: null,
+            serviceEvidence: null,
+            intents: {
+              asksPrice: true,
+              asksAvailability: false,
+              isUrgent: false,
+              primaryIntent: "requests_quote",
+            },
+            location: null,
+            facts: [],
+            missingFields: [],
+          }),
+      },
+    });
+
+    assert.equal(result.parsedLead.serviceId, null);
+    assert.equal(
+      result.parsedLead.serviceClassification?.reason,
+      "unsupported_specific_service",
+    );
+    assert.equal(result.decisionResult.decision, "MANUAL_REVIEW");
+    assert.equal(result.decisionResult.reason, "SERVICE_UNSUPPORTED");
+    assert.equal(
+      result.evaluation.draftText,
+      "Sveiki, ačiū už užklausą. Pagal pateiktą informaciją prašote paslaugos: „metalinę horizontalią tvorą“. Šiuo metu tokios paslaugos neteikiame.",
+    );
+  });
+
   it("accepts a horizontal metal fence as skardine fence evidence", async () => {
     const calls: string[] = [];
     const skardineRules = rulesWithSkardineFence();
