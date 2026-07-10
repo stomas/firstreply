@@ -12,6 +12,7 @@ import {
   isValidSuperAdminSignupCode,
   verifyPassword,
 } from "../lib/auth/password";
+import { getDashboardReturnPath } from "../lib/auth/redirect";
 import { hashSessionToken } from "../lib/auth/session";
 
 function form(values: Record<string, string>): FormData {
@@ -65,6 +66,18 @@ describe("authentication credentials", () => {
       ).ok,
       false,
     );
+  });
+});
+
+describe("dashboard client selection redirects", () => {
+  it("keeps safe dashboard paths and rejects external destinations", () => {
+    assert.equal(
+      getDashboardReturnPath("/dashboard/services"),
+      "/dashboard/services",
+    );
+    assert.equal(getDashboardReturnPath("/dashboard"), "/dashboard");
+    assert.equal(getDashboardReturnPath("https://example.com"), "/dashboard");
+    assert.equal(getDashboardReturnPath("//example.com"), "/dashboard");
   });
 });
 

@@ -75,6 +75,7 @@ export function DashboardSidebar({
             action={selectSuperAdminClientAction}
             className="mb-4 grid gap-2"
           >
+            <input type="hidden" name="returnTo" value={pathname} />
             <label
               htmlFor="dashboard-client"
               className="text-xs font-extrabold uppercase tracking-[0.08em] text-ink-muted"
@@ -84,9 +85,13 @@ export function DashboardSidebar({
             {clientOptions.length ? (
               <>
                 <select
+                  key={selectedClientId ?? "no-client"}
                   id="dashboard-client"
                   name="clientId"
                   defaultValue={selectedClientId ?? undefined}
+                  onChange={(event) =>
+                    event.currentTarget.form?.requestSubmit()
+                  }
                   className="min-h-10 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
                 >
                   {clientOptions.map((client) => (
@@ -99,8 +104,11 @@ export function DashboardSidebar({
                   type="submit"
                   className="rounded-lg border border-brand-tintborder bg-brand-tint px-3 py-2 text-sm font-bold text-brand hover:bg-brand-reply"
                 >
-                  Perjungti klientą
+                  Pritaikyti pasirinkimą
                 </button>
+                <span className="text-xs leading-relaxed text-ink-muted">
+                  Pasirinkus kitą klientą dashboardas persijungia automatiškai.
+                </span>
               </>
             ) : (
               <span className="text-sm text-ink-muted">

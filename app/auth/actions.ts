@@ -13,6 +13,7 @@ import {
   isValidSuperAdminSignupCode,
   verifyPassword,
 } from "@/lib/auth/password";
+import { getDashboardReturnPath } from "@/lib/auth/redirect";
 import {
   createAuthSession,
   deleteCurrentAuthSession,
@@ -153,6 +154,7 @@ export async function logoutAction() {
 export async function selectSuperAdminClientAction(formData: FormData) {
   const session = await requireSuperAdminSession();
   const clientId = formData.get("clientId");
+  const returnTo = getDashboardReturnPath(formData.get("returnTo"));
 
   if (typeof clientId !== "string" || !clientId) {
     redirectWithError("/dashboard", "Pasirinkite klientą.");
@@ -172,7 +174,7 @@ export async function selectSuperAdminClientAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard", "layout");
-  redirect("/dashboard");
+  redirect(returnTo);
 }
 
 async function consumePasswordVerificationTime(password: string) {
