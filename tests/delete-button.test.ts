@@ -11,8 +11,8 @@ describe("DeleteButton", () => {
       "../components/dashboard/DeleteButton"
     );
     const html = renderToStaticMarkup(
-      React.createElement(DeleteButton as React.ComponentType<any>, {
-        action: "/delete-subject",
+      React.createElement(DeleteButton, {
+        action: async () => undefined,
         confirmText: "Tikrai ištrinti?",
         renderAs: "button",
       }),

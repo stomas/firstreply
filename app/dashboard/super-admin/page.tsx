@@ -4,10 +4,10 @@ import { DeleteButton } from "@/components/dashboard/DeleteButton";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { SuperAdminServiceDetails } from "@/components/dashboard/SuperAdminServiceDetails";
 import { getAppErrorMessage } from "@/lib/app-errors";
+import { getAuthSession } from "@/lib/auth/session";
 import { getCurrentClient } from "@/lib/client-context";
 import {
   getSuperAdminConfig,
-  isSuperAdminEnabled,
   type SuperAdminConfig,
   type SuperAdminPricingRuleRow,
   type SuperAdminRequirementRow,
@@ -84,7 +84,8 @@ const DEFAULT_AUTOSEND_BUILDER: SuperAdminAutosendPolicyBuilder = {
 };
 
 export default async function SuperAdminPage({ searchParams }: PageProps) {
-  if (!isSuperAdminEnabled()) {
+  const session = await getAuthSession();
+  if (session?.user.role !== "SUPER_ADMIN") {
     notFound();
   }
 

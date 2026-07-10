@@ -7,9 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  CLIENT
+  SUPER_ADMIN
+}
+
 model Client {
   id          String   @id @default(cuid())
-  tenantId    String?  @map("tenant_id") @db.Uuid
+  tenantId    String?  @unique @map("tenant_id") @db.Uuid
   companyName String   @map("company_name")
   ownerEmail  String   @map("owner_email")
   status      String   @default("active")
@@ -22,8 +27,9 @@ model Client {
   decisionRequirements DecisionRequirement[]
   availabilityRules    AvailabilityRule[]
   leads                Lead[]
+  users                User[]                @relation("ClientUsers")
+  selectedSessions     AuthSession[]         @relation("SelectedClientSessions")
 
-  @@index([tenantId])
   @@map("clients")
 }
 
@@ -35,7 +41,7 @@ model Tenant {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  clients           Client[]
+  client            Client?
   services          Service[]
   leads             Lead[]
   locationZones     LocationZone[]
@@ -46,19 +52,51 @@ model Tenant {
   @@map("tenants")
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(CLIENT)
+  clientId     String?  @map("client_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  client   Client?       @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
+  sessions AuthSession[]
+
+  @@index([clientId])
+  @@map("users")
+}
+
+model AuthSession {
+  id               String   @id
+  userId           String   @map("user_id")
+  selectedClientId String?  @map("selected_client_id")
+  expiresAt        DateTime @map("expires_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selectedClient Client? @relation("SelectedClientSessions", fields: [selectedClientId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
 model Service {
-  id          String   @id @default(cuid())
-  clientId    String   @map("client_id")
-  tenantId    String?  @map("tenant_id") @db.Uuid
-  name        String
-  label       String?
-  keywords    Json?
-  rangePolicy String   @default("manual_review") @map("range_policy")
-  offeringDescription String? @map("offering_description")
-  offeringFollowup    String? @map("offering_followup")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  clientId            String   @map("client_id")
+  tenantId            String?  @map("tenant_id") @db.Uuid
+  name                String
+  label               String?
+  keywords            Json?
+  rangePolicy         String   @default("manual_review") @map("range_policy")
+  offeringDescription String?  @map("offering_description")
+  offeringFollowup    String?  @map("offering_followup")
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   client               Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tenant               Tenant?               @relation(fields: [tenantId], references: [id], onDelete: SetNull)

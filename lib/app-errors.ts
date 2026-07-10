@@ -22,6 +22,20 @@ export class AppValidationError extends Error {
   }
 }
 
+export class AppAuthenticationError extends Error {
+  constructor(message = "Authentication required.") {
+    super(message);
+    this.name = "AppAuthenticationError";
+  }
+}
+
+export class AppAuthorizationError extends Error {
+  constructor(message = "Access denied.") {
+    super(message);
+    this.name = "AppAuthorizationError";
+  }
+}
+
 export function getAppErrorMessage(error: unknown): string {
   if (error instanceof AppConfigError) {
     return error.message;
@@ -33,6 +47,14 @@ export function getAppErrorMessage(error: unknown): string {
 
   if (error instanceof AppValidationError) {
     return error.message;
+  }
+
+  if (error instanceof AppAuthenticationError) {
+    return "Prisijungimo sesija nebegalioja. Prisijunkite iš naujo.";
+  }
+
+  if (error instanceof AppAuthorizationError) {
+    return "Neturite teisės atlikti šio veiksmo.";
   }
 
   if (error instanceof Error && error.message.includes("DATABASE_URL")) {

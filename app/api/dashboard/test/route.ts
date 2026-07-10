@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  AppAuthenticationError,
+  AppAuthorizationError,
   AppConfigError,
   AppNotFoundError,
   AppValidationError,
@@ -31,6 +33,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     console.error("[dashboard-test] failed to create test lead:", error);
+
+    if (error instanceof AppAuthenticationError) {
+      return NextResponse.json(
+        { ok: false, error: getAppErrorMessage(error) },
+        { status: 401 },
+      );
+    }
+
+    if (error instanceof AppAuthorizationError) {
+      return NextResponse.json(
+        { ok: false, error: getAppErrorMessage(error) },
+        { status: 403 },
+      );
+    }
 
     if (error instanceof AppValidationError) {
       return NextResponse.json(

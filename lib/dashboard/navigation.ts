@@ -1,8 +1,3 @@
-import {
-  isSuperAdminEnabled,
-  type SuperAdminEnv,
-} from "@/lib/dashboard/super-admin-access";
-
 export type DashboardNavItem = {
   id: string;
   label: string;
@@ -14,6 +9,10 @@ export type DashboardNavItem = {
 export type DashboardNavSection = {
   label: string;
   items: DashboardNavItem[];
+};
+
+export type DashboardNavigationContext = {
+  isSuperAdmin?: boolean;
 };
 
 export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
@@ -96,18 +95,14 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
 ];
 
 export function getDashboardNavigationSections(
-  env: SuperAdminEnv = process.env,
+  context: DashboardNavigationContext = {},
 ): DashboardNavSection[] {
-  if (!isSuperAdminEnabled(env)) {
+  if (!context.isSuperAdmin) {
     return DASHBOARD_NAV_SECTIONS;
   }
 
   return DASHBOARD_NAV_SECTIONS.map((section) => {
     if (section.label !== "Konfigūracija") {
-      return section;
-    }
-
-    if (section.items.some((item) => item.id === "super-admin")) {
       return section;
     }
 
@@ -127,9 +122,9 @@ export function getDashboardNavigationSections(
 }
 
 export function getDashboardNavigationItems(
-  env: SuperAdminEnv = process.env,
+  context: DashboardNavigationContext = {},
 ): DashboardNavItem[] {
-  return getDashboardNavigationSections(env).flatMap(
+  return getDashboardNavigationSections(context).flatMap(
     (section) => section.items,
   );
 }

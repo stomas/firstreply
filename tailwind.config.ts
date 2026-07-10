@@ -37,6 +37,11 @@ const config: Config = {
           border: "#F3D08A",
           border2: "#F3E4C4",
         },
+        danger: {
+          text: "#9F1239",
+          bg: "#FFF1F2",
+          border: "#FECDD3",
+        },
         footer: {
           bg: "#10201B",
           text: "#B9C9C2",

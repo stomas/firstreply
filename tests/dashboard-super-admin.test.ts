@@ -5,7 +5,6 @@ import {
   describePricingRuleSupport,
   getUnsupportedPricingRuleCount,
   isRequirementKeyReferenced,
-  isSuperAdminEnabled,
   parseAdvancedRequirementForm,
   parsePricingBuilderForm,
   parseSuperAdminServiceForm,
@@ -90,21 +89,6 @@ function pricingForm(overrides: Record<string, string> = {}): FormData {
   }
   return formData;
 }
-
-describe("super admin feature flag", () => {
-  it("is enabled outside production and behind an explicit production flag", () => {
-    assert.equal(isSuperAdminEnabled({ NODE_ENV: "development" }), true);
-    assert.equal(isSuperAdminEnabled({ NODE_ENV: "test" }), true);
-    assert.equal(isSuperAdminEnabled({ NODE_ENV: "production" }), false);
-    assert.equal(
-      isSuperAdminEnabled({
-        NODE_ENV: "production",
-        SUPER_ADMIN_ENABLED: "true",
-      }),
-      true,
-    );
-  });
-});
 
 describe("super admin service form", () => {
   it("parses a new client-scoped service", () => {

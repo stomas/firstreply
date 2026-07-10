@@ -8,9 +8,7 @@ import {
 
 describe("dashboard navigation", () => {
   it("contains the main FirstReply product areas", () => {
-    const labels = getDashboardNavigationItems({
-      NODE_ENV: "production",
-    }).map((item) => item.label);
+    const labels = getDashboardNavigationItems().map((item) => item.label);
 
     assert.deepEqual(labels, [
       "Užklausos",
@@ -27,9 +25,7 @@ describe("dashboard navigation", () => {
   });
 
   it("keeps placeholder pages under the dashboard route", () => {
-    const items = getDashboardNavigationItems({
-      NODE_ENV: "production",
-    });
+    const items = getDashboardNavigationItems();
     const ids = new Set(items.map((item) => item.id));
 
     assert.equal(ids.size, items.length);
@@ -40,26 +36,21 @@ describe("dashboard navigation", () => {
     );
   });
 
-  it("shows Super Admin only when the feature is enabled", () => {
-    const productionLabels = getDashboardNavigationItems({
-      NODE_ENV: "production",
-    }).map((item) => item.label);
-    const devLabels = getDashboardNavigationItems({
-      NODE_ENV: "development",
-    }).map((item) => item.label);
-    const flaggedProductionLabels = getDashboardNavigationItems({
-      NODE_ENV: "production",
-      SUPER_ADMIN_ENABLED: "true",
+  it("shows Super Admin only for a Super Admin viewer", () => {
+    const clientLabels = getDashboardNavigationItems().map(
+      (item) => item.label,
+    );
+    const superAdminLabels = getDashboardNavigationItems({
+      isSuperAdmin: true,
     }).map((item) => item.label);
 
-    assert.equal(productionLabels.includes("Super Admin"), false);
-    assert.equal(devLabels.includes("Super Admin"), true);
-    assert.equal(flaggedProductionLabels.includes("Super Admin"), true);
+    assert.equal(clientLabels.includes("Super Admin"), false);
+    assert.equal(superAdminLabels.includes("Super Admin"), true);
   });
 
   it("places Super Admin under configuration when enabled", () => {
     const sections = getDashboardNavigationSections({
-      NODE_ENV: "development",
+      isSuperAdmin: true,
     });
     const configuration = sections.find(
       (section) => section.label === "Konfigūracija",

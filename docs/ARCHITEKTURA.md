@@ -25,9 +25,9 @@ Repo sudaro:
 - **Lead pipeline** (`lib/*`) — deterministinis parseris + AI pagalbininkai +
   sprendimų variklis + atsakymo kompozitorius.
 
-Auth, mokėjimų ir realių integracijų (Gmail, CRM) **nėra** — kliento kontekstas
-imamas iš `FIRSTREPLY_DEFAULT_CLIENT_ID` env kintamojo
-(`lib/client-context.ts`).
+Dashboard turi el. pašto/slaptažodžio autentifikaciją ir DB sesijas. Įprastas
+vartotojas visada apribotas savo `Client`, o `SUPER_ADMIN` sesijoje gali
+pasirinkti aktyvų klientą. Mokėjimų ir realių integracijų (Gmail, CRM) nėra.
 
 ## 2. Tech stack
 
@@ -165,11 +165,11 @@ kainodarą ar terminų derinimą.
 
 **Žmogaus peržiūros signalai** (`ReviewSignal`, universalūs — ne domeno):
 
-| Signalas                  | Kada                                                            | Poveikis                                                            |
-| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `site_visit_requested`    | Klientas prašo atvykti įvertinti / apžiūrėti vietoje.            | `MANUAL_REVIEW / REVIEW_SIGNALS` — kaina be įvertinimo nepagrįsta.   |
+| Signalas                  | Kada                                                              | Poveikis                                                             |
+| ------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `site_visit_requested`    | Klientas prašo atvykti įvertinti / apžiūrėti vietoje.             | `MANUAL_REVIEW / REVIEW_SIGNALS` — kaina be įvertinimo nepagrįsta.   |
 | `unknown_site_conditions` | Esama/sena konstrukcija ar nežinoma būklė, galinti keisti apimtį. | `MANUAL_REVIEW / REVIEW_SIGNALS`.                                    |
-| `competitor_price`        | Klientas lygina gautą/konkurento pasiūlymą.                      | Draft'as paruošiamas, bet blokeris `REVIEW_SIGNAL:competitor_price`. |
+| `competitor_price`        | Klientas lygina gautą/konkurento pasiūlymą.                       | Draft'as paruošiamas, bet blokeris `REVIEW_SIGNAL:competitor_price`. |
 
 Signalų šaltiniai: LLM-first parse grąžina `reviewSignals` su pažodiniu
 evidence (verifikuojamu per `verifyAiEvidence`; nepatvirtintas signalas →
@@ -275,7 +275,8 @@ redaguojami ranka.
 
 | Modelis                 | Paskirtis                                                                                                                |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `Client`                | Klientas (verslas). Kontekstas per `FIRSTREPLY_DEFAULT_CLIENT_ID`.                                                       |
+| `Tenant` / `Client`     | Įmonės duomenų erdvė ir vienas jai priklausantis FirstReply klientas.                                                    |
+| `User` / `AuthSession`  | Prisijungimo paskyra, rolė, scrypt slaptažodis ir DB sesija; Super Admin sesija saugo pasirinktą klientą.                |
 | `Service`               | Paslauga: `keywords` (JSON), `offering_description/followup` (pasiūlos atsakymams).                                      |
 | `ServiceSubject`        | Atpažinimo temos (subject key, label, sinonimai) — naudoja resolver'is ir klasifikatorius.                               |
 | `PricingRule`           | Kainodara: rėžiai rodymui + `rule` JSON skaičiavimui (§5).                                                               |
@@ -304,17 +305,17 @@ grynas (testuojamas) formų parsinimo funkcijas atskirai nuo Prisma užklausų.
 | `/dashboard/services` (+`/[id]`)                         | Paslaugų parengtis ir redagavimas (pavadinimai, raktažodžiai, temos, pasiūlos aprašymas).                                                                                                                                                                                                                                                                           |
 | `/dashboard/rules` (+pricing/requirements `[id]`, `new`) | Kainodara ir klausimai: peržiūra, redagavimas, kūrimas, trynimas (su patvirtinimu; klausimo, kurį naudoja aktyvi kainodara — `requirementKey`/`requires`/`modifiers` — ištrinti neleidžiama). Įprastame rules UI struktūriniai engine laukai (`rule` JSON raktai, `expectedFact`) nekaitaliojami ranka — kūrimo formos generuoja struktūrą kode iš select reikšmių. |
 | `/dashboard/availability` (+`[id]`, `new`)               | Užimtumo įrašai: peržiūra, redagavimas, kūrimas, trynimas. Laikinas paslėpimas — per `valid_until` (schema neturi `active`).                                                                                                                                                                                                                                        |
-| `/dashboard/super-admin`                                 | Super Admin / System Config: techninis dabartinio kliento core decision config ir tenant-level operational config redagavimas. Matomas lokaliai/dev arba produkcijoje tik su `SUPER_ADMIN_ENABLED=true`.                                                                                                                                                            |
+| `/dashboard/super-admin`                                 | Tik `SUPER_ADMIN` rolei skirtas System Config: pasirinkto kliento core decision ir tenant-level operational config redagavimas.                                                                                                                                                                                                                                     |
 
 ### 8.1 Super Admin / System Config
 
 Super Admin yra testavimo ir vidinio konfigūravimo įrankis, ne galutinio
-kliento admin produktas. Route'as ir navigacijos punktas įjungti, kai
-`NODE_ENV !== "production"` arba `SUPER_ADMIN_ENABLED=true`; produkcijoje be
-flag'o route'as grąžina `notFound()`.
+kliento admin produktas. Route'as, navigacijos punktas ir visi mutation
+veiksmai pasiekiami tik autentifikuotam `SUPER_ADMIN` vartotojui.
 
-Puslapis dirba tik su dabartiniu klientu iš `getCurrentClient()` ir jo
-`tenantId` — nėra cross-client ar cross-tenant selektoriaus. Core read modelis
+Puslapis dirba su Super Admin sesijoje pasirinktu aktyviu klientu iš
+`getCurrentClient()` ir jo `tenantId`. Klientas pasirenkamas dashboardo
+šoninėje juostoje, o pasirinkimas saugomas `AuthSession`. Core read modelis
 (`getSuperAdminConfig`) sugrupuoja `Service`, `ServiceSubject`,
 `DecisionRequirement` ir `PricingRule` pagal paslaugas; UI paslaugų blokus rodo
 suskleistus per `SuperAdminServiceDetails`, kad būtų matomas bendras config
@@ -359,7 +360,8 @@ būti pakeistas tik išsaugant palaikomą builder shape. Jei klientas neturi
 2. **Rėžinis atsakymas į kainą veikiantį klausimą** (pvz. aukštis „1.5–1.7“)
    → `per_unit` skaičiavimas reikalauja skaliaro → `NO_PRICING_RULE` /
    manual review. Tai sąmoninga saugi elgsena.
-3. **Auth nėra** — vienas klientas per env kintamąjį.
+3. **Auth MVP** — nėra el. pašto patvirtinimo, slaptažodžio atkūrimo, kvietimų
+   ar papildomų įmonės vartotojų.
 4. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
    leistų; siuntimo integracija dar nepadaryta.
 5. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento

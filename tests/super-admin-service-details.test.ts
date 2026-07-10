@@ -10,10 +10,13 @@ describe("SuperAdminServiceDetails", () => {
     const { SuperAdminServiceDetails } = await import(
       "../components/dashboard/SuperAdminServiceDetails"
     );
-
+    type RenderProps = Omit<
+      React.ComponentProps<typeof SuperAdminServiceDetails>,
+      "children"
+    > & { children?: React.ReactNode };
     const html = renderToStaticMarkup(
       React.createElement(
-        SuperAdminServiceDetails as React.ComponentType<any>,
+        SuperAdminServiceDetails as React.ComponentType<RenderProps>,
         {
           serviceName: "Segmentinės tvoros",
           serviceId: "service_1",

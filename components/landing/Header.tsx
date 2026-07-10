@@ -52,10 +52,16 @@ export function Header() {
 
         <div className="flex items-center gap-[10px]">
           <a
-            href="#cta"
+            href="/login"
+            className="hidden px-2 py-[11px] text-[15px] font-bold text-ink-soft transition-colors hover:text-ink sm:inline-flex"
+          >
+            Prisijungti
+          </a>
+          <a
+            href="/signup"
             className="hidden rounded-xl bg-brand px-5 py-[11px] text-[15px] font-bold text-white shadow-cta transition-colors hover:bg-brand-hover md:inline-flex"
           >
-            Gauti pasiūlymą
+            Registruotis
           </a>
           <button
             type="button"
@@ -114,11 +120,18 @@ export function Header() {
             </a>
           ))}
           <a
-            href="#cta"
+            href="/login"
             onClick={() => setOpen(false)}
-            className="mt-2 rounded-xl bg-brand py-[14px] text-center text-base font-bold text-white"
+            className="mt-2 rounded-lg px-1.5 py-3 text-center text-base font-semibold text-ink hover:bg-line-soft"
           >
-            Gauti pasiūlymą
+            Prisijungti
+          </a>
+          <a
+            href="/signup"
+            onClick={() => setOpen(false)}
+            className="rounded-xl bg-brand py-[14px] text-center text-base font-bold text-white"
+          >
+            Registruotis
           </a>
         </nav>
       </div>

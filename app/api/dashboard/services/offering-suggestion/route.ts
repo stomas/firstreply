@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAppErrorMessage } from "@/lib/app-errors";
+import {
+  AppAuthenticationError,
+  AppAuthorizationError,
+  getAppErrorMessage,
+} from "@/lib/app-errors";
 import {
   generateOfferingSuggestion,
   isOfferingTone,
@@ -56,6 +60,18 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[offering-suggestion] failed:", error);
+    if (error instanceof AppAuthenticationError) {
+      return NextResponse.json(
+        { ok: false, error: getAppErrorMessage(error) },
+        { status: 401 },
+      );
+    }
+    if (error instanceof AppAuthorizationError) {
+      return NextResponse.json(
+        { ok: false, error: getAppErrorMessage(error) },
+        { status: 403 },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: getAppErrorMessage(error) },
       { status: 500 },

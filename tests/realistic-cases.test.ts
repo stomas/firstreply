@@ -78,7 +78,10 @@ describe("realistic inquiry cases", () => {
       "Kokio tipo tvorą svarstote?",
     ]);
     assert.equal(result.decisionResult.priceEstimate, null);
-    assert.equal(result.draftText, "Patikslinkite: Kokio tipo tvorą svarstote?");
+    assert.equal(
+      result.draftText,
+      "Patikslinkite: Kokio tipo tvorą svarstote?",
+    );
   });
 
   it("case 3: partial inquiry naming an unoffered type goes to manual review with a clear draft", async () => {
@@ -118,7 +121,12 @@ describe("realistic inquiry cases", () => {
         serviceId: "service_segmentine",
         serviceEvidence: "segmentinės tvoros",
         facts: [
-          fenceFact("fence_length", "length", 60, "apie 60 m segmentinės tvoros"),
+          fenceFact(
+            "fence_length",
+            "length",
+            60,
+            "apie 60 m segmentinės tvoros",
+          ),
           fenceFact("fence_height", "height", 1.7, "1,7 m aukščio"),
           gateOptOutFact("Vartai nereikalingi"),
         ],
@@ -361,7 +369,10 @@ describe("realistic inquiry cases", () => {
     assert.deepEqual(result.decisionResult.questionsToAsk, [
       "Kokio tipo tvorą svarstote?",
     ]);
-    assert.equal(result.draftText, "Patikslinkite: Kokio tipo tvorą svarstote?");
+    assert.equal(
+      result.draftText,
+      "Patikslinkite: Kokio tipo tvorą svarstote?",
+    );
   });
 
   it("rejects an LLM review signal whose evidence is not verbatim in the text", async () => {
@@ -658,10 +669,30 @@ const rules: ClientRules = {
   ],
   availabilityRules: [],
   locationZones: [
-    { adminUnitCode: "vilniaus_m_sav", zone: "zone_a", travelFeeEur: 0, served: true },
-    { adminUnitCode: "vilniaus_r_sav", zone: "zone_a", travelFeeEur: 0, served: true },
-    { adminUnitCode: "kauno_m_sav", zone: "zone_b", travelFeeEur: 0, served: true },
-    { adminUnitCode: "klaipedos_m_sav", zone: "zone_b", travelFeeEur: 0, served: true },
+    {
+      adminUnitCode: "vilniaus_m_sav",
+      zone: "zone_a",
+      travelFeeEur: 0,
+      served: true,
+    },
+    {
+      adminUnitCode: "vilniaus_r_sav",
+      zone: "zone_a",
+      travelFeeEur: 0,
+      served: true,
+    },
+    {
+      adminUnitCode: "kauno_m_sav",
+      zone: "zone_b",
+      travelFeeEur: 0,
+      served: true,
+    },
+    {
+      adminUnitCode: "klaipedos_m_sav",
+      zone: "zone_b",
+      travelFeeEur: 0,
+      served: true,
+    },
   ],
   scheduleRules: [{ rule: { type: "lead_time_weeks", min: 3, max: 5 } }],
   autosendPolicies: [

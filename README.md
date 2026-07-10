@@ -12,8 +12,8 @@ accurate quote, a preliminary work-start window, and one follow-up — while
 keeping final quotes and dates under the owner's control.
 
 This repository contains the landing page plus the first minimal product
-surface: a DB-backed client dashboard and test tool. It still intentionally
-does not include auth, payments, CRM, or advanced integrations.
+surface: an authenticated, DB-backed client dashboard and test tool. It still
+intentionally does not include payments, CRM, or advanced integrations.
 
 ## Documentation
 
@@ -131,21 +131,20 @@ locally and on Railway without changes.
 Copy `.env.example` → `.env.local` for local dev. In Railway, set these in the
 service **Variables** tab.
 
-| Variable                       | Required  | Scope       | Description                                                                                                        |
-| ------------------------------ | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`         | Yes       | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
-| `LEAD_WEBHOOK_URL`             | No        | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
-| `DATABASE_URL`                 | Dashboard | Server only | PostgreSQL connection string used by Prisma. Dashboard routes fail clearly without it.                             |
-| `FIRSTREPLY_DEFAULT_CLIENT_ID` | Dashboard | Server only | Temporary server-side client resolution until auth exists. Must match a real `clients.id`.                         |
-| `OPENAI_API_KEY`               | Test tool | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
-| `OPENAI_MODEL`                 | Test tool | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
-| `LLM_FIRST_PARSE`              | No        | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
-| `SHADOW_AI_PARSE`              | No        | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
-| `NODE_ENV`                     | Auto      | Server      | `development` locally; Railway sets `production` automatically.                                                    |
+| Variable                  | Required    | Scope       | Description                                                                                                        |
+| ------------------------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`    | Yes         | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
+| `LEAD_WEBHOOK_URL`        | No          | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
+| `DATABASE_URL`            | Dashboard   | Server only | PostgreSQL connection string used by Prisma. Dashboard routes fail clearly without it.                             |
+| `SUPER_ADMIN_SIGNUP_CODE` | Admin setup | Server only | Secret required by `/super-admin/signup`. Use at least 24 random characters and rotate it after setup.             |
+| `OPENAI_API_KEY`          | Test tool   | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
+| `OPENAI_MODEL`            | Test tool   | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
+| `LLM_FIRST_PARSE`         | No          | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
+| `SHADOW_AI_PARSE`         | No          | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
+| `NODE_ENV`                | Auto        | Server      | `development` locally; Railway sets `production` automatically.                                                    |
 
-> **Security:** `LEAD_WEBHOOK_URL` is a server-only secret — it is never
-> prefixed with `NEXT_PUBLIC_` and never sent to the browser. Do not put
-> secrets in `NEXT_PUBLIC_*` variables.
+> **Security:** `LEAD_WEBHOOK_URL` and `SUPER_ADMIN_SIGNUP_CODE` are server-only
+> secrets — never prefix them with `NEXT_PUBLIC_` or expose them to the browser.
 
 ### How lead capture works
 
@@ -172,9 +171,12 @@ npm run db:generate
 npm run db:migrate
 ```
 
-Until auth exists, set `FIRSTREPLY_DEFAULT_CLIENT_ID` to an existing
-`clients.id`. If there are no active services and rules for that client,
-`/dashboard/test` shows the empty state and does not allow testing.
+Visit `/signup` to create a new company, client, and owner account. Every
+signup creates a separate client. To administer the existing seeded client
+`id=1`, configure `SUPER_ADMIN_SIGNUP_CODE`, create an account at
+`/super-admin/signup`, and select that client in the dashboard. If the selected
+client has no active services and rules, `/dashboard/test` shows the empty
+state and does not allow testing.
 
 ---
 
@@ -241,8 +243,8 @@ in [`railway.json`](./railway.json): build with `npm run build`, start with
 
 The skeleton keeps future work easy:
 
-- Add authenticated app routes under `app/(app)/…` or wire auth into the
-  existing dashboard client resolution.
+- Add email verification, password reset, invitations, and additional company
+  members to the existing authentication flow.
 - The public lead API route is still the launch/contact intake. Product leads
   live in the Prisma `leads` table.
 - All copy lives in `lib/constants.ts`; the lead contract lives in

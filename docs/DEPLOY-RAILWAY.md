@@ -31,17 +31,16 @@ Build konfigūracija jau yra [`railway.json`](../railway.json): Nixpacks,
 App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais —
 [`.env.example`](../.env.example)):
 
-| Kintamasis                     | Privalomas    | Reikšmė                                                                                                                                                                                 |
-| ------------------------------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                 | Taip          | Reference į Postgres servisą: `${{Postgres.DATABASE_URL}}`                                                                                                                              |
-| `FIRSTREPLY_DEFAULT_CLIENT_ID` | Taip          | Kliento ID iš `clients` lentelės. Po seed — `1` (DEV klientas).                                                                                                                         |
-| `NEXT_PUBLIC_SITE_URL`         | Taip          | Viešas URL be pasvirojo brūkšnio gale, pvz. `https://firstreply.lt` arba `https://<app>.up.railway.app`. Naudojamas SEO/sitemap — **pakeitus reikia redeploy** (build-time kintamasis). |
-| `OPENAI_API_KEY`               | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
-| `OPENAI_MODEL`                 | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
-| `LLM_FIRST_PARSE`              | Ne            | `true` įjungia eksperimentinį LLM-first parserį tik `/dashboard/test`. Default `false` palieka deterministinį parserį.                                                                  |
-| `SHADOW_AI_PARSE`              | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
-| `SUPER_ADMIN_ENABLED`          | Ne            | `true` produkcijoje įjungia `/dashboard/super-admin`. Default išjungta; naudokite tik sąmoningam vidiniam/test konfigūravimui.                                                          |
-| `LEAD_WEBHOOK_URL`             | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
+| Kintamasis                | Privalomas    | Reikšmė                                                                                                                                                                                 |
+| ------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | Taip          | Reference į Postgres servisą: `${{Postgres.DATABASE_URL}}`                                                                                                                              |
+| `SUPER_ADMIN_SIGNUP_CODE` | Admin setup   | Bent 24 atsitiktinių simbolių kodas, reikalingas `/super-admin/signup`; po pradinės registracijos jį pakeiskite arba pašalinkite.                                                       |
+| `NEXT_PUBLIC_SITE_URL`    | Taip          | Viešas URL be pasvirojo brūkšnio gale, pvz. `https://firstreply.lt` arba `https://<app>.up.railway.app`. Naudojamas SEO/sitemap — **pakeitus reikia redeploy** (build-time kintamasis). |
+| `OPENAI_API_KEY`          | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
+| `OPENAI_MODEL`            | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
+| `LLM_FIRST_PARSE`         | Ne            | `true` įjungia eksperimentinį LLM-first parserį tik `/dashboard/test`. Default `false` palieka deterministinį parserį.                                                                  |
+| `SHADOW_AI_PARSE`         | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
+| `LEAD_WEBHOOK_URL`        | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
 
 `NODE_ENV=production` ir `PORT` Railway nustato pats — jų kurti nereikia.
 
@@ -71,8 +70,7 @@ railway run npm run db:migrate
 
 ## 4. Pradinis duomenų užpildymas (seed)
 
-Švariai DB reikia bent vieno kliento su taisyklėmis — kitaip dashboard rodys
-klaidą, o `FIRSTREPLY_DEFAULT_CLIENT_ID` neturės į ką rodyti.
+Seed sukuria pradinį klientą su taisyklėmis, kurį gali pasirinkti Super Admin.
 
 ```bash
 railway run npm run db:seed
@@ -80,10 +78,10 @@ railway run npm run db:seed
 
 Seed yra **idempotentiškas** (upsert) ir sukuria DEV klientą (`id = "1"`,
 „DEV Tvorų gamyba ir montavimas“) su 3 paslaugomis, kainodara, klausimais,
-užimtumu, šablonais ir Lietuvos savivaldybių žemėlapiu. Realiam klientui:
-paleiskite seed, tada per dashboard susiveskite tikrus pavadinimus/kainas,
-arba sukurkite atskirą kliento eilutę DB ir atnaujinkite
-`FIRSTREPLY_DEFAULT_CLIENT_ID`.
+užimtumu, šablonais ir Lietuvos savivaldybių žemėlapiu. Jis automatiškai
+nepriskiriamas paprastam vartotojui. Prisiregistruokite per
+`/super-admin/signup`, dashboarde pasirinkite klientą `id=1` ir tada
+konfigūruokite jį. Nauji realūs klientai registruojasi per `/signup`.
 
 Jei testavote techninę konfigūraciją per `/dashboard/super-admin`, po seed'o
 patikrinkite ją dar kartą: DEV kliento paslaugos, temos, requirements ir
@@ -95,13 +93,14 @@ response templates gali būti perrašyti pagal seed duomenis.
 Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
 
 1. **`/`** atsidaro (healthcheck jau tikrina šitą) — landing veikia.
-2. **`/dashboard`** rodo užklausų sąrašą (ne klaidą) — DB pasiekiama,
-   migracijos pritaikytos, `FIRSTREPLY_DEFAULT_CLIENT_ID` teisingas.
-3. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
+2. **`/super-admin/signup`** sukuria administratorių su nustatytu registracijos
+   kodu, o dashboarde galima pasirinkti klientą `id=1`.
+3. **`/dashboard`** rodo pasirinkto kliento užklausų sąrašą — DB ir sesija veikia.
+4. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
    „Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje.
    Kiek kainuotų?“ → turi grįžti parengtas atsakymas su kaina — veikia visas
    pipeline, įskaitant OpenAI.
-4. Jei 3 žingsnis grąžina „AI generation is not configured“ — patikrinkite
+5. Jei 4 žingsnis grąžina „AI generation is not configured“ — patikrinkite
    `OPENAI_API_KEY` / `OPENAI_MODEL`.
 
 ## 6. Domenas
@@ -112,15 +111,15 @@ Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
 
 ## Dažnos problemos
 
-| Simptomas                                      | Priežastis / sprendimas                                                                                          |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).            |
-| Dashboard: kliento klaida / tuščia             | `FIRSTREPLY_DEFAULT_CLIENT_ID` nesutampa su `clients.id` DB → paleiskite seed arba pataisykite kintamąjį.        |
-| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                    |
-| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu. |
-| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                         |
-| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                            |
-| Super Admin nematomas produkcijoje             | Tai numatyta. Įjunkite tik laikinai/sąmoningai su `SUPER_ADMIN_ENABLED=true` ir redeploy.                        |
+| Simptomas                                      | Priežastis / sprendimas                                                                                             |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).               |
+| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed. |
+| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                       |
+| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.    |
+| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                            |
+| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                               |
+| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.    |
 
 ## Atnaujinimai
 

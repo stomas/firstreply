@@ -1,6 +1,5 @@
 import { Prisma } from "@prisma/client";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
-export { isSuperAdminEnabled } from "@/lib/dashboard/super-admin-access";
 
 type FormResult<T> =
   | { ok: true; value: T }

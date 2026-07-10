@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logoutAction, selectSuperAdminClientAction } from "@/app/auth/actions";
 import type {
   DashboardNavItem,
   DashboardNavSection,
@@ -10,13 +11,21 @@ import { cn } from "@/lib/utils";
 
 export function DashboardSidebar({
   sections,
+  email,
+  isSuperAdmin,
+  clientOptions,
+  selectedClientId,
 }: {
   sections: DashboardNavSection[];
+  email: string;
+  isSuperAdmin: boolean;
+  clientOptions: Array<{ id: string; companyName: string }>;
+  selectedClientId: string | null;
 }) {
   const pathname = usePathname();
 
   return (
-    <aside className="border-b border-line bg-white/95 px-4 py-4 shadow-cardsoft lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:px-5 lg:py-6 lg:shadow-none">
+    <aside className="border-b border-line bg-white/95 px-4 py-4 shadow-cardsoft lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r lg:px-5 lg:py-6 lg:shadow-none">
       <div className="flex items-center justify-between gap-3 lg:block">
         <Link
           href="/dashboard"
@@ -37,7 +46,7 @@ export function DashboardSidebar({
 
       <nav
         aria-label="Dashboard navigacija"
-        className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-8 lg:block lg:overflow-visible lg:pb-0"
+        className="mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-8 lg:block lg:flex-1 lg:overflow-visible lg:pb-0"
       >
         {sections.map((section) => (
           <div
@@ -59,6 +68,66 @@ export function DashboardSidebar({
           </div>
         ))}
       </nav>
+
+      <div className="mt-5 border-t border-line pt-4 lg:mt-auto">
+        {isSuperAdmin ? (
+          <form
+            action={selectSuperAdminClientAction}
+            className="mb-4 grid gap-2"
+          >
+            <label
+              htmlFor="dashboard-client"
+              className="text-xs font-extrabold uppercase tracking-[0.08em] text-ink-muted"
+            >
+              Aktyvus klientas
+            </label>
+            {clientOptions.length ? (
+              <>
+                <select
+                  id="dashboard-client"
+                  name="clientId"
+                  defaultValue={selectedClientId ?? undefined}
+                  className="min-h-10 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
+                >
+                  {clientOptions.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.companyName} ({client.id})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-brand-tintborder bg-brand-tint px-3 py-2 text-sm font-bold text-brand hover:bg-brand-reply"
+                >
+                  Perjungti klientą
+                </button>
+              </>
+            ) : (
+              <span className="text-sm text-ink-muted">
+                Aktyvių klientų nėra.
+              </span>
+            )}
+          </form>
+        ) : null}
+
+        <div
+          className="truncate text-xs font-semibold text-ink-soft"
+          title={email}
+        >
+          {email}
+        </div>
+        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+          {isSuperAdmin ? "Super Admin" : "Kliento paskyra"}
+        </div>
+        <form action={logoutAction} className="mt-3">
+          <button
+            type="submit"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm font-bold text-ink-soft hover:bg-line-soft hover:text-ink"
+          >
+            Atsijungti
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

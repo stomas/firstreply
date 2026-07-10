@@ -16,17 +16,24 @@ Sistema atsakymą parengia tik tada, kai turi iš ko: jūsų suvestos paslaugos,
 kainodara, klausimai ir terminai. Kuo tvarkingesnė konfigūracija — tuo daugiau
 užklausų atsakoma automatiškai ir tuo mažiau patenka į rankinę peržiūrą.
 
+## Registracija ir prisijungimas
+
+Nauja įmonė registruojama per `/signup`. Registracija sukuria atskirą įmonės
+klientą ir savininko paskyrą. Vėliau jungiamasi per `/login`; dashboarde
+apačioje yra atsijungimo mygtukas. Kiekvienas įprastas vartotojas mato tik savo
+įmonės duomenis.
+
 ## Meniu apžvalga
 
-| Skiltis                                                    | Kam skirta                                                   |
-| ---------------------------------------------------------- | ------------------------------------------------------------ |
-| **Užklausos**                                              | Visos gautos užklausos ir jų būsenos.                        |
-| **Testavimas**                                             | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą.     |
-| **Paslaugos**                                              | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.           |
-| **Taisyklės**                                              | Kainodara ir klausimai klientams.                            |
-| **Užimtumas**                                              | Kada ir kuriuose regionuose priimate užsakymus.              |
-| **Super Admin**                                            | Testinė techninė konfigūracija, matoma tik dev/admin režimu. |
-| Atsakymai, Follow-up, Ataskaitos, Integracijos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                              |
+| Skiltis                                                    | Kam skirta                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------- |
+| **Užklausos**                                              | Visos gautos užklausos ir jų būsenos.                    |
+| **Testavimas**                                             | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą. |
+| **Paslaugos**                                              | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.       |
+| **Taisyklės**                                              | Kainodara ir klausimai klientams.                        |
+| **Užimtumas**                                              | Kada ir kuriuose regionuose priimate užsakymus.          |
+| **Super Admin**                                            | Techninė konfigūracija, matoma tik Super Admin paskyrai. |
+| Atsakymai, Follow-up, Ataskaitos, Integracijos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                          |
 
 ---
 
@@ -155,8 +162,10 @@ patvirtinimu). Laikinam paslėpimui užtenka praėjusios galiojimo datos.
 ## Super Admin
 
 Super Admin yra techninis System Config puslapis testavimui ir vidiniam
-administravimui. Jis matomas lokaliai/dev aplinkoje; produkcijoje pasirodo tik
-tada, kai sąmoningai įjungtas `SUPER_ADMIN_ENABLED=true`.
+administravimui. Jis matomas tik `SUPER_ADMIN` paskyrai, kuri sukuriama per
+`/super-admin/signup` su serverio `SUPER_ADMIN_SIGNUP_CODE` reikšme. Šoninėje
+juostoje Super Admin pasirenka aktyvų klientą; visas dashboardas ir System
+Config tada rodo būtent to kliento duomenis.
 
 Puslapis turi dvi dalis. Viršuje yra **Operational Config** — tenant-level
 nustatymai, kurie galioja visam dabartiniam klientui. Žemiau yra pagal
