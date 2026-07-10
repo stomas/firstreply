@@ -1,10 +1,14 @@
 import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
-import { extractDeterministicFacts } from "@/lib/extractor/deterministic";
+import {
+  extractDeterministicFacts,
+  extractReviewSignals,
+} from "@/lib/extractor/deterministic";
 import type {
   AdminUnitLocation,
   ExtractedContacts,
   ExtractedFact,
   PrimaryIntent,
+  ReviewSignal,
 } from "@/lib/extractor/types";
 import {
   classifyLeadServiceWithFallback,
@@ -35,6 +39,7 @@ export type ParsedLeadData = {
   contacts: ExtractedContacts;
   location: AdminUnitLocation | null;
   facts: ExtractedFact[];
+  reviewSignals: ReviewSignal[];
   resolvedRequirements: RequirementResolutionResult["resolvedRequirements"];
   unresolvedRequirements: RequirementResolutionResult["unresolvedRequirements"];
   conflicts: RequirementResolutionResult["conflicts"];
@@ -68,6 +73,7 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
     contacts: extraction.contacts,
     location: extraction.location,
     facts: extraction.facts,
+    reviewSignals: extractReviewSignals(input.inquiryMessage),
     resolvedRequirements: {},
     unresolvedRequirements: [],
     conflicts: [],
@@ -158,6 +164,7 @@ export function toDecisionEngineInput(params: {
       isUrgent: params.parsed.isUrgent,
       primaryIntent: params.parsed.primaryIntent ?? "other",
     },
+    reviewSignals: params.parsed.reviewSignals,
     resolvedRequirements: params.parsed.resolvedRequirements,
     unresolvedRequirements: params.parsed.unresolvedRequirements,
     conflicts: params.parsed.conflicts,

@@ -152,6 +152,30 @@ describe("extractDeterministicFacts", () => {
     );
   });
 
+  it("parses comma decimals, area aliases, and inflected word numbers", () => {
+    const result = extractDeterministicFacts(
+      "Vartai 5,5 m, automatika 4,2 m, stoginė 32 kv. m ir kita 120 kvadratų, domofonas dviem varteliams bei keturiems įėjimams.",
+    );
+
+    assert.deepEqual(
+      result.facts
+        .filter((fact) => fact.kind === "measurement")
+        .map((fact) => [fact.value, fact.unit]),
+      [
+        [5.5, "m"],
+        [4.2, "m"],
+        [32, "m2"],
+        [120, "m2"],
+      ],
+    );
+    assert.deepEqual(
+      result.facts
+        .filter((fact) => fact.kind === "quantity")
+        .map((fact) => fact.value),
+      [2, 4],
+    );
+  });
+
   it("marks negated facts and does not use units when they are missing", () => {
     const result = extractDeterministicFacts("vartų nereikia, tik tvora 30");
 

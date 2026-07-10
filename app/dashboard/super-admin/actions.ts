@@ -6,12 +6,15 @@ import { getCurrentClient } from "@/lib/client-context";
 import {
   createSuperAdminPricingRule,
   createSuperAdminRequirement,
+  createSuperAdminService,
   createSuperAdminSubject,
   deactivateSuperAdminPricingRule,
   deactivateSuperAdminRequirement,
+  deleteSuperAdminService,
   deleteSuperAdminSubject,
   parseAdvancedRequirementForm,
   parsePricingBuilderForm,
+  parseSuperAdminServiceForm,
   parseSubjectForm,
   updateSuperAdminPricingRule,
   updateSuperAdminRequirement,
@@ -35,6 +38,33 @@ import {
 } from "@/lib/dashboard/super-admin-operational";
 
 const SUPER_ADMIN_PATH = "/dashboard/super-admin";
+
+export async function createSuperAdminServiceAction(formData: FormData) {
+  const parsed = parseSuperAdminServiceForm(formData);
+  if (!parsed.ok) {
+    redirectWithError(parsed.error);
+  }
+
+  const client = await getCurrentClient();
+  const result = await createSuperAdminService(client.id, parsed.value);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?updated=1`);
+}
+
+export async function deleteSuperAdminServiceAction(serviceId: string) {
+  const client = await getCurrentClient();
+  const result = await deleteSuperAdminService(client.id, serviceId);
+  if (!result.ok) {
+    redirectWithError(result.error);
+  }
+
+  revalidateSuperAdmin();
+  redirect(`${SUPER_ADMIN_PATH}?deleted=1`);
+}
 
 export async function createSuperAdminSubjectAction(formData: FormData) {
   const parsed = parseSubjectForm(formData);
@@ -341,6 +371,7 @@ export async function deactivateSuperAdminResponseTemplateAction(
 
 function revalidateSuperAdmin() {
   revalidatePath(SUPER_ADMIN_PATH);
+  revalidatePath("/dashboard/services");
   revalidatePath("/dashboard/test");
 }
 

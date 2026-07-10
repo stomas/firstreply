@@ -94,6 +94,21 @@ export type ExtractedIntents = {
   primaryIntent: PrimaryIntent | null;
 };
 
+// Universalūs (ne domeno) žmogaus peržiūros signalai: klientas lygina gautą
+// pasiūlymą, prašo įvertinimo vietoje arba mini esamą konstrukciją / nežinomą
+// būklę, kuri gali keisti darbų apimtį. Signalas niekada nekeičia faktų —
+// jis tik nukreipia sprendimą į manual review / blokuoja auto-send.
+export type ReviewSignalType =
+  | "competitor_price"
+  | "site_visit_requested"
+  | "unknown_site_conditions";
+
+export type ReviewSignal = {
+  type: ReviewSignalType;
+  evidence: string;
+  source: "deterministic" | "ai";
+};
+
 export type DeterministicExtractionResult = {
   schemaVersion: "lead_parse_v2";
   location: AdminUnitLocation | null;

@@ -417,6 +417,7 @@ function parseTraceStage(parsedLead: ParsedLeadData): LeadProcessingTraceStage {
         isUrgent: parsedLead.isUrgent,
       },
       facts: parsedLead.facts,
+      reviewSignals: parsedLead.reviewSignals,
     },
   };
 }
@@ -446,6 +447,7 @@ function llmFirstParseTraceStage(
         isUrgent: parsedLead.isUrgent,
       },
       facts: parsedLead.facts,
+      reviewSignals: parsedLead.reviewSignals,
       rawResponseCount: result.rawResponses.length,
       rawResponses: result.rawResponses,
       rejectedFindings: result.status === "ok" ? result.rejectedFindings : [],
@@ -578,6 +580,7 @@ function toLeadEvaluationResult(params: {
     matchedPricingRules: matchedPricingRules(
       params.decisionResult,
       params.rules,
+      params.serviceId,
     ),
     matchedAvailabilityRule:
       params.decisionResult.matchedAvailabilityRule ?? null,
@@ -605,14 +608,16 @@ function legacyResponseType(
 function matchedPricingRules(
   decisionResult: DecisionResult,
   rules: ClientRules,
+  serviceId: string | null,
 ): MatchedPricingRule[] {
   const pricingRuleId = decisionResult.priceEstimate?.pricingRuleId;
-  if (!pricingRuleId) {
-    return [];
-  }
 
   return rules.pricingRules
-    .filter((rule) => rule.id === pricingRuleId)
+    .filter((rule) =>
+      pricingRuleId
+        ? rule.id === pricingRuleId
+        : rule.active && rule.serviceId === serviceId,
+    )
     .map((rule) => ({
       id: rule.id,
       name: rule.name,

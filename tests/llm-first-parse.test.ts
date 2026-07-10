@@ -835,15 +835,18 @@ describe("LLM-first test lead parsing", () => {
       },
     });
 
-    assert.equal(result.decisionResult.decision, "MANUAL_REVIEW");
+    assert.equal(result.decisionResult.decision, "ASK_MISSING_INFO");
+    assert.equal(result.decisionResult.reason, "VALIDATION_FAILED");
     assert.deepEqual(result.parsedLead.conflicts, [
       {
         requirementKey: "fence_height",
         factRefs: ["llm_fact_2"],
         reason: "VALUE_OUT_OF_RANGE",
+        clarificationQuestion:
+          "Nurodytas 9 m aukštis viršija įprastą 0,8–3 m ribą. Ar galite patikslinti planuojamą aukštį?",
       },
     ]);
-    assert.equal(result.responseStatus, "manual_review");
+    assert.equal(result.responseStatus, "ready");
   });
 
   it("ignores LLM-provided price and ETA fields", async () => {

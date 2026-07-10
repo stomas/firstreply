@@ -70,6 +70,17 @@ function SidebarLink({
   item: DashboardNavItem;
   active: boolean;
 }) {
+  if (item.status === "placeholder") {
+    return (
+      <span className="flex min-h-10 cursor-default items-center justify-between gap-3 whitespace-nowrap rounded-lg border border-transparent px-3 py-2 text-sm font-bold text-ink-muted">
+        <span>{item.label}</span>
+        <span className="rounded-full bg-line-soft px-2 py-0.5 text-[11px] font-extrabold uppercase text-ink-muted">
+          Greit
+        </span>
+      </span>
+    );
+  }
+
   return (
     <Link
       href={item.href}
@@ -82,11 +93,6 @@ function SidebarLink({
       )}
     >
       <span>{item.label}</span>
-      {item.status === "placeholder" ? (
-        <span className="rounded-full bg-line-soft px-2 py-0.5 text-[11px] font-extrabold uppercase text-ink-muted">
-          Greit
-        </span>
-      ) : null}
     </Link>
   );
 }

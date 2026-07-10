@@ -8,6 +8,7 @@ import {
   isSuperAdminEnabled,
   parseAdvancedRequirementForm,
   parsePricingBuilderForm,
+  parseSuperAdminServiceForm,
   parseSubjectForm,
   subjectDeleteBlockedByRequirements,
 } from "../lib/dashboard/super-admin";
@@ -102,6 +103,33 @@ describe("super admin feature flag", () => {
       }),
       true,
     );
+  });
+});
+
+describe("super admin service form", () => {
+  it("parses a new client-scoped service", () => {
+    const formData = new FormData();
+    formData.set("name", " Segmentinės tvoros montavimas ");
+    formData.set("label", " Segmentinė tvora ");
+    formData.set("keywords", "tvora, tvoros, segmentinė, tvora");
+    formData.set("active", "on");
+
+    assert.deepEqual(parseSuperAdminServiceForm(formData), {
+      ok: true,
+      value: {
+        name: "Segmentinės tvoros montavimas",
+        label: "Segmentinė tvora",
+        keywords: ["tvora", "tvoros", "segmentinė"],
+        active: true,
+      },
+    });
+  });
+
+  it("requires a service name", () => {
+    assert.deepEqual(parseSuperAdminServiceForm(new FormData()), {
+      ok: false,
+      error: "Įveskite paslaugos pavadinimą.",
+    });
   });
 });
 

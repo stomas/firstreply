@@ -1,4 +1,5 @@
 import { resolveLocationText } from "@/lib/extractor/deterministic";
+import { hasGateAndAutomationCandidates } from "@/lib/leads/service-classifier";
 import { normalizeServiceText } from "@/lib/leads/service-specificity";
 import type {
   AvailabilityRule,
@@ -15,11 +16,51 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
   const base = baseDecision();
 
   if (input.conflicts.length > 0) {
+    const validationQuestions = input.conflicts
+      .filter(
+        (conflict) =>
+          conflict.reason === "VALUE_OUT_OF_RANGE" ||
+          conflict.reason === "VALUE_NOT_ALLOWED",
+      )
+      .map((conflict) => conflict.clarificationQuestion?.trim())
+      .filter((question): question is string => Boolean(question));
+    if (
+      validationQuestions.length === input.conflicts.length &&
+      validationQuestions.length > 0
+    ) {
+      return {
+        ...base,
+        decision: "ASK_MISSING_INFO",
+        reason: "VALIDATION_FAILED",
+        questionsToAsk: Array.from(new Set(validationQuestions)).slice(0, 3),
+        autoSendBlockedBy: ["VALIDATION_FAILED"],
+      };
+    }
+
     return {
       ...base,
       decision: "MANUAL_REVIEW",
       reason: "CONFLICTS",
       autoSendBlockedBy: ["CONFLICTS"],
+    };
+  }
+
+  // Žmogaus įvertinimo signalai (apžiūra vietoje, nežinoma esamos
+  // konstrukcijos būklė) → manual review nepriklausomai nuo paslaugos ar
+  // kainodaros: kaina be įvertinimo būtų nepagrįsta. competitor_price čia
+  // NEpatenka — jis tik blokuoja auto-send (žr. autoSendBlockers), kad
+  // žmogus nuspręstų dėl kainos palyginimo, bet draft'as paruošiamas.
+  const assessmentSignals = (input.reviewSignals ?? []).filter(
+    (signal) => signal.type !== "competitor_price",
+  );
+  if (assessmentSignals.length > 0) {
+    return {
+      ...base,
+      decision: "MANUAL_REVIEW",
+      reason: "REVIEW_SIGNALS",
+      autoSendBlockedBy: assessmentSignals.map(
+        (signal) => `REVIEW_SIGNAL:${signal.type}`,
+      ),
     };
   }
 
@@ -71,26 +112,14 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     const service = input.rules.services.find(
       (candidate) => candidate.id === input.service.id,
     );
-    const description = service?.offeringDescription?.trim();
-
-    if (description) {
-      return {
-        ...base,
-        decision: "OFFERING_ANSWER",
-        reason: "OFFERING_MATCHED",
-        offeringAnswer: {
-          description,
-          followup: service?.offeringFollowup?.trim() || null,
-        },
-        autoSendBlockedBy: ["OFFERING_ANSWER"],
-      };
-    }
-
     return {
       ...base,
-      decision: "MANUAL_REVIEW",
-      reason: "OFFERING_NOT_CONFIGURED",
-      autoSendBlockedBy: ["OFFERING_NOT_CONFIGURED"],
+      decision: "OFFERING_ANSWER",
+      reason: service?.offeringDescription?.trim()
+        ? "OFFERING_MATCHED"
+        : "OFFERING_SAFE_FALLBACK",
+      offeringAnswer: buildOfferingAnswer(input, service),
+      autoSendBlockedBy: ["OFFERING_ANSWER"],
     };
   }
 
@@ -125,8 +154,18 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     };
   }
 
-  const priceEstimate = findPriceEstimate(input);
-  if (!priceEstimate) {
+  const pricing = findPriceEstimate(input);
+  if (pricing.status !== "matched") {
+    if (pricing.status !== "no_rule") {
+      return {
+        ...base,
+        decision: "MANUAL_REVIEW",
+        reason: pricing.reason,
+        autoSendBlockedBy: [pricing.reason],
+        pricingDiagnostic: pricing.diagnostic,
+      };
+    }
+
     return {
       ...base,
       decision: "MANUAL_REVIEW",
@@ -137,7 +176,7 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
 
   const autoSendBlockedBy = autoSendBlockers(
     input,
-    priceEstimate.pricingRuleId,
+    pricing.estimate.pricingRuleId,
   );
 
   if (availability) {
@@ -153,7 +192,7 @@ export function decideLeadResponse(input: DecisionEngineInput): DecisionResult {
     ...base,
     decision: "PRICE_ESTIMATE",
     reason: "PRICE_RULE_MATCHED",
-    priceEstimate,
+    priceEstimate: pricing.estimate,
     leadTime: input.intents.asksAvailability
       ? findLeadTime(input.rules.scheduleRules ?? [], availability)
       : null,
@@ -252,11 +291,15 @@ function baseDecision(): DecisionResult {
     autoSendBlockedBy: [],
     offeringAnswer: null,
     manualReviewDraftText: null,
+    pricingDiagnostic: null,
   };
 }
 
 function buildUnsupportedServiceDraft(input: DecisionEngineInput): string {
   const evidence = input.service.evidence?.trim();
+  if (evidence && /saules\s+elektrin/u.test(normalizeServiceText(evidence))) {
+    return "Šiuo metu saulės elektrinių montavimo paslaugos neteikiame.";
+  }
   if (evidence) {
     return `Sveiki, ačiū už užklausą. Pagal pateiktą informaciją prašote paslaugos: „${evidence}“. Šiuo metu tokios paslaugos neteikiame.`;
   }
@@ -279,6 +322,16 @@ function buildServiceClarificationQuestion(
   );
   if (candidates.length === 0) {
     return null;
+  }
+
+  if (
+    input.service.reason === "multiple_services" &&
+    hasGateAndAutomationCandidates(
+      candidates.map((service) => service.id),
+      input.rules,
+    )
+  ) {
+    return "Ar reikia naujų vartų, automatikos esamiems vartams, ar abiejų sprendimų?";
   }
 
   if (candidates.some((service) => serviceLooksLikeFence(service.id, input))) {
@@ -330,29 +383,124 @@ function isLocationNotServed(input: DecisionEngineInput): boolean {
   return !zone?.served;
 }
 
-function findPriceEstimate(
-  input: DecisionEngineInput,
-): DecisionResult["priceEstimate"] {
+type PriceResolution =
+  | {
+      status: "matched";
+      estimate: NonNullable<DecisionResult["priceEstimate"]>;
+    }
+  | { status: "no_rule" }
+  | {
+      status: "invalid";
+      reason:
+        | "PRICING_RULE_UNSUPPORTED"
+        | "PRICING_RULE_NOT_CURRENT"
+        | "PRICING_RULE_REQUIREMENTS_UNRESOLVED";
+      diagnostic: string;
+    };
+
+function findPriceEstimate(input: DecisionEngineInput): PriceResolution {
   const serviceId = input.service.id;
   if (!serviceId) {
-    return null;
+    return { status: "no_rule" };
   }
 
-  for (const pricingRule of input.rules.pricingRules.filter(
+  const activeServiceRules = input.rules.pricingRules.filter(
     (rule) => rule.active && rule.serviceId === serviceId,
-  )) {
+  );
+  const currentRules = activeServiceRules.filter((rule) =>
+    isPricingRuleCurrent(rule, input.now ?? new Date()),
+  );
+  if (currentRules.length === 0) {
+    if (activeServiceRules.length > 0) {
+      return {
+        status: "invalid",
+        reason: "PRICING_RULE_NOT_CURRENT",
+        diagnostic:
+          "Paslaugai yra aktyvi kainodaros taisyklė, tačiau ji šiuo metu negalioja pagal validFrom/validTo.",
+      };
+    }
+    return { status: "no_rule" };
+  }
+
+  let firstInvalid: Extract<PriceResolution, { status: "invalid" }> | null =
+    null;
+  for (const pricingRule of currentRules) {
     const rule = asRecord(pricingRule.rule);
-    if (!rule || rule.type !== "per_unit") {
+    if (!rule) {
+      firstInvalid ??= unsupportedPricingRule(
+        pricingRule,
+        "rule JSON nėra objektas",
+      );
+      continue;
+    }
+
+    if (rule.type !== "per_unit" && rule.type !== "range_estimate") {
+      firstInvalid ??= unsupportedPricingRule(
+        pricingRule,
+        `nepalaikomas tipas „${String(rule.type)}“`,
+      );
+      continue;
+    }
+
+    const requirementKey = stringValue(rule.requirementKey);
+    const unit = stringValue(rule.unit);
+    if (!requirementKey || !unit) {
+      firstInvalid ??= unsupportedPricingRule(
+        pricingRule,
+        "trūksta rule.requirementKey arba rule.unit",
+      );
+      continue;
+    }
+
+    const requiredKeys = requiredKeysForRule(rule, requirementKey);
+    const missingKeys = requiredKeys.filter(
+      (key) => !hasResolvedValue(input, key),
+    );
+    if (missingKeys.length > 0) {
+      firstInvalid ??= {
+        status: "invalid",
+        reason: "PRICING_RULE_REQUIREMENTS_UNRESOLVED",
+        diagnostic: `Kainodaros taisyklei „${pricingRule.name}“ trūksta išspręstų reikšmių: ${missingKeys.join(", ")}.`,
+      };
+      continue;
+    }
+
+    if (rule.type === "range_estimate") {
+      const estimate = priceFromRangeRule(
+        input,
+        pricingRule,
+        rule,
+        requirementKey,
+        unit,
+      );
+      if (estimate) {
+        return { status: "matched", estimate };
+      }
+      firstInvalid ??= unsupportedPricingRule(
+        pricingRule,
+        "range_estimate reikia skaitinių priceMin ir priceMax bei skaitinės requirement reikšmės",
+      );
       continue;
     }
 
     const estimate = priceFromPerUnitRule(input, pricingRule, rule);
     if (estimate) {
-      return estimate;
+      return { status: "matched", estimate };
     }
+    firstInvalid ??= unsupportedPricingRule(
+      pricingRule,
+      "per_unit struktūra nepilna arba kiekio reikšmė nėra skaitinė",
+    );
   }
 
-  return null;
+  return (
+    firstInvalid ?? {
+      status: "invalid",
+      reason: "PRICING_RULE_UNSUPPORTED",
+      diagnostic:
+        "Aktyvi kainodaros taisyklė rasta, bet jos nepavyko pritaikyti.",
+    }
+  );
 }
 
 function priceFromPerUnitRule(
@@ -366,14 +514,6 @@ function priceFromPerUnitRule(
   const pricePerUnit = numberValue(rule.pricePerUnit);
 
   if (!requirementKey || !unit || pricePerUnit === null) {
-    return null;
-  }
-
-  const requiredKeys = Array.isArray(rule.requires)
-    ? rule.requires.filter((key): key is string => typeof key === "string")
-    : [requirementKey];
-
-  if (!requiredKeys.every((key) => hasResolvedValue(input, key))) {
     return null;
   }
 
@@ -394,6 +534,123 @@ function priceFromPerUnitRule(
     unitPrice,
     amount: roundMoney(quantity * unitPrice),
   };
+}
+
+function priceFromRangeRule(
+  input: DecisionEngineInput,
+  pricingRule: PricingRule,
+  rule: Record<string, unknown>,
+  requirementKey: string,
+  unit: string,
+): NonNullable<DecisionResult["priceEstimate"]> | null {
+  const amountMin = pricingRule.priceMin;
+  const amountMax = pricingRule.priceMax;
+  const quantity = numericRequirementValue(
+    input.resolvedRequirements[requirementKey],
+  );
+  if (
+    amountMin === null ||
+    amountMax === null ||
+    amountMin > amountMax ||
+    quantity === null
+  ) {
+    return null;
+  }
+
+  return {
+    pricingRuleId: pricingRule.id,
+    currency: stringValue(rule.currency) ?? "EUR",
+    unit: pricingRule.unit?.trim() || unit,
+    quantity,
+    unitPrice: null,
+    amount: null,
+    amountMin: roundMoney(amountMin),
+    amountMax: roundMoney(amountMax),
+  };
+}
+
+function requiredKeysForRule(
+  rule: Record<string, unknown>,
+  requirementKey: string,
+): string[] {
+  return Array.isArray(rule.requires)
+    ? Array.from(
+        new Set([
+          requirementKey,
+          ...rule.requires.filter(
+            (key): key is string => typeof key === "string",
+          ),
+        ]),
+      )
+    : [requirementKey];
+}
+
+function isPricingRuleCurrent(rule: PricingRule, now: Date): boolean {
+  const nowTime = now.getTime();
+  const validFrom = rule.validFrom ? new Date(rule.validFrom).getTime() : null;
+  const validTo = rule.validTo ? new Date(rule.validTo).getTime() : null;
+  return (
+    (validFrom === null || Number.isNaN(validFrom) || validFrom <= nowTime) &&
+    (validTo === null || Number.isNaN(validTo) || validTo >= nowTime)
+  );
+}
+
+function unsupportedPricingRule(
+  rule: PricingRule,
+  detail: string,
+): Extract<PriceResolution, { status: "invalid" }> {
+  return {
+    status: "invalid",
+    reason: "PRICING_RULE_UNSUPPORTED",
+    diagnostic: `Kainodaros taisyklė „${rule.name}“ techniškai nepalaikoma: ${detail}.`,
+  };
+}
+
+function buildOfferingAnswer(
+  input: DecisionEngineInput,
+  service: DecisionEngineInput["rules"]["services"][number] | undefined,
+): NonNullable<DecisionResult["offeringAnswer"]> {
+  const serviceLabel = service?.label?.trim() || service?.name.trim();
+  const description =
+    service?.offeringDescription?.trim() ||
+    (serviceLabel
+      ? `Taip, šią paslaugą teikiame: ${serviceLabel}.`
+      : "Taip, šią paslaugą teikiame.");
+  const hasRequiredMissing = input.unresolvedRequirements.some(
+    (requirement) => requirement.required,
+  );
+  const pricing = hasRequiredMissing
+    ? null
+    : findPriceEstimate({ ...input, intents: { ...input.intents } });
+  const followup =
+    pricing?.status === "matched"
+      ? `Orientacinė kaina: ${formatPriceAmount(pricing.estimate)} ${pricing.estimate.currency}.`
+      : service?.offeringFollowup?.trim() ||
+        input.unresolvedRequirements.find((requirement) => requirement.required)
+          ?.question ||
+        null;
+
+  return { description, followup };
+}
+
+function formatPriceAmount(
+  estimate: NonNullable<DecisionResult["priceEstimate"]>,
+): string {
+  if (
+    typeof estimate.amountMin === "number" &&
+    typeof estimate.amountMax === "number"
+  ) {
+    return `${formatNumber(estimate.amountMin)}–${formatNumber(estimate.amountMax)}`;
+  }
+  return typeof estimate.amount === "number"
+    ? formatNumber(estimate.amount)
+    : "";
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : String(value).replace(".", ",");
 }
 
 function modifierDelta(input: DecisionEngineInput, modifiers: unknown): number {
@@ -465,6 +722,16 @@ function autoSendBlockers(
   // skuba gali reikšti kitą kainodarą ar terminų derinimą.
   if (input.intents.isUrgent) {
     blockers.push("URGENT");
+  }
+
+  // Klientas lygina gautą pasiūlymą: kainą paskaičiuojame pagal taisykles,
+  // bet žmogus nusprendžia, ar ir kaip konkuruoti — jokių pažadų automatu.
+  if (
+    (input.reviewSignals ?? []).some(
+      (signal) => signal.type === "competitor_price",
+    )
+  ) {
+    blockers.push("REVIEW_SIGNAL:competitor_price");
   }
 
   const pricingRule = input.rules.pricingRules.find(

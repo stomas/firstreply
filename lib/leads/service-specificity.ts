@@ -23,6 +23,12 @@ const genericServiceTerms = new Set([
   "aptverima",
   "aptverti",
   "aptvert",
+  "vartai",
+  "vartu",
+  "vartus",
+  "vartams",
+  "varteliai",
+  "varteliu",
   "sklypo",
   "sklypa",
   "kiemo",
@@ -132,6 +138,11 @@ export function findUnsupportedOfferingEvidence({
   rules: ClientRules;
   text: string;
 }): string | null {
+  const clearlyUnsupported = findClearlyUnsupportedService(text);
+  if (clearlyUnsupported) {
+    return clearlyUnsupported;
+  }
+
   const words = Array.from(text.matchAll(/[\p{Letter}\p{Number}²]+/gu));
   const supportedTerms = new Set<string>();
   for (const service of rules.services) {
@@ -184,6 +195,13 @@ export function findUnsupportedOfferingEvidence({
   const start = words[first].index ?? 0;
   const end = (words[last].index ?? 0) + words[last][0].length;
   return text.slice(start, end);
+}
+
+function findClearlyUnsupportedService(text: string): string | null {
+  const match = text.match(
+    /saulės\s+elektrin(?:ė|e|ės|es|ę|ių|iu|ei|ėms|ems)(?:\s+montavim\w*)?(?:\s+ant\s+stog\w*)?/iu,
+  );
+  return match?.[0]?.trim() ?? null;
 }
 
 function distinctiveTermsForService(

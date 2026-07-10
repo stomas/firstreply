@@ -8,6 +8,13 @@ type FormResult<T> =
 
 type JsonRecord = Record<string, unknown>;
 
+export type SuperAdminServiceForm = {
+  name: string;
+  label: string | null;
+  keywords: string[];
+  active: boolean;
+};
+
 export type SuperAdminSubjectForm = {
   serviceId: string;
   subjectId: string | null;
@@ -224,6 +231,25 @@ export function summarizeSuperAdminConfig(
       (count, group) => count + countBrokenReferences(group),
       0,
     ),
+  };
+}
+
+export function parseSuperAdminServiceForm(
+  formData: FormData,
+): FormResult<SuperAdminServiceForm> {
+  const name = textValue(formData, "name");
+  if (!name) {
+    return { ok: false, error: "Įveskite paslaugos pavadinimą." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      name,
+      label: nullableTextValue(formData, "label"),
+      keywords: splitList(textValue(formData, "keywords")),
+      active: formData.get("active") === "on",
+    },
   };
 }
 
@@ -655,6 +681,64 @@ export function isRequirementKeyReferenced(
       pricingRule.active &&
       requirementKeyInRule(requirementKey, pricingRule.rule),
   );
+}
+
+export async function createSuperAdminService(
+  clientId: string,
+  value: SuperAdminServiceForm,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { tenantId: true },
+  });
+  if (!client) {
+    return { ok: false, error: "Klientas nerastas." };
+  }
+
+  const duplicate = await prisma.service.findFirst({
+    where: {
+      clientId,
+      name: { equals: value.name, mode: "insensitive" },
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    return {
+      ok: false,
+      error: `Paslauga pavadinimu „${value.name}“ šiam klientui jau yra.`,
+    };
+  }
+
+  await prisma.service.create({
+    data: {
+      clientId,
+      tenantId: client.tenantId,
+      name: value.name,
+      label: value.label,
+      keywords: value.keywords as Prisma.InputJsonArray,
+      active: value.active,
+    },
+  });
+
+  return { ok: true };
+}
+
+export async function deleteSuperAdminService(
+  clientId: string,
+  serviceId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  assertDatabaseConfigured();
+
+  const deleted = await prisma.service.deleteMany({
+    where: { id: serviceId, clientId },
+  });
+  if (deleted.count === 0) {
+    return { ok: false, error: "Paslauga nerasta." };
+  }
+
+  return { ok: true };
 }
 
 export async function createSuperAdminSubject(

@@ -11,24 +11,59 @@ export function factMatchesExpectedFact(
 
   if (
     typeof expectedFact.kind === "string" &&
-    fact.kind !== expectedFact.kind
+    fact.kind !== expectedFact.kind &&
+    !isQuantityCompatibleWithConfiguredMeasurement(fact, expectedFact)
   ) {
     return false;
   }
 
   if (
     typeof expectedFact.dimension === "string" &&
-    fact.dimension !== expectedFact.dimension
+    fact.dimension !== expectedFact.dimension &&
+    !isQuantityCompatibleWithConfiguredMeasurement(fact, expectedFact)
   ) {
     return false;
   }
 
   const units = expectedUnits(expectedFact);
-  if (units.length > 0 && (!fact.unit || !units.includes(fact.unit))) {
+  if (
+    units.length > 0 &&
+    (!fact.unit ||
+      !units.some((unit) => normalizeUnit(unit) === normalizeUnit(fact.unit!)))
+  ) {
     return false;
   }
 
   return true;
+}
+
+function isQuantityCompatibleWithConfiguredMeasurement(
+  fact: ExtractedFact,
+  expectedFact: Record<string, unknown>,
+): boolean {
+  if (fact.kind !== "quantity" || expectedFact.kind !== "measurement") {
+    return false;
+  }
+
+  return expectedUnits(expectedFact).some(
+    (unit) => normalizeUnit(unit) === "vnt",
+  );
+}
+
+function normalizeUnit(unit: string): string {
+  const normalized = unit
+    .trim()
+    .toLocaleLowerCase("lt-LT")
+    .replace(/²/gu, "2")
+    .replace(/[.\s]/gu, "");
+
+  if (normalized === "m2") {
+    return "m2";
+  }
+  if (normalized.startsWith("vnt") || normalized === "vienetai") {
+    return "vnt";
+  }
+  return normalized;
 }
 
 export function validateFactValue(

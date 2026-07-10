@@ -31,12 +31,14 @@ import {
   createSuperAdminRequirementAction,
   createSuperAdminResponseTemplateAction,
   createSuperAdminScheduleRuleAction,
+  createSuperAdminServiceAction,
   createSuperAdminSubjectAction,
   deactivateSuperAdminResponseTemplateAction,
   deactivateSuperAdminPricingRuleAction,
   deactivateSuperAdminRequirementAction,
   deleteSuperAdminLocationZoneAction,
   deleteSuperAdminScheduleRuleAction,
+  deleteSuperAdminServiceAction,
   saveSuperAdminAutosendPolicyAction,
   updateSuperAdminLocationZoneAction,
   deleteSuperAdminSubjectAction,
@@ -130,6 +132,12 @@ export default async function SuperAdminPage({ searchParams }: PageProps) {
         />
 
         <OperationalConfigPanel config={operationalConfig} />
+
+        <section className="mt-6">
+          <InlineCreate title="Nauja paslauga">
+            <ServiceCreateForm />
+          </InlineCreate>
+        </section>
 
         {config.groups.length === 0 ? (
           <EmptyState />
@@ -768,7 +776,12 @@ function ServiceConfigCard({
       unsupportedCount={unsupportedCount}
       brokenReferencesCount={brokenReferencesCount}
     >
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <DeleteButton
+          action={deleteSuperAdminServiceAction.bind(null, group.serviceId)}
+          label="Ištrinti visą paslaugą"
+          confirmText={`Ištrinti visą paslaugą „${group.serviceName}“? Kartu bus negrįžtamai ištrintos ${group.subjects.length} temos, ${group.requirements.length} klausimai, ${group.pricingRules.length} kainodaros taisyklės ir visi pasiekiamumo nustatymai. Užklausų istorija liks, bet nebebus susieta su šia paslauga.`}
+        />
         <Link
           href="/dashboard/test"
           className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft"
@@ -798,6 +811,44 @@ function ServiceConfigCard({
         <PricingRuleList group={group} />
       </ConfigSection>
     </SuperAdminServiceDetails>
+  );
+}
+
+function ServiceCreateForm() {
+  return (
+    <form
+      action={createSuperAdminServiceAction}
+      className="grid gap-3 rounded-lg border border-line bg-line-soft p-4"
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextInput
+          name="name"
+          label="Vidinis paslaugos pavadinimas"
+          placeholder="Segmentinės tvoros montavimas"
+          required
+        />
+        <TextInput
+          name="label"
+          label="Pavadinimas klientui"
+          placeholder="Segmentinė tvora"
+        />
+      </div>
+      <TextInput
+        name="keywords"
+        label="Atpažinimo raktažodžiai, atskirti kableliais"
+        placeholder="tvora, tvoros, segmentinė"
+      />
+      <CheckboxGrid>
+        <Checkbox name="active" label="Aktyvi" defaultChecked />
+      </CheckboxGrid>
+      <p className="text-xs leading-relaxed text-ink-muted">
+        Paslauga bus priskirta dabartiniam klientui. Temas, klausimus ir
+        kainodarą galėsite pridėti jos kortelėje po sukūrimo.
+      </p>
+      <div className="flex justify-end">
+        <SubmitButton>Sukurti paslaugą</SubmitButton>
+      </div>
+    </form>
   );
 }
 
@@ -1541,8 +1592,8 @@ function EmptyState() {
         Konfigūracijos įrašų nėra
       </h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-ink-soft">
-        Super Admin MVP 1 rodomas, kai dabartinis klientas turi paslaugų, temų,
-        requirements arba pricing rules.
+        Dabartinis klientas paslaugų dar neturi. Sukurkite pirmą paslaugą
+        aukščiau esančioje formoje.
       </p>
     </section>
   );

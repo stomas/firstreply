@@ -302,7 +302,7 @@ describe("decideLeadResponse", () => {
     assert.equal(result.autoSend, false);
   });
 
-  it("manual-reviews an offering question when the service has no offering description", () => {
+  it("uses a safe offering fallback when the service has no offering description", () => {
     const result = decideLeadResponse({
       ...baseInput,
       intents: { ...baseInput.intents, primaryIntent: "asks_offering" },
@@ -310,10 +310,74 @@ describe("decideLeadResponse", () => {
       unresolvedRequirements: [],
     });
 
+    assert.equal(result.decision, "OFFERING_ANSWER");
+    assert.equal(result.reason, "OFFERING_SAFE_FALLBACK");
+    assert.deepEqual(result.autoSendBlockedBy, ["OFFERING_ANSWER"]);
+    assert.deepEqual(result.offeringAnswer, {
+      description: "Taip, šią paslaugą teikiame: Segmentinės tvoros.",
+      followup: null,
+    });
+  });
+
+  it("returns a fixed range estimate when a current range_estimate rule exists", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      rules: {
+        ...baseRules,
+        pricingRules: [
+          {
+            ...baseRules.pricingRules[0],
+            id: "price_gate_range",
+            priceMin: 950,
+            priceMax: 1800,
+            unit: "už vnt.",
+            autoSendAllowed: false,
+            rule: {
+              type: "range_estimate",
+              requirementKey: "fence_length",
+              unit: "m",
+              currency: "EUR",
+              requires: ["fence_length", "fence_height"],
+            },
+          },
+        ],
+      },
+    });
+
+    assert.equal(result.decision, "PRICE_ESTIMATE");
+    assert.deepEqual(result.priceEstimate, {
+      pricingRuleId: "price_gate_range",
+      currency: "EUR",
+      unit: "už vnt.",
+      quantity: 45,
+      unitPrice: null,
+      amount: null,
+      amountMin: 950,
+      amountMax: 1800,
+    });
+    assert.deepEqual(result.autoSendBlockedBy, [
+      "PRICING_RULE_BLOCKS_AUTOSEND",
+    ]);
+  });
+
+  it("reports an unsupported active pricing rule instead of NO_PRICING_RULE", () => {
+    const result = decideLeadResponse({
+      ...baseInput,
+      rules: {
+        ...baseRules,
+        pricingRules: [
+          {
+            ...baseRules.pricingRules[0],
+            rule: { type: "custom_pricing" },
+          },
+        ],
+      },
+    });
+
     assert.equal(result.decision, "MANUAL_REVIEW");
-    assert.equal(result.reason, "OFFERING_NOT_CONFIGURED");
-    assert.deepEqual(result.autoSendBlockedBy, ["OFFERING_NOT_CONFIGURED"]);
-    assert.equal(result.offeringAnswer ?? null, null);
+    assert.equal(result.reason, "PRICING_RULE_UNSUPPORTED");
+    assert.match(result.pricingDiagnostic ?? "", /custom_pricing/u);
+    assert.notEqual(result.reason, "NO_PRICING_RULE");
   });
 
   it("does not apply limited availability blockers to a price-only request", () => {

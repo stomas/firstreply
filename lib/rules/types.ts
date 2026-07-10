@@ -1,4 +1,4 @@
-import type { PrimaryIntent } from "@/lib/extractor/types";
+import type { PrimaryIntent, ReviewSignal } from "@/lib/extractor/types";
 
 export type RuleJson = Record<string, unknown> | Array<unknown> | null;
 
@@ -24,6 +24,8 @@ export type PricingRule = {
   disclaimerText: string | null;
   autoSendAllowed: boolean;
   active: boolean;
+  validFrom?: Date | string | null;
+  validTo?: Date | string | null;
   rule?: RuleJson;
 };
 
@@ -124,6 +126,7 @@ export type RequirementConflict = {
   requirementKey: string;
   factRefs: string[];
   reason: RequirementConflictReason;
+  clarificationQuestion?: string;
 };
 
 export type RequirementResolutionResult = {
@@ -186,6 +189,7 @@ export type DecisionEngineInput = RequirementResolutionResult & {
   location: DecisionLocationInput;
   city?: string | null;
   intents: DecisionIntentsInput;
+  reviewSignals?: ReviewSignal[];
   rules: ClientRules;
   now?: Date;
 };
@@ -206,9 +210,11 @@ export type PriceEstimate = {
   pricingRuleId: string;
   currency: string;
   unit: string;
-  quantity: number;
-  unitPrice: number;
-  amount: number;
+  quantity: number | null;
+  unitPrice: number | null;
+  amount: number | null;
+  amountMin?: number;
+  amountMax?: number;
 };
 
 export type LeadTimeEstimate = {
@@ -228,6 +234,7 @@ export type DecisionResult = {
   offeringAnswer?: OfferingAnswer | null;
   matchedAvailabilityRule?: MatchedAvailabilityRule | null;
   manualReviewDraftText?: string | null;
+  pricingDiagnostic?: string | null;
 };
 
 export type MissingRequirement = {

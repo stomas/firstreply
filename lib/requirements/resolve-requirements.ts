@@ -52,12 +52,25 @@ export function resolveRequirements({
       }
 
       resolvedRequirements[requirement.requirementKey] = null;
+      const clarificationQuestion = buildValidationClarification(
+        fact,
+        requirement.validation,
+        requirement.questionTextIfMissing,
+      );
       conflicts.push({
         requirementKey: requirement.requirementKey,
         factRefs: [fact.id],
         reason: validationIssue,
+        clarificationQuestion,
       });
-      unresolvedRequirements.push(toUnresolvedRequirement(requirement));
+      unresolvedRequirements.push(
+        toUnresolvedRequirement(
+          requirement,
+          "conflict",
+          [fact.id],
+          clarificationQuestion,
+        ),
+      );
       continue;
     }
 
@@ -157,14 +170,93 @@ function toUnresolvedRequirement(
   requirement: DecisionRequirement,
   status: UnresolvedRequirement["status"] = "unresolved",
   candidateFactRefs: string[] = [],
+  question: string = requirement.questionTextIfMissing,
 ): UnresolvedRequirement {
   return {
     requirementKey: requirement.requirementKey,
     label: requirement.label,
-    question: requirement.questionTextIfMissing,
+    question,
     required: requirement.required ?? true,
     affectsPrice: requirement.affectsPrice ?? false,
     status,
     candidateFactRefs,
   };
+}
+
+function buildValidationClarification(
+  fact: ExtractedFact,
+  validation: DecisionRequirement["validation"],
+  fallbackQuestion: string,
+): string {
+  const rule = asRecord(validation);
+  const value = numericFactValue(fact);
+  const min = typeof rule?.min === "number" ? rule.min : null;
+  const max = typeof rule?.max === "number" ? rule.max : null;
+
+  if (value === null || (min === null && max === null)) {
+    return fallbackQuestion;
+  }
+
+  const unit = displayUnit(fact.unit);
+  const dimension = dimensionLabels(fact.dimension);
+  const valueText = `${formatLtNumber(value)}${unit ? ` ${unit}` : ""}`;
+  const rangeText = [min, max]
+    .filter((bound): bound is number => bound !== null)
+    .map(formatLtNumber)
+    .join("–");
+  const rangeWithUnit = `${rangeText}${unit ? ` ${unit}` : ""}`;
+  const relation =
+    max !== null && value > max
+      ? `viršija įprastą ${rangeWithUnit} ribą`
+      : min !== null && value < min
+        ? `nesiekia įprastos ${rangeWithUnit} ribos`
+        : `neatitinka įprastos ${rangeWithUnit} ribos`;
+
+  return `Nurodytas ${valueText} ${dimension.nominative} ${relation}. Ar galite patikslinti planuojamą ${dimension.accusative}?`;
+}
+
+function numericFactValue(fact: ExtractedFact): number | null {
+  if (typeof fact.value === "number") {
+    return fact.value;
+  }
+  if (typeof fact.valueMax === "number") {
+    return fact.valueMax;
+  }
+  if (typeof fact.valueMin === "number") {
+    return fact.valueMin;
+  }
+  return null;
+}
+
+function displayUnit(unit: ExtractedFact["unit"]): string {
+  if (unit === "m2") {
+    return "m²";
+  }
+  if (unit === "vnt") {
+    return "vnt.";
+  }
+  return unit ?? "";
+}
+
+function dimensionLabels(dimension: ExtractedFact["dimension"]): {
+  nominative: string;
+  accusative: string;
+} {
+  if (dimension === "area") {
+    return { nominative: "plotas", accusative: "plotą" };
+  }
+  if (dimension === "width") {
+    return { nominative: "plotis", accusative: "plotį" };
+  }
+  if (dimension === "height") {
+    return { nominative: "aukštis", accusative: "aukštį" };
+  }
+  if (dimension === "count") {
+    return { nominative: "kiekis", accusative: "kiekį" };
+  }
+  return { nominative: "ilgis", accusative: "ilgį" };
+}
+
+function formatLtNumber(value: number): string {
+  return String(value).replace(".", ",");
 }

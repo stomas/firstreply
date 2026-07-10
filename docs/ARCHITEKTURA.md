@@ -126,6 +126,13 @@ blokeris `AVAILABILITY_AUTOSEND_DISABLED`. Matchintas įrašas grąžinamas per
 `DecisionResult.matchedAvailabilityRule` (matomas evaluation/trace). Be
 match'o — elgsena kaip anksčiau (terminas iš `ScheduleRule`).
 
+**Termino tekstas šablone** (`composer.ts`): trumpa frazė („3-5 sav.",
+„po 2 savaičių") įstatoma po šablono etikete (`Terminas: {{leadTimeWeeks}}.`),
+o sakinio formos reikšmė (prasideda didžiąja raide, pvz. „Terminą reikia
+tikslinti individualiai") pakeičia **visą** etiketės sakinį — kitaip gautųsi
+robotiškas „Preliminarus terminas: Terminą reikia tikslinti...". Atsitiktinis
+dvigubas taškas po reikšmės su tašku gale sulipdomas į vieną.
+
 `rule` JSON pavyzdys (žr. `prisma/seed.ts`):
 
 ```json
@@ -155,6 +162,22 @@ confidence juostos, `SERVICE_AI_CLASSIFIED` blokeris (AI klasifikuota paslauga
 **Skuba** (`isUrgent`): kainos draft'as paruošiamas įprastai, bet pridedamas
 `URGENT` autosend blokeris — siunčia žmogus, nes skuba gali reikšti kitą
 kainodarą ar terminų derinimą.
+
+**Žmogaus peržiūros signalai** (`ReviewSignal`, universalūs — ne domeno):
+
+| Signalas                  | Kada                                                            | Poveikis                                                            |
+| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `site_visit_requested`    | Klientas prašo atvykti įvertinti / apžiūrėti vietoje.            | `MANUAL_REVIEW / REVIEW_SIGNALS` — kaina be įvertinimo nepagrįsta.   |
+| `unknown_site_conditions` | Esama/sena konstrukcija ar nežinoma būklė, galinti keisti apimtį. | `MANUAL_REVIEW / REVIEW_SIGNALS`.                                    |
+| `competitor_price`        | Klientas lygina gautą/konkurento pasiūlymą.                      | Draft'as paruošiamas, bet blokeris `REVIEW_SIGNAL:competitor_price`. |
+
+Signalų šaltiniai: LLM-first parse grąžina `reviewSignals` su pažodiniu
+evidence (verifikuojamu per `verifyAiEvidence`; nepatvirtintas signalas →
+`rejectedFindings`), plius deterministinis saugiklis
+(`extractReviewSignals` — tik universalios frazės: „gavau pasiūlymą",
+„pasiūlyti pigiau/geriau", „įvertinti vietoje"). Abu keliai OR'inami,
+vienam tipui — vienas signalas. Signalai matomi parse trace stage'e ir
+persistuojasi `parse_result` JSON'e.
 
 ## 6. AI integracija — keturi kvietimai, viena taisyklė
 
@@ -346,7 +369,7 @@ būti pakeistas tik išsaugant palaikomą builder shape. Jei klientas neturi
 ## 10. Testai ir kokybės vartai
 
 ```bash
-npm test            # node:test, visi tests/*.test.ts (šiuo metu 173)
+npm test            # node:test, visi tests/*.test.ts (šiuo metu 213)
 npm run typecheck   # tsc --noEmit
 npm run lint        # next lint
 npm run build       # next build
@@ -356,6 +379,11 @@ Testų žemėlapis: deterministinis extractor'ius + 100 atvejų korpusas
 (`random-inquiries`), evidence/computation verifier'iai, gap filler, service
 classifier (+AI fallback), decision engine, golden pipeline (end-to-end su
 mock AI), derived facts, shadow parse, dashboard formų parseriai.
+`tests/realistic-cases.test.ts` — 12 realistiškų klientų užklausų scenarijų
+end-to-end (aiški / neaiški / dalinė / skubi / konkurento kaina / premium /
+apžiūra vietoje / nežinomas kiekis / struktūruota / nežinoma būklė / dalinė
+paslauga / trumpa social žinutė): kiekvienam matosi atpažinti faktai,
+trūkstama informacija, sprendimas, klausimai, blokeriai ir draft'as.
 
 Konvencija: kiekvienas pakeitimas turi praeiti visus keturis vartus prieš
 commit. AI kvietimai testuose visada mock'inami per `aiOptions.callModel`.

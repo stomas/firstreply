@@ -112,6 +112,8 @@ export async function getClientRules(clientId: string): Promise<ClientRules> {
       disclaimerText: rule.disclaimerText,
       autoSendAllowed: rule.autoSendAllowed,
       active: rule.active,
+      validFrom: rule.validFrom,
+      validTo: rule.validTo,
       rule: rule.rule as RuleJson,
     })),
     decisionRequirements: decisionRequirements.map((requirement) => ({

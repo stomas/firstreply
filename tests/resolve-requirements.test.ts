@@ -39,7 +39,7 @@ describe("resolveRequirements", () => {
     assert.deepEqual(result.conflicts, []);
   });
 
-  it("keeps a subject-null fact pending for AI binding instead of guessing", () => {
+  it("keeps a subject-null fact pending for verified subject binding", () => {
     const result = resolveRequirements({
       facts: [measurementFact({ id: "fact_1", subject: null, value: 45 })],
       requirements: [lengthRequirement],
@@ -101,11 +101,12 @@ describe("resolveRequirements", () => {
       {
         requirementKey: "fence_length",
         label: "Tvoros ilgis",
-        question: "Kiek metrų tvoros reikėtų?",
+        question:
+          "Nurodytas 900 m ilgis viršija įprastą 1–500 m ribą. Ar galite patikslinti planuojamą ilgį?",
         required: true,
         affectsPrice: true,
-        status: "unresolved",
-        candidateFactRefs: [],
+        status: "conflict",
+        candidateFactRefs: ["fact_1"],
       },
     ]);
     assert.deepEqual(result.conflicts, [
@@ -113,6 +114,8 @@ describe("resolveRequirements", () => {
         requirementKey: "fence_length",
         factRefs: ["fact_1"],
         reason: "VALUE_OUT_OF_RANGE",
+        clarificationQuestion:
+          "Nurodytas 900 m ilgis viršija įprastą 1–500 m ribą. Ar galite patikslinti planuojamą ilgį?",
       },
     ]);
   });

@@ -18,7 +18,10 @@
       "Bash(arch -arm64 node -p 'process.arch')",
       "Read(//opt/homebrew/**)",
       "Read(//opt/homebrew/bin/**)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(git -C /Users/stomas/firstreply status --short)",
+      "Bash(git -C /Users/stomas/firstreply diff --stat)",
+      "Bash(npx tsc *)"
     ]
   }
 }

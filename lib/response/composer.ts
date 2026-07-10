@@ -35,18 +35,21 @@ export function composeResponseDraft({
   const templateKey = templateKeyForDecision(decisionResult.decision);
   const templateValues = {
     questions: decisionResult.questionsToAsk.join(" "),
-    priceAmount: formatNumber(decisionResult.priceEstimate?.amount),
+    priceAmount: formatPriceAmount(decisionResult.priceEstimate),
     currency: decisionResult.priceEstimate?.currency ?? "",
     leadTimeWeeks: decisionResult.leadTime?.text ?? "",
     offeringDescription: decisionResult.offeringAnswer?.description ?? "",
     offeringFollowup: decisionResult.offeringAnswer?.followup ?? "",
   };
-  const draftText = templateKey
-    ? renderTemplate(
-        prepareTemplate(findTemplate(rules, templateKey), templateValues),
-        templateValues,
-      )
-    : (decisionResult.manualReviewDraftText ?? null);
+  const draftText =
+    templateKey === "offering_answer" && !hasTemplate(rules, "offering_answer")
+      ? composeOfferingFallback(decisionResult)
+      : templateKey
+        ? renderTemplate(
+            prepareTemplate(findTemplate(rules, templateKey), templateValues),
+            templateValues,
+          )
+        : (decisionResult.manualReviewDraftText ?? null);
   const autoSendBlockedBy = autoSendBlockers({
     decisionResult,
     rules,
@@ -119,6 +122,23 @@ function findTemplate(rules: ClientRules, templateKey: string): string {
   }
 
   return template.body;
+}
+
+function hasTemplate(rules: ClientRules, templateKey: string): boolean {
+  return Boolean(
+    (rules.responseTemplates ?? []).some(
+      (candidate) => candidate.active && candidate.templateKey === templateKey,
+    ),
+  );
+}
+
+function composeOfferingFallback(decisionResult: DecisionResult): string {
+  return [
+    decisionResult.offeringAnswer?.description?.trim(),
+    decisionResult.offeringAnswer?.followup?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function renderTemplate(
@@ -301,6 +321,19 @@ function formatNumber(value: number | null | undefined): string {
   }
 
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function formatPriceAmount(estimate: DecisionResult["priceEstimate"]): string {
+  if (!estimate) {
+    return "";
+  }
+  if (
+    typeof estimate.amountMin === "number" &&
+    typeof estimate.amountMax === "number"
+  ) {
+    return `${formatNumber(estimate.amountMin)}–${formatNumber(estimate.amountMax)}`;
+  }
+  return formatNumber(estimate.amount);
 }
 
 function unique(values: string[]): string[] {

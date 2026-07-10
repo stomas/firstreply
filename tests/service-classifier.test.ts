@@ -257,7 +257,7 @@ describe("classifyLeadServiceWithFallback", () => {
     assert.equal(called, false);
   });
 
-  it("still asks AI when the runner-up candidate is weak", async () => {
+  it("keeps a strong deterministic match when the runner-up is only generic", async () => {
     const { classification, ai } = await classifyLeadServiceWithFallback(
       {
         requestedServiceId: "",
@@ -276,9 +276,9 @@ describe("classifyLeadServiceWithFallback", () => {
     );
 
     assert.equal(classification.id, "service_specific");
-    assert.equal(classification.source, "ai");
-    assert.equal(ai.status, "ok");
-    assert.equal(ai.reason, "AI_MATCHED");
+    assert.equal(classification.source, "deterministic");
+    assert.equal(ai.status, "skipped");
+    assert.equal(ai.reason, "DETERMINISTIC_MATCH");
   });
 
   it("includes offering descriptions so AI can match horizontal skardine fences", async () => {

@@ -302,7 +302,7 @@ describe("golden lead pipeline", () => {
     );
   });
 
-  it("uses the AI service fallback when deterministic scoring finds no match", async () => {
+  it("uses inflection-aware deterministic matching before the AI fallback", async () => {
     const result = await runTestLeadPipeline({
       input: {
         ...baseInput(),
@@ -334,14 +334,16 @@ describe("golden lead pipeline", () => {
     });
 
     assert.equal(result.parsedLead.serviceId, "service_skardines_tvoros");
-    assert.equal(result.parsedLead.serviceClassification?.source, "ai");
+    assert.equal(
+      result.parsedLead.serviceClassification?.source,
+      "deterministic",
+    );
     assert.equal(result.decisionResult.decision, "ASK_MISSING_INFO");
     assert.deepEqual(
       result.trace.stages.map((stage) => [stage.key, stage.status]),
       [
         ["parse", "ok"],
         ["service_classification", "ok"],
-        ["ai_service_classification", "ok"],
         ["resolver_pass_1", "ok"],
         ["ai_gap_filler", "ok"],
         ["resolver_pass_2", "ok"],

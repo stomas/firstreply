@@ -8,6 +8,7 @@ import {
   type AiModelRequest,
 } from "@/lib/ai/openai-client";
 import {
+  findUnsupportedOfferingEvidence,
   isGenericServiceTerm,
   normalizeServiceText,
   serviceEvidenceIsSpecific,
@@ -21,6 +22,7 @@ export type ServiceClassificationReason =
   | "matched_terms"
   | "no_match"
   | "ambiguous"
+  | "multiple_services"
   | "ai_matched"
   | "unsupported_specific_service";
 
@@ -109,11 +111,17 @@ export function classifyLeadService({
     .sort((left, right) => right.score - left.score);
 
   if (scores.length === 0) {
+    const unsupportedEvidence = findUnsupportedOfferingEvidence({
+      rules,
+      text: message,
+    });
     return {
       id: null,
-      confidence: 0,
+      confidence: unsupportedEvidence ? 0.95 : 0,
       source: "deterministic",
-      reason: "no_match",
+      reason: unsupportedEvidence ? "unsupported_specific_service" : "no_match",
+      evidence: unsupportedEvidence,
+      evidenceVerified: Boolean(unsupportedEvidence),
       candidates: [],
     };
   }
@@ -128,7 +136,20 @@ export function classifyLeadService({
     matchedTerms: Array.from(score.matchedTerms).sort(),
   }));
 
-  if (top.score < 2 || (second && top.score - second.score < 2)) {
+  if (messageRequestsNewGatesAndAutomation(normalizedMessage, scores, rules)) {
+    return {
+      id: null,
+      confidence: 0.6,
+      source: "deterministic",
+      reason: "multiple_services",
+      candidates,
+    };
+  }
+
+  if (
+    (top.score < 2 && !isBroadCategoryService(top.service)) ||
+    (second && top.score - second.score < 2)
+  ) {
     return {
       id: null,
       confidence: Math.min(confidence, 0.6),
@@ -444,7 +465,11 @@ function scoreNormalizedTerm(
   baseWeight: number,
   matchedTerms: Set<string>,
 ): number {
-  if (!normalizedTerm || !hasPhrase(normalizedMessage, normalizedTerm)) {
+  const generic = isGenericServiceTerm(normalizedTerm);
+  const matches = generic
+    ? hasExactPhrase(normalizedMessage, normalizedTerm)
+    : hasPhrase(normalizedMessage, normalizedTerm);
+  if (!normalizedTerm || !matches) {
     return 0;
   }
 
@@ -453,7 +478,7 @@ function scoreNormalizedTerm(
   }
 
   matchedTerms.add(normalizedTerm);
-  return isGenericServiceTerm(normalizedTerm) ? 1 : baseWeight;
+  return generic ? genericCategoryWeight(normalizedTerm) : baseWeight;
 }
 
 function confidenceForScores(topScore: number, secondScore: number): number {
@@ -478,5 +503,132 @@ function tokens(text: string): string[] {
 }
 
 function hasPhrase(normalizedText: string, normalizedPhrase: string): boolean {
+  const textTokens = normalizedText.split(" ").filter(Boolean);
+  const phraseTokens = normalizedPhrase.split(" ").filter(Boolean);
+  if (phraseTokens.length === 0 || textTokens.length < phraseTokens.length) {
+    return false;
+  }
+
+  for (
+    let start = 0;
+    start <= textTokens.length - phraseTokens.length;
+    start += 1
+  ) {
+    if (
+      phraseTokens.every((token, index) =>
+        inflectedTokensMatch(textTokens[start + index], token),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasExactPhrase(
+  normalizedText: string,
+  normalizedPhrase: string,
+): boolean {
   return ` ${normalizedText} `.includes(` ${normalizedPhrase} `);
+}
+
+function inflectedTokensMatch(left: string, right: string): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.length < 5 || right.length < 5) {
+    return false;
+  }
+  if (left.startsWith("vart") && right.startsWith("vart")) {
+    return true;
+  }
+  return commonPrefixLength(left, right) >= 5;
+}
+
+function commonPrefixLength(left: string, right: string): number {
+  const max = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < max && left[index] === right[index]) {
+    index += 1;
+  }
+  return index;
+}
+
+function genericCategoryWeight(term: string): number {
+  return /^(tvor|vart)/u.test(term) ? 1 : 0;
+}
+
+function isBroadCategoryService(service: ServiceRule): boolean {
+  const label = normalizeServiceText(service.label ?? "");
+  return (
+    label === "tvora" ||
+    label === "tvoros" ||
+    (/\bvart\w*\b/u.test(label) &&
+      !/\b(automat\w*|varikl\w*|pultel\w*)\b/u.test(label))
+  );
+}
+
+function messageRequestsNewGatesAndAutomation(
+  normalizedMessage: string,
+  scores: ServiceScore[],
+  rules: ClientRules,
+): boolean {
+  const namesNewGates = /\bnauj\w*\s+vart\w*\b/u.test(normalizedMessage);
+  const namesAutomation = /\b(automat\w*|varikl\w*|pultel\w*)\b/u.test(
+    normalizedMessage,
+  );
+  if (!namesNewGates || !namesAutomation) {
+    return false;
+  }
+
+  return hasGateAndAutomationCandidates(
+    scores.map((score) => score.service.id),
+    rules,
+  );
+}
+
+export function hasGateAndAutomationCandidates(
+  serviceIds: string[],
+  rules: ClientRules,
+): boolean {
+  const services = rules.services.filter((service) =>
+    serviceIds.includes(service.id),
+  );
+
+  return (
+    services.some((service) => serviceRole(service, rules) === "automation") &&
+    services.some((service) => serviceRole(service, rules) === "new_gates")
+  );
+}
+
+function serviceRole(
+  service: ServiceRule,
+  rules: ClientRules,
+): "automation" | "new_gates" | "other" {
+  const vocabulary = normalizeServiceText(
+    [
+      service.name,
+      service.label ?? "",
+      ...(service.keywords ?? []),
+      ...(rules.serviceSubjects ?? [])
+        .filter((subject) => subject.serviceId === service.id)
+        .flatMap((subject) => [
+          subject.labelLt,
+          subject.descriptionLt,
+          ...subject.synonyms,
+        ]),
+    ].join(" "),
+  );
+
+  if (/\b(automat\w*|varikl\w*|pultel\w*)\b/u.test(vocabulary)) {
+    return "automation";
+  }
+  if (
+    /\bkiemo\b/u.test(vocabulary) ||
+    /\b(stumdom\w*|slankiojan\w*|varstom\w*)\b/u.test(vocabulary)
+  ) {
+    return "new_gates";
+  }
+  return "other";
 }

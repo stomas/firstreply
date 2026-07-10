@@ -12,6 +12,7 @@ import type {
   FactKind,
   MeasurementDimension,
   PrimaryIntent,
+  ReviewSignal,
 } from "@/lib/extractor/types";
 
 const PARSER_VERSION = "lead_parse_v2_deterministic_2026-07-04";
@@ -47,21 +48,37 @@ const wordNumberValues = new Map<string, number>(
   Object.entries({
     vienas: 1,
     viena: 1,
+    vienam: 1,
+    vienai: 1,
     du: 2,
     dvi: 2,
+    dviem: 2,
     trys: 3,
+    trims: 3,
     keturi: 4,
     keturios: 4,
+    keturiems: 4,
+    keturioms: 4,
     penki: 5,
     penkios: 5,
+    penkiems: 5,
+    penkioms: 5,
     sesi: 6,
     sesios: 6,
+    sesiems: 6,
+    sesioms: 6,
     septyni: 7,
     septynios: 7,
+    septyniems: 7,
+    septynioms: 7,
     astuoni: 8,
     astuonios: 8,
+    astuoniems: 8,
+    astuonioms: 8,
     devyni: 9,
     devynios: 9,
+    devyniems: 9,
+    devynioms: 9,
     desimt: 10,
     vienuolika: 11,
     dvylika: 12,
@@ -77,10 +94,10 @@ const wordNumberValues = new Map<string, number>(
 );
 
 const quantityNounPattern =
-  "(?:vartai|vartus|vartų|vartu|vartams|varteliai|vartelius|vartelių|varteliu|stulpai|stulpus|segmentas|segmentai|segmentus|segmentų|segmentu|segmento|segmentams|skydai|skydus|skydų|skydu|dalys|dalis|dalių|daliu)";
+  "(?:vartai|vartus|vartų|vartu|vartams|varteliai|vartelius|vartelių|varteliu|varteliams|įėjimas|iejimas|įėjimai|iejimai|įėjimų|iejimu|įėjimams|iejimams|stulpai|stulpus|segmentas|segmentai|segmentus|segmentų|segmentu|segmento|segmentams|skydai|skydus|skydų|skydu|dalys|dalis|dalių|daliu)";
 const itemCountUnitPattern = "(?:vnt\\.?|vienetai|vienetus|vienetu|vienetų)";
 const wordNumberPattern =
-  "vienas|viena|du|dvi|trys|keturi|keturios|penki|penkios|šeši|šešios|sesi|sesios|septyni|septynios|aštuoni|aštuonios|astuoni|astuonios|devyni|devynios|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt";
+  "vienas|viena|vienam|vienai|du|dvi|dviem|trys|trims|keturi|keturios|keturiems|keturioms|penki|penkios|penkiems|penkioms|šeši|šešios|šešiems|šešioms|sesi|sesios|sesiems|sesioms|septyni|septynios|septyniems|septynioms|aštuoni|aštuonios|aštuoniems|aštuonioms|astuoni|astuonios|astuoniems|astuonioms|devyni|devynios|devyniems|devynioms|dešimt|desimt|vienuolika|dvylika|trylika|keturiolika|penkiolika|šešiolika|sesiolika|septyniolika|aštuoniolika|astuoniolika|devyniolika|dvidešimt|dvidesimt";
 const meterWordPattern = "metras|metrai|metrų|metru|metro|metrus";
 
 export function extractDeterministicFacts(
@@ -270,6 +287,42 @@ export function extractIntents(message: string): ExtractedIntents {
       asksAvailability,
     }),
   };
+}
+
+// Deterministinis žmogaus peržiūros signalų saugiklis. Tik universalios,
+// nuo paslaugos tipo nepriklausančios frazės su maža klaidingo teigiamo
+// rizika; subtilesnius atvejus (pvz. neaiškią esamos konstrukcijos būklę)
+// atpažįsta LLM su evidence verifikacija. Signalai OR'inami su LLM signalais.
+const reviewSignalPatterns: Array<{
+  type: ReviewSignal["type"];
+  pattern: RegExp;
+}> = [
+  {
+    // „gavau pasiūlymą ... 42 €/m", „ar galėtumėte pasiūlyti pigiau/geriau"
+    type: "competitor_price",
+    pattern:
+      /\b(?:gavau|gavome|turiu|turime)\s+(?:\w+\s+){0,2}?pasiulym\w*|\bpasiulyt\w*\s+(?:pigiau|geriau)|\b(?:siulo|pasiule)\s+(?:uz\s+)?\d/u,
+  },
+  {
+    // „atvažiuotų įvertinti", „įvertinti/apžiūrėti vietoje"
+    type: "site_visit_requested",
+    pattern:
+      /\b(?:atvaziuot\w+|atvykt\w+)\s+(?:\w+\s+){0,3}?(?:ivertint\w+|apziuret\w+)|\b(?:ivertint\w+|apziuret\w+|ivertinim\w+|apziur\w+)\s+vietoje\b/u,
+  },
+];
+
+export function extractReviewSignals(message: string): ReviewSignal[] {
+  const normalized = normalizeSearchText(message);
+  const signals: ReviewSignal[] = [];
+
+  for (const { type, pattern } of reviewSignalPatterns) {
+    const match = normalized.match(pattern);
+    if (match?.[0]) {
+      signals.push({ type, evidence: match[0], source: "deterministic" });
+    }
+  }
+
+  return signals;
 }
 
 // Determinizmas: kainos intentas turi pirmenybę prieš offering (patvirtinta
@@ -596,8 +649,14 @@ function extractQuantityFacts(
     }
 
     const fact = nextFact("quantity", {
-      subject: null,
-      subjectSource: null,
+      subject: subjectForMeasurement(originalMessage, span.start, span.end),
+      subjectSource: subjectForMeasurement(
+        originalMessage,
+        span.start,
+        span.end,
+      )
+        ? "deterministic"
+        : null,
       dimension: "count",
       value,
       valueMin: null,
@@ -623,8 +682,14 @@ function extractQuantityFacts(
     }
 
     const fact = nextFact("quantity", {
-      subject: null,
-      subjectSource: null,
+      subject: subjectForMeasurement(originalMessage, span.start, span.end),
+      subjectSource: subjectForMeasurement(
+        originalMessage,
+        span.start,
+        span.end,
+      )
+        ? "deterministic"
+        : null,
       dimension: "count",
       value: parseNumber(match.groups.value),
       valueMin: null,
@@ -772,6 +837,32 @@ function dimensionForUnit(
     return nearestKnownDimension.dimension;
   }
 
+  const immediateServiceText = normalizeSearchText(
+    message.slice(
+      Math.max(0, spanStart - 30),
+      Math.min(message.length, spanEnd + 30),
+    ),
+  );
+  const nearbyServiceText = normalizeSearchText(
+    message.slice(
+      Math.max(0, spanStart - 80),
+      Math.min(message.length, spanEnd + 80),
+    ),
+  );
+  if (/\b(tvor\w*|skardin\w*|segmentin\w*)\b/u.test(immediateServiceText)) {
+    return "length";
+  }
+  if (/\b(stulp\w*|multifunkcin\w*)\b/u.test(nearbyServiceText)) {
+    return "height";
+  }
+  if (
+    /\b(slagbaum\w*|uztvar\w*|barjer\w*|vart\w*|automat\w*|varikl\w*)\b/u.test(
+      nearbyServiceText,
+    )
+  ) {
+    return "width";
+  }
+
   return "length";
 }
 
@@ -825,6 +916,21 @@ function subjectForMeasurement(
       Math.min(message.length, spanEnd + 80),
     ),
   );
+  if (/\b(automat\w*|vartu varikl\w*|pultel\w*)\b/u.test(nearbyText)) {
+    return "vartu_automatika";
+  }
+  if (/\b(slagbaum\w*|uztvar\w*|barjer\w*|parking\w*)\b/u.test(nearbyText)) {
+    return "automatinis_slagbaumas";
+  }
+  if (/\b(multifunkcin\w*|stulp\w*)\b/u.test(nearbyText)) {
+    return "multifunkcinis_stulpas";
+  }
+  if (/\b(stogin\w*|carport\w*)\b/u.test(nearbyText)) {
+    return "automobilio_stogine";
+  }
+  if (/\b(domofon\w*|telefonspyn\w*|iejim\w*)\b/u.test(nearbyText)) {
+    return "vaizdo_domofonas";
+  }
   const hasFenceContext = /\b(tvor\w*|skardin\w*|segmentin\w*)\b/u.test(
     nearbyText,
   );

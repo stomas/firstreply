@@ -10,7 +10,9 @@ import {
   type AiModelRequest,
 } from "@/lib/ai/openai-client";
 import {
+  extractDeterministicFacts,
   extractIntents,
+  extractReviewSignals,
   resolveLocationText,
 } from "@/lib/extractor/deterministic";
 import type {
@@ -21,10 +23,14 @@ import type {
   FactKind,
   MeasurementDimension,
   PrimaryIntent,
+  ReviewSignal,
 } from "@/lib/extractor/types";
 import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
 import type { ParsedLeadData } from "@/lib/leads/parse-lead";
-import type { ServiceClassification } from "@/lib/leads/service-classifier";
+import {
+  classifyLeadService,
+  type ServiceClassification,
+} from "@/lib/leads/service-classifier";
 import {
   serviceEvidenceIsSpecific,
   findUnsupportedOfferingEvidence,
@@ -60,10 +66,11 @@ export type LlmFirstParseRejectReason =
   | "EVIDENCE_NOT_FOUND"
   | "VALUE_NOT_IN_EVIDENCE"
   | "LOCATION_EVIDENCE_NOT_FOUND"
-  | "LOCATION_VALUE_NOT_IN_EVIDENCE";
+  | "LOCATION_VALUE_NOT_IN_EVIDENCE"
+  | "REVIEW_SIGNAL_EVIDENCE_NOT_FOUND";
 
 export type LlmFirstRejectedFinding = {
-  type: "service" | "fact" | "location";
+  type: "service" | "fact" | "location" | "review_signal";
   target: string;
   reason: LlmFirstParseRejectReason;
 };
@@ -145,6 +152,18 @@ const llmFirstResponseSchema = z
       }),
     location: llmLocationSchema.default(null),
     facts: z.array(llmFactSchema).default([]),
+    reviewSignals: z
+      .array(
+        z.object({
+          type: z.enum([
+            "competitor_price",
+            "site_visit_requested",
+            "unknown_site_conditions",
+          ]),
+          evidence: z.string().min(1),
+        }),
+      )
+      .default([]),
     missingFields: z.array(z.string()).default([]),
   })
   .passthrough();
@@ -222,7 +241,7 @@ function buildLlmFirstRequest(
   return {
     model: env.OPENAI_MODEL?.trim() ?? "",
     system:
-      "Tu esi LLM-first lead faktų ekstraktorius. Grąžink TIK validų JSON pagal pateiktą responseSchema, jokio kito teksto. Taisyklės: 1. Ištrauk tik kliento tekste arba formos laukuose tiesiogiai pateiktą informaciją. 2. Nežinomos reikšmės turi būti null arba praleistos, niekada nespėk. 3. serviceId tik iš activeServices arba null. 4. facts[].requirementKey tik iš pasirinktos paslaugos active decisionRequirements. 5. Kiekvienam ne-null faktui ir lokacijai privalomas pažodinis evidence iš rawText. 6. Niekada negrąžink kainos, termino, availability, auto-send ar atsakymo klientui; jei vis tiek žinai, nerašyk. 7. adminUnitCode nespėk: jei tekste yra tik gyvenvietė ar neaiški vieta, adminUnitCode turi būti null. 8. Rėžis (pvz. 1.5-1.7) → value=null, valueMin/valueMax skaičiai. 9. confidence turi būti 0.85-1.0 aiškiai tekste pagrįstiems faktams; mažesnę reikšmę naudok tik kai faktas dviprasmis. 10. Jei klientas aiškiai atsisako optional subject/add-on (pvz. „be vartų“, „vartų nereikia“), grąžink selection faktą su atitinkamu optional requirementKey, value=false ir negated=true.",
+      "Tu esi LLM-first lead faktų ekstraktorius. Grąžink TIK validų JSON pagal pateiktą responseSchema, jokio kito teksto. Taisyklės: 1. Ištrauk tik kliento tekste arba formos laukuose tiesiogiai pateiktą informaciją. 2. Nežinomos reikšmės turi būti null arba praleistos, niekada nespėk. 3. serviceId tik iš activeServices arba null. 4. facts[].requirementKey tik iš pasirinktos paslaugos active decisionRequirements. 5. Kiekvienam ne-null faktui ir lokacijai privalomas pažodinis evidence iš rawText. 6. Niekada negrąžink kainos, termino, availability, auto-send ar atsakymo klientui; jei vis tiek žinai, nerašyk. 7. adminUnitCode nespėk: jei tekste yra tik gyvenvietė ar neaiški vieta, adminUnitCode turi būti null. 8. Rėžis (pvz. 1.5-1.7) → value=null, valueMin/valueMax skaičiai. 9. confidence turi būti 0.85-1.0 aiškiai tekste pagrįstiems faktams; mažesnę reikšmę naudok tik kai faktas dviprasmis. 10. Jei klientas aiškiai atsisako optional subject/add-on (pvz. „be vartų“, „vartų nereikia“), grąžink selection faktą su atitinkamu optional requirementKey, value=false ir negated=true. 11. reviewSignals: grąžink signalą TIK su pažodiniu evidence iš rawText — competitor_price kai klientas mini gautą/konkurento pasiūlymą ar kainą palyginimui; site_visit_requested kai prašo atvykti įvertinti/apžiūrėti vietoje; unknown_site_conditions kai mini esamą/seną konstrukciją ar nežinomą būklę, galinčią keisti darbų apimtį. Jokių signalų → tuščias masyvas. Signalai nekeičia faktų.",
     user: JSON.stringify({
       mode: LLM_FIRST_PARSE_VERSION,
       rawText: input.inquiryMessage,
@@ -296,6 +315,12 @@ function buildLlmFirstRequest(
             negated: false,
           },
         ],
+        reviewSignals: [
+          {
+            type: "competitor_price | site_visit_requested | unknown_site_conditions",
+            evidence: "pažodinė ištrauka",
+          },
+        ],
         missingFields: ["requirement_key"],
       },
     }),
@@ -336,14 +361,24 @@ function applyLlmFirstResponse({
     rejectedFindings,
   });
   const facts = service.id
-    ? applyLlmFacts({
+    ? mergeDeterministicRequirementFacts({
         rawText: input.inquiryMessage,
         rules,
         serviceId: service.id,
-        response,
-        rejectedFindings,
+        llmFacts: applyLlmFacts({
+          rawText: input.inquiryMessage,
+          rules,
+          serviceId: service.id,
+          response,
+          rejectedFindings,
+        }),
       })
     : rejectFactsWithoutService(response, rejectedFindings);
+  const reviewSignals = resolveReviewSignals({
+    rawText: input.inquiryMessage,
+    response,
+    rejectedFindings,
+  });
 
   return {
     parsed: {
@@ -372,12 +407,145 @@ function applyLlmFirstResponse({
       contacts: emptyContacts(),
       location,
       facts,
+      reviewSignals,
       resolvedRequirements: {},
       unresolvedRequirements: [],
       conflicts: [],
     },
     rejectedFindings,
   };
+}
+
+function mergeDeterministicRequirementFacts({
+  rawText,
+  rules,
+  serviceId,
+  llmFacts,
+}: {
+  rawText: string;
+  rules: ClientRules;
+  serviceId: string;
+  llmFacts: ExtractedFact[];
+}): ExtractedFact[] {
+  const requirements = rules.decisionRequirements.filter(
+    (requirement) => requirement.active && requirement.serviceId === serviceId,
+  );
+  const merged = [...llmFacts];
+  const deterministicFacts = extractDeterministicFacts(rawText).facts;
+
+  for (const fact of deterministicFacts) {
+    const matchingRequirements = requirements.filter((requirement) => {
+      const expectedFact = asRecord(requirement.expectedFact);
+      if (!expectedFact || !factMatchesExpectedFact(fact, expectedFact)) {
+        return false;
+      }
+      const expectedSubject =
+        typeof expectedFact.subject === "string" ? expectedFact.subject : null;
+      return expectedSubject === null || fact.subject === expectedSubject;
+    });
+    if (matchingRequirements.length === 0) {
+      continue;
+    }
+
+    const coveredByLlm = llmFacts.some((existing) =>
+      matchingRequirements.some((requirement) => {
+        const expectedFact = asRecord(requirement.expectedFact);
+        return (
+          expectedFact !== null &&
+          factMatchesExpectedFact(existing, expectedFact)
+        );
+      }),
+    );
+    if (coveredByLlm) {
+      continue;
+    }
+
+    const duplicate = merged.some((existing) =>
+      matchingRequirements.some((requirement) => {
+        const expectedFact = asRecord(requirement.expectedFact);
+        return (
+          expectedFact !== null &&
+          factMatchesExpectedFact(existing, expectedFact) &&
+          factsHaveSameValue(existing, fact)
+        );
+      }),
+    );
+    if (duplicate) {
+      continue;
+    }
+
+    merged.push({ ...fact, id: `deterministic_${fact.id}` });
+  }
+
+  return merged;
+}
+
+function factsHaveSameValue(
+  left: ExtractedFact,
+  right: ExtractedFact,
+): boolean {
+  return (
+    left.value === right.value &&
+    left.valueMin === right.valueMin &&
+    left.valueMax === right.valueMax &&
+    normalizeFactUnit(left.unit) === normalizeFactUnit(right.unit)
+  );
+}
+
+function normalizeFactUnit(unit: ExtractedFact["unit"]): string {
+  return (unit ?? "")
+    .toLocaleLowerCase("lt-LT")
+    .replace(/²/gu, "2")
+    .replace(/[.\s]/gu, "");
+}
+
+// LLM signalai priimami tik su pažodiniu, tekste randamu evidence; likusius
+// tipus papildo deterministinis saugiklis (extractReviewSignals). Vienam
+// tipui — vienas signalas, AI evidence turi pirmenybę (citata tikslesnė).
+function resolveReviewSignals({
+  rawText,
+  response,
+  rejectedFindings,
+}: {
+  rawText: string;
+  response: LlmFirstResponse;
+  rejectedFindings: LlmFirstRejectedFinding[];
+}): ReviewSignal[] {
+  const signals: ReviewSignal[] = [];
+  const seen = new Set<ReviewSignal["type"]>();
+
+  for (const signal of response.reviewSignals) {
+    const verified = verifyAiEvidence({
+      originalText: rawText,
+      evidence: signal.evidence,
+    });
+    if (!verified.ok) {
+      rejectedFindings.push({
+        type: "review_signal",
+        target: signal.type,
+        reason: "REVIEW_SIGNAL_EVIDENCE_NOT_FOUND",
+      });
+      continue;
+    }
+    if (seen.has(signal.type)) {
+      continue;
+    }
+    seen.add(signal.type);
+    signals.push({
+      type: signal.type,
+      evidence: signal.evidence,
+      source: "ai",
+    });
+  }
+
+  for (const signal of extractReviewSignals(rawText)) {
+    if (!seen.has(signal.type)) {
+      seen.add(signal.type);
+      signals.push(signal);
+    }
+  }
+
+  return signals;
 }
 
 function resolveService({
@@ -417,6 +585,21 @@ function resolveService({
     };
   }
 
+  const deterministic = classifyLeadService({
+    requestedServiceId: null,
+    message: input.inquiryMessage,
+    rules,
+  });
+  if (
+    deterministic.reason === "unsupported_specific_service" ||
+    deterministic.reason === "multiple_services" ||
+    (response.serviceId !== null &&
+      deterministic.id !== null &&
+      deterministic.id !== response.serviceId)
+  ) {
+    return { id: deterministic.id, classification: deterministic };
+  }
+
   if (!response.serviceId) {
     // LLM nerado paslaugos — bet jei tekste įvardinta konkreti pasiūlos
     // rūšis, kurios nepadengia nė viena aktyvi paslauga, tai nėra
@@ -438,6 +621,10 @@ function resolveService({
           candidates: [],
         },
       };
+    }
+
+    if (deterministic.id) {
+      return { id: deterministic.id, classification: deterministic };
     }
 
     return { id: null, classification: null };
@@ -917,6 +1104,7 @@ function emptyParsedLead(
     contacts: emptyContacts(),
     location: null,
     facts: [],
+    reviewSignals: extractReviewSignals(input.inquiryMessage),
     resolvedRequirements: {},
     unresolvedRequirements: [],
     conflicts: [],
