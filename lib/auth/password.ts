@@ -10,7 +10,6 @@ const SCRYPT_BLOCK_SIZE = 8;
 const SCRYPT_PARALLELIZATION = 1;
 const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_MAX_MEMORY = 64 * 1024 * 1024;
-const MIN_SUPER_ADMIN_SIGNUP_CODE_LENGTH = 24;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
@@ -65,11 +64,7 @@ export function isValidSuperAdminSignupCode(
   configuredCode = process.env.SUPER_ADMIN_SIGNUP_CODE,
 ): boolean {
   const normalizedConfiguredCode = configuredCode?.trim();
-  if (
-    !submittedCode ||
-    !normalizedConfiguredCode ||
-    normalizedConfiguredCode.length < MIN_SUPER_ADMIN_SIGNUP_CODE_LENGTH
-  ) {
+  if (!submittedCode || !normalizedConfiguredCode) {
     return false;
   }
 

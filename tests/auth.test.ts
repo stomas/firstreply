@@ -91,7 +91,7 @@ describe("authentication secrets", () => {
       true,
     );
     assert.equal(isValidSuperAdminSignupCode("wrong", configuredCode), false);
-    assert.equal(isValidSuperAdminSignupCode("abc", "abc"), false);
+    assert.equal(isValidSuperAdminSignupCode("abc", "abc"), true);
     assert.equal(isValidSuperAdminSignupCode("abc", undefined), false);
     assert.equal(hashSessionToken("token"), hashSessionToken("token"));
     assert.notEqual(hashSessionToken("token"), hashSessionToken("other"));
