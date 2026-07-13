@@ -4,6 +4,7 @@ Esamos sistemos būsenos aprašymas (2026-07). Auditorija — programuotojai,
 dirbantys su šiuo repo.
 
 Susiję dokumentai: [Naudotojo gidas](./NAUDOTOJO-GIDAS.md) ·
+[Inbound integracijos](./INBOUND-INTEGRATION.md) ·
 [Diegimas į Railway](./DEPLOY-RAILWAY.md) · [README](../README.md)
 
 ---
@@ -27,7 +28,9 @@ Repo sudaro:
 
 Dashboard turi el. pašto/slaptažodžio autentifikaciją ir DB sesijas. Įprastas
 vartotojas visada apribotas savo `Client`, o `SUPER_ADMIN` sesijoje gali
-pasirinkti aktyvų klientą. Mokėjimų ir realių integracijų (Gmail, CRM) nėra.
+pasirinkti aktyvų klientą. Veikia source-specific Web formos ir Paslaugos.lt
+inbound integracijos. Mokėjimų, Gmail mailbox sync, CRM ir outbound siuntimo
+nėra.
 
 ## 2. Tech stack
 
@@ -61,6 +64,7 @@ pasirinkti aktyvų klientą. Mokėjimų ir realių integracijų (Gmail, CRM) nė
 | `lib/response/composer.ts`                                  | Atsakymo juodraštis iš DB šablonų (`response_templates`).                                                                                       |
 | `lib/leads/test-pipeline.ts`                                | Visas pipeline vienoje funkcijoje + `trace` (stage'ai debug'ui).                                                                                |
 | `lib/leads/create-test-lead.ts`                             | Testavimo įrankio lead'o sukūrimas + persistencija.                                                                                             |
+| `lib/inbound/*`                                             | Source integracijos, HMAC/Resend autentifikavimas, eventų idempotency, adapteriai, threading ir pokalbių būsenos.                               |
 | `lib/rules/get-client-rules.ts`                             | Visų kliento taisyklių užkrovimas iš DB į `ClientRules`.                                                                                        |
 | `lib/dashboard/{services,rules,availability,navigation}.ts` | Dashboard duomenų sluoksniai: užklausos, formų parsinimas (gryni, testuojami), atnaujinimai/kūrimas.                                            |
 | `lib/dashboard/super-admin*.ts`                             | Test/dev System Config sluoksnis: feature flag'as, core + operational read modeliai, builderių parseriai, JSON generavimas ir guard'ai.         |
@@ -353,7 +357,72 @@ Nepalaikomas core ar operational JSON rodomas kaip read-only preview ir gali
 būti pakeistas tik išsaugant palaikomą builder shape. Jei klientas neturi
 `tenantId`, operational config rodomas kaip neredaguojamas.
 
-## 9. Žinomos ribos (svarbu testuojant)
+## 9. Source-specific inbound architektūra
+
+V1 nepriima bendros pašto dėžutės. Kiekvienas aktyvuotas kanalas yra atskiras
+`SourceIntegration`, priklausantis vienam `Client`:
+
+- `WEB_FORM` naudoja `HTTP_WEBHOOK`; URL yra integracijos ID, o signing secret
+  išvedamas HMAC būdu iš serverio master secret ir `secretVersion`. Atviro
+  rakto DB nėra.
+- `PASLAUGOS_LT` naudoja `RESEND_EMAIL`; routing vyksta pagal globaliai
+  unikalų tikslų gavėjo adresą. Body laukai niekada nenustato tenant ar source.
+
+Vieši route'ai:
+
+```text
+POST /api/integrations/inbound/web-form/{integrationId}
+POST /api/integrations/inbound/resend
+```
+
+Abu route'ai prieš parsing patikrina raw body parašą. Web forma papildomai
+tikrina 5 min. timestamp langą ir unikalų event ID. Resend naudoja oficialų
+Svix/Resend parašą, tada per API paima pilną gautą laišką. Neaktyvi ar kito
+tipo integracija routinge nedalyvauja.
+
+Persistencijos grandinė:
+
+```text
+SourceIntegration
+  └─ InboundEvent (external ID, attempts, status, error)
+       └─ ConversationMessage
+            └─ Conversation (status, thread, activities)
+                 └─ Lead
+                      └─ LeadResponse revision 1..n
+```
+
+`InboundEvent` unikalus pagal `(sourceIntegrationId, externalEventId)`, o
+message — pagal `(sourceIntegrationId, providerMessageId)` ir, kai pateiktas,
+source-scoped `internetMessageId`. Tai saugo nuo providerio retry, Message-ID
+kolizijų ir lygiagrečių requestų. `FAILED` ir senesnis nei 10 min.
+`PROCESSING` eventas atominiu compare-and-set būdu rezervuojamas dar kartą su
+nauju lease token. Visi complete/fail/error write'ai tikrina šį tokeną, todėl
+senas worker nebegali perrašyti naujo workerio rezultato. Jei pirmas bandymas
+jau išsaugojo message/lead, retry tęsia pipeline nuo jų, o ne kuria dublikatą.
+
+Threading mechanizmas naudojamas tik tada, kai transportas pateikia patikimą
+siuntėjo tapatybę ir naujo laiško `In-Reply-To` arba `References` atitinka jau
+žinomą tos pačios source integracijos `internetMessageId`. Nė vienas V1
+adapteris šio patikimumo signalo dar nepateikia: web forma neturi thread ID, o
+Resend `From` yra deklaratyvus laukas. Todėl Paslaugos.lt V1 automatinis
+threading išjungtas, kol adapteris neturi patikimo envelope/SPF/DKIM/DMARC
+signalo; jo thread headeriai sukuria naują `MANUAL_REVIEW` pokalbį. Tema į
+matching neįeina. Būsimam patikimam adapteriui paruoštas follow-up naudoja visų
+inbound žinučių konsistentišką snapshot ir tą patį leadą. Draftas
+commit'inamas tik jei `inboundVersion` nepasikeitė ir `responseVersion` dar
+neapdorojo šios generacijos; pasenęs paralelus pipeline rezultatas
+koalescuojamas. Naujas `LeadResponse` sukuriamas kaip revizija, ankstesnis
+aktyvus draftas tampa `superseded`.
+
+Pokalbio būsenos: `NEEDS_REPLY`, `WAITING_CUSTOMER`, `MANUAL_REVIEW`,
+`CLOSED`. „Atsakyta kitur“ saugomas `ConversationActivity` su vartotoju, laiku
+ir pastaba; outbound message nefabrikuojamas. Priedai saugomi tik kaip metadata
+ir verčia pokalbį likti `INBOUND_ATTACHMENTS_UNPROCESSED` rankinėje peržiūroje.
+
+Pilnas kontraktas, setup ir retry lentelė:
+[INBOUND-INTEGRATION.md](./INBOUND-INTEGRATION.md).
+
+## 10. Žinomos ribos (svarbu testuojant)
 
 1. **`range_estimate` kainodara neskaičiuoja sumos** — tokie lead'ai eina į
    manual review su kainos rėžiais.
@@ -364,16 +433,23 @@ būti pakeistas tik išsaugant palaikomą builder shape. Jei klientas neturi
    ar papildomų įmonės vartotojų.
 4. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
    leistų; siuntimo integracija dar nepadaryta.
-5. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento
+5. **Paslaugos.lt fixture'ai** — kol negauta realių nuasmenintų laiškų,
+   adapteris naudoja plain-text/HTML fallback ir neatpažintą formatą perduoda
+   rankinei peržiūrai.
+6. **Gmail Inbox/Sent sync nėra** — išorinis atsakymas V1 pažymimas rankiniu
+   audituotu „Atsakyta kitur“ veiksmu.
+7. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento
    core ir operational konfigūraciją, todėl po `npm run db:seed` patikrinkite
    `/dashboard/test`.
 
-## 10. Testai ir kokybės vartai
+## 11. Testai ir kokybės vartai
 
 ```bash
-npm test            # node:test, visi tests/*.test.ts (šiuo metu 213)
+npm test            # node:test, visi tests/*.test.ts
 npm run typecheck   # tsc --noEmit
 npm run lint        # next lint
+npm run format:check
+npx prisma validate
 npm run build       # next build
 ```
 
@@ -381,6 +457,10 @@ Testų žemėlapis: deterministinis extractor'ius + 100 atvejų korpusas
 (`random-inquiries`), evidence/computation verifier'iai, gap filler, service
 classifier (+AI fallback), decision engine, golden pipeline (end-to-end su
 mock AI), derived facts, shadow parse, dashboard formų parseriai.
+Inbound testai dengia HMAC, timestamp langą, event retry klasifikaciją,
+web-form schemą ir source fiksavimą, request dydžio ribas, Paslaugos.lt
+plain/HTML normalizavimą, forwarding wrapper, neatpažintą formatą, message ID
+threading helperius ir source-specific routing adresus.
 `tests/realistic-cases.test.ts` — 12 realistiškų klientų užklausų scenarijų
 end-to-end (aiški / neaiški / dalinė / skubi / konkurento kaina / premium /
 apžiūra vietoje / nežinomas kiekis / struktūruota / nežinoma būklė / dalinė

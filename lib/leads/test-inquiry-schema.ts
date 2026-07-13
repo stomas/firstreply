@@ -30,6 +30,11 @@ export const testInquirySchema = z.object({
 
 export type TestInquiryInput = z.infer<typeof testInquirySchema>;
 
+export type LeadProcessingInput = TestInquiryInput & {
+  source?: string;
+  hasAttachments?: boolean;
+};
+
 export function fieldErrors(
   error: z.ZodError<TestInquiryInput>,
 ): Record<string, string> {

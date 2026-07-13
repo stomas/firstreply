@@ -62,4 +62,14 @@ describe("dashboard navigation", () => {
       true,
     );
   });
+
+  it("exposes source integrations as a live dashboard area", () => {
+    const integrations = getDashboardNavigationItems().find(
+      (item) => item.id === "integrations",
+    );
+
+    assert.ok(integrations);
+    assert.equal(integrations.status, "live");
+    assert.equal(integrations.href, "/dashboard/integrations");
+  });
 });

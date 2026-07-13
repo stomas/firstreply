@@ -34,6 +34,31 @@ export type LeadDetail = {
     manualReviewReason: string | null;
     decisionJson: Prisma.JsonValue | null;
   }>;
+  conversation: {
+    id: string;
+    status: string;
+    sourceType: string;
+    sourceName: string;
+    firstResponseAt: string | null;
+    messages: Array<{
+      id: string;
+      createdAt: string;
+      receivedAt: string;
+      direction: string;
+      senderEmail: string | null;
+      senderName: string | null;
+      subject: string | null;
+      text: string;
+      hasAttachments: boolean;
+    }>;
+    activities: Array<{
+      id: string;
+      createdAt: string;
+      type: string;
+      note: string | null;
+      actorEmail: string | null;
+    }>;
+  } | null;
   relatedRules: {
     pricingRules: Array<{
       id: string;
@@ -74,6 +99,20 @@ export async function getLeadDetail(
       service: true,
       responses: {
         orderBy: { createdAt: "desc" },
+      },
+      conversation: {
+        include: {
+          sourceIntegration: {
+            select: { sourceType: true, name: true },
+          },
+          messages: {
+            orderBy: [{ receivedAt: "asc" }, { createdAt: "asc" }],
+          },
+          activities: {
+            orderBy: { createdAt: "asc" },
+            include: { actorUser: { select: { email: true } } },
+          },
+        },
       },
     },
   });
@@ -133,6 +172,34 @@ export async function getLeadDetail(
       manualReviewReason: response.manualReviewReason,
       decisionJson: response.decisionJson,
     })),
+    conversation: lead.conversation
+      ? {
+          id: lead.conversation.id,
+          status: lead.conversation.status,
+          sourceType: lead.conversation.sourceIntegration.sourceType,
+          sourceName: lead.conversation.sourceIntegration.name,
+          firstResponseAt:
+            lead.conversation.firstResponseAt?.toISOString() ?? null,
+          messages: lead.conversation.messages.map((message) => ({
+            id: message.id,
+            createdAt: message.createdAt.toISOString(),
+            receivedAt: message.receivedAt.toISOString(),
+            direction: message.direction,
+            senderEmail: message.senderEmail,
+            senderName: message.senderName,
+            subject: message.subject,
+            text: message.text,
+            hasAttachments: message.hasAttachments,
+          })),
+          activities: lead.conversation.activities.map((activity) => ({
+            id: activity.id,
+            createdAt: activity.createdAt.toISOString(),
+            type: activity.type,
+            note: activity.note,
+            actorEmail: activity.actorUser?.email ?? null,
+          })),
+        }
+      : null,
     relatedRules: {
       pricingRules: pricingRules.map((rule) => ({
         id: rule.id,

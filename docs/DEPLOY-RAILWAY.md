@@ -5,6 +5,7 @@
 minimaliomis DevOps žiniomis.
 
 Susiję dokumentai: [Techninė dokumentacija](./ARCHITEKTURA.md) ·
+[Inbound integracijos](./INBOUND-INTEGRATION.md) ·
 [Naudotojo gidas](./NAUDOTOJO-GIDAS.md)
 
 ---
@@ -15,6 +16,7 @@ Susiję dokumentai: [Techninė dokumentacija](./ARCHITEKTURA.md) ·
 - Railway paskyros.
 - OpenAI API rakto (be jo veiks landing ir dashboard peržiūra, bet atsakymų
   generavimas grąžins „AI generation is not configured“).
+- Resend paskyros ir inbound receiving domeno, jei jungiama Paslaugos.lt.
 
 Build konfigūracija jau yra [`railway.json`](../railway.json): Nixpacks,
 `npm run build` → `npm run start`, healthcheck `/`.
@@ -31,18 +33,33 @@ Build konfigūracija jau yra [`railway.json`](../railway.json): Nixpacks,
 App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais —
 [`.env.example`](../.env.example)):
 
-| Kintamasis                | Privalomas    | Reikšmė                                                                                                                                                                                 |
-| ------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`            | Taip          | Reference į Postgres servisą: `${{Postgres.DATABASE_URL}}`                                                                                                                              |
-| `SUPER_ADMIN_SIGNUP_CODE` | Admin setup   | Bent 24 atsitiktinių simbolių kodas, reikalingas `/super-admin/signup`; po pradinės registracijos jį pakeiskite arba pašalinkite.                                                       |
-| `NEXT_PUBLIC_SITE_URL`    | Taip          | Viešas URL be pasvirojo brūkšnio gale, pvz. `https://firstreply.lt` arba `https://<app>.up.railway.app`. Naudojamas SEO/sitemap — **pakeitus reikia redeploy** (build-time kintamasis). |
-| `OPENAI_API_KEY`          | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
-| `OPENAI_MODEL`            | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
-| `LLM_FIRST_PARSE`         | Ne            | `true` įjungia eksperimentinį LLM-first parserį tik `/dashboard/test`. Default `false` palieka deterministinį parserį.                                                                  |
-| `SHADOW_AI_PARSE`         | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
-| `LEAD_WEBHOOK_URL`        | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
+| Kintamasis                      | Privalomas    | Reikšmė                                                                                                                                                                                 |
+| ------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                  | Taip          | Reference į Postgres servisą: `${{Postgres.DATABASE_URL}}`                                                                                                                              |
+| `SUPER_ADMIN_SIGNUP_CODE`       | Admin setup   | Bent 24 atsitiktinių simbolių kodas, reikalingas `/super-admin/signup`; po pradinės registracijos jį pakeiskite arba pašalinkite.                                                       |
+| `NEXT_PUBLIC_SITE_URL`          | Taip          | Viešas URL be pasvirojo brūkšnio gale, pvz. `https://firstreply.lt` arba `https://<app>.up.railway.app`. Naudojamas SEO/sitemap — **pakeitus reikia redeploy** (build-time kintamasis). |
+| `OPENAI_API_KEY`                | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
+| `OPENAI_MODEL`                  | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
+| `LLM_FIRST_PARSE`               | Ne            | `true` įjungia eksperimentinį LLM-first parserį tik `/dashboard/test`. Default `false` palieka deterministinį parserį.                                                                  |
+| `SHADOW_AI_PARSE`               | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
+| `LEAD_WEBHOOK_URL`              | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
+| `INBOUND_SIGNING_MASTER_SECRET` | Inbound       | Bent 32 atsitiktinių baitų serverio secret, iš kurio išvedami atskirų web formų HMAC raktai.                                                                                            |
+| `RESEND_API_KEY`                | Paslaugos.lt  | Resend API raktas pilnam gautam laiškui paimti.                                                                                                                                         |
+| `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt  | Resend webhook signing secret (`whsec_…`), skirtas raw payload patikrai.                                                                                                                |
+| `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt  | Resend sukonfigūruotas receiving domenas be `@`, pvz. `in.firstreply.lt`.                                                                                                               |
 
 `NODE_ENV=production` ir `PORT` Railway nustato pats — jų kurti nereikia.
+
+`LEAD_WEBHOOK_URL` skirtas tik viešai FirstReply landing kontaktų formai. Tai
+nėra produkto inbound integracija. Produkto source'ai kuriami
+`/dashboard/integrations` ir aprašyti
+[inbound runbooke](./INBOUND-INTEGRATION.md).
+
+`INBOUND_SIGNING_MASTER_SECRET` sugeneravimo pavyzdys:
+
+```bash
+openssl rand -base64 48
+```
 
 ## 3. Duomenų bazės migracijos
 
@@ -88,7 +105,22 @@ patikrinkite ją dar kartą: DEV kliento paslaugos, temos, requirements ir
 kainodara, taip pat tenant location zones, schedule rules, autosend policy ir
 response templates gali būti perrašyti pagal seed duomenis.
 
-## 5. Patikrinimas po diegimo
+## 5. Resend inbound paruošimas
+
+Šis žingsnis reikalingas tik Paslaugos.lt integracijai.
+
+1. Resend pridėkite ir DNS įrašais patvirtinkite receiving subdomeną, pvz.
+   `in.firstreply.lt`.
+2. Tą patį domeną įrašykite į Railway `RESEND_INBOUND_DOMAIN`.
+3. Resend sukurkite webhooką į
+   `https://<jūsų-domenas>/api/integrations/inbound/resend` ir pasirinkite
+   `email.received` eventą.
+4. Webhook signing secret įrašykite į `RESEND_WEBHOOK_SECRET`, API raktą — į
+   `RESEND_API_KEY`, tada redeploy.
+5. Dashboarde sukurkite Paslaugos.lt integraciją ir kliento pašte taisyklę,
+   kuri persiunčia tik Paslaugos.lt laiškus. Visos dėžutės persiųsti negalima.
+
+## 6. Patikrinimas po diegimo
 
 Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
 
@@ -100,10 +132,18 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
    „Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje.
    Kiek kainuotų?“ → turi grįžti parengtas atsakymas su kaina — veikia visas
    pipeline, įskaitant OpenAI.
-5. Jei 4 žingsnis grąžina „AI generation is not configured“ — patikrinkite
+5. **`/dashboard/integrations`** → sukurkite web formos integraciją; URL ir
+   signing secret turi būti matomi. Išsiųskite pasirašytą smoke eventą pagal
+   [runbooką](./INBOUND-INTEGRATION.md) ir patikrinkite vieną realų leadą.
+6. Jei parengtas atsakymas grąžina „AI generation is not configured“ — patikrinkite
    `OPENAI_API_KEY` / `OPENAI_MODEL`.
+7. Jei sukonfigūruotas Resend, išbandykite tikslų Paslaugos.lt forwarding
+   filtrą ir dashboarde patikrinkite source, timeline bei paskutinį eventą.
 
-## 6. Domenas
+Providerio credentialų nėra CI, todėl web formos ir Resend/Railway smoke
+testai yra privalomas operatoriaus žingsnis po deploy.
+
+## 7. Domenas
 
 **Settings → Networking → Generate Domain** (arba prijunkite savo domeną).
 Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
@@ -111,17 +151,22 @@ Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
 
 ## Dažnos problemos
 
-| Simptomas                                      | Priežastis / sprendimas                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).               |
-| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed. |
-| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                       |
-| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.    |
-| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                            |
-| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                               |
-| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.    |
+| Simptomas                                      | Priežastis / sprendimas                                                                                                                       |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).                                         |
+| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed.                           |
+| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                                                 |
+| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.                              |
+| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                                                      |
+| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                                                         |
+| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.                              |
+| Web forma grąžina `INVALID_SIGNATURE`          | Pasirašytas ne tikslus raw JSON arba neteisinga `${timestamp}.${eventId}.${rawBody}` eilutė; po rotacijos atnaujinkite secret.                |
+| Web forma grąžina `STALE_TIMESTAMP`            | Siuntėjo serverio laikrodis skiriasi daugiau nei 5 min. arba retry naudoja seną timestamp; pasirašykite iš naujo, palikdami tą patį event ID. |
+| Resend eventas ignoruojamas                    | Gavėjo adresas nesutampa su aktyvios Paslaugos.lt integracijos adresu arba pašto taisyklė vis dar naudoja seną adresą.                        |
+| `SOURCE_FORMAT_UNRECOGNIZED`                   | Laiške nerastas Paslaugos.lt formatas; neatsakykite automatiškai, nuasmenintą pavyzdį pridėkite kaip regresinį fixture.                       |
+| `UNAUTHENTICATED_THREAD_REFERENCES`            | Paslaugos.lt laiškas turi thread headerius, bet Resend nepateikė patikimos siuntėjo tapatybės; V1 palieka atskirą rankinės peržiūros pokalbį. |
 
-## Atnaujinimai
+## 8. Atnaujinimai
 
 Deploy vyksta automatiškai push'inus į GitHub main šaką. Su sukonfigūruotu
 pre-deploy (§3) naujos migracijos pritaikomos pačios. Seed'o kartoti

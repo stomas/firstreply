@@ -3,6 +3,11 @@ import { DashboardError } from "@/components/dashboard/DashboardError";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import { getLeadDetail, type LeadDetail } from "@/lib/leads/get-lead-detail";
+import {
+  closeConversationAction,
+  markAnsweredExternallyAction,
+  reopenConversationAction,
+} from "./actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,12 +36,19 @@ export default async function LeadDetailPage({
         </div>
 
         <LeadOverview lead={lead} />
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Panel title="Originali užklausa">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">
-              {lead.originalMessage}
-            </p>
-          </Panel>
+        {lead.conversation ? (
+          <ConversationPanel lead={lead} />
+        ) : (
+          <div className="mt-5">
+            <Panel title="Originali užklausa">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                {lead.originalMessage}
+              </p>
+            </Panel>
+          </div>
+        )}
+
+        <div className="mt-5">
           <Panel title="Parse result JSON">
             <JsonBlock value={lead.parseResult} />
           </Panel>
@@ -54,14 +66,17 @@ export default async function LeadDetailPage({
             </div>
           ) : (
             <div className="grid gap-4">
-              {lead.responses.map((response) => (
+              {lead.responses.map((response, index) => (
                 <div
                   key={response.id}
                   className="min-w-0 rounded-lg border border-line bg-white p-5 shadow-cardsoft"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-bold text-ink">
-                      {response.status} · {response.responseType}
+                      Revizija {lead.responses.length - index} ·{" "}
+                      {response.status}
+                      {" · "}
+                      {response.responseType}
                     </div>
                     <div className="text-sm text-ink-soft">
                       {formatDate(response.createdAt)}
@@ -98,6 +113,168 @@ export default async function LeadDetailPage({
       </div>
     );
   }
+}
+
+function ConversationPanel({ lead }: { lead: LeadDetail }) {
+  const conversation = lead.conversation;
+  if (!conversation) {
+    return null;
+  }
+  const timeline = [
+    ...conversation.messages.map((message) => ({
+      kind: "message" as const,
+      id: message.id,
+      createdAt: message.receivedAt,
+      message,
+    })),
+    ...conversation.activities.map((activity) => ({
+      kind: "activity" as const,
+      id: activity.id,
+      createdAt: activity.createdAt,
+      activity,
+    })),
+  ].sort(
+    (left, right) =>
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+
+  return (
+    <section className="mt-5 rounded-lg border border-line bg-white p-5 shadow-cardsoft">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl font-extrabold text-ink">Pokalbis</h2>
+            <span className="rounded-full bg-brand-tint px-3 py-1 text-xs font-extrabold text-brand">
+              {conversationStatusLabel(conversation.status)}
+            </span>
+            <span className="rounded-full bg-line-soft px-3 py-1 text-xs font-extrabold text-ink-soft">
+              {conversation.sourceName}
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-ink-soft">
+            Tikri inbound laiškai ir audituoti rankiniai veiksmai. „Atsakyta
+            kitur“ nesukuria fiktyvaus išsiųsto laiško.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {conversation.status === "CLOSED" ? (
+            <form action={reopenConversationAction}>
+              <input type="hidden" name="leadId" value={lead.id} />
+              <button className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-brand hover:bg-brand-tint">
+                Atidaryti iš naujo
+              </button>
+            </form>
+          ) : (
+            <form action={closeConversationAction}>
+              <input type="hidden" name="leadId" value={lead.id} />
+              <button className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft">
+                Uždaryti
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {timeline.map((item) =>
+          item.kind === "message" ? (
+            <article
+              key={item.id}
+              className="rounded-lg border border-line bg-line-soft p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
+                <span className="font-bold text-ink-soft">
+                  {conversation.sourceType === "PASLAUGOS_LT"
+                    ? `Persiuntė: ${
+                        item.message.senderName ||
+                        item.message.senderEmail ||
+                        "nežinomas siuntėjas"
+                      }`
+                    : item.message.senderName ||
+                      item.message.senderEmail ||
+                      "Nežinomas siuntėjas"}
+                </span>
+                <span>{formatDate(item.message.receivedAt)}</span>
+              </div>
+              {item.message.subject ? (
+                <div className="mt-2 text-sm font-bold text-ink">
+                  {item.message.subject}
+                </div>
+              ) : null}
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                {item.message.text}
+              </p>
+              {item.message.hasAttachments ? (
+                <div className="mt-3 text-xs font-bold text-warn-text">
+                  Yra neanalizuotų priedų — būtina rankinė peržiūra.
+                </div>
+              ) : null}
+            </article>
+          ) : (
+            <div
+              key={item.id}
+              className="rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm text-brand"
+            >
+              <div className="font-bold">
+                {activityLabel(item.activity.type)} ·{" "}
+                {item.activity.actorEmail || "Sistema"}
+              </div>
+              <div className="mt-1 text-xs">
+                {formatDate(item.activity.createdAt)}
+              </div>
+              {item.activity.note ? (
+                <p className="mt-2 whitespace-pre-wrap text-sm">
+                  {item.activity.note}
+                </p>
+              ) : null}
+            </div>
+          ),
+        )}
+      </div>
+
+      {conversation.status !== "CLOSED" ? (
+        <form
+          action={markAnsweredExternallyAction}
+          className="mt-5 rounded-lg border border-line p-4"
+        >
+          <input type="hidden" name="leadId" value={lead.id} />
+          <label className="text-sm font-bold text-ink">
+            Pažymėti, kad atsakyta kitur
+            <textarea
+              name="note"
+              maxLength={500}
+              rows={2}
+              placeholder="Pasirenkama pastaba, pvz. atsakyta telefonu"
+              className="mt-2 w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+          </label>
+          <button className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-hover">
+            Pažymėti atsakytą
+          </button>
+        </form>
+      ) : (
+        <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
+          Norėdami fiksuoti naują veiksmą, pirmiausia atidarykite pokalbį iš
+          naujo.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function activityLabel(type: string): string {
+  if (type === "ANSWERED_EXTERNALLY") return "Atsakyta kitur";
+  if (type === "REOPENED") return "Pokalbis atidarytas iš naujo";
+  if (type === "CLOSED") return "Pokalbis uždarytas";
+  return type;
+}
+
+function conversationStatusLabel(status: string): string {
+  if (status === "NEEDS_REPLY") return "Reikia atsakyti";
+  if (status === "WAITING_CUSTOMER") return "Laukiama kliento";
+  if (status === "MANUAL_REVIEW") return "Reikia peržiūros";
+  if (status === "CLOSED") return "Uždarytas";
+  return status;
 }
 
 function LeadOverview({ lead }: { lead: LeadDetail }) {
@@ -230,6 +407,7 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("lt-LT", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "Europe/Vilnius",
   }).format(new Date(value));
 }
 

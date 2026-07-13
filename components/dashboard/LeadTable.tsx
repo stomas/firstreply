@@ -22,6 +22,7 @@ export function LeadTable({ leads }: { leads: DashboardLead[] }) {
             <th className="px-4 py-3 font-bold">Paslauga</th>
             <th className="px-4 py-3 font-bold">Miestas</th>
             <th className="px-4 py-3 font-bold">Lead status</th>
+            <th className="px-4 py-3 font-bold">Pokalbis</th>
             <th className="px-4 py-3 font-bold">Response</th>
             <th className="px-4 py-3 font-bold">Manual reason</th>
             <th className="px-4 py-3 font-bold"></th>
@@ -41,6 +42,11 @@ export function LeadTable({ leads }: { leads: DashboardLead[] }) {
               <td className="px-4 py-3">{lead.serviceName || "—"}</td>
               <td className="px-4 py-3">{lead.city || "—"}</td>
               <td className="px-4 py-3">{lead.status}</td>
+              <td className="px-4 py-3">
+                {lead.conversationStatus
+                  ? conversationStatusLabel(lead.conversationStatus)
+                  : "—"}
+              </td>
               <td className="px-4 py-3">{lead.latestResponseStatus || "—"}</td>
               <td className="max-w-[280px] px-4 py-3 text-ink-soft">
                 {lead.manualReviewReason || "—"}
@@ -65,5 +71,14 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat("lt-LT", {
     dateStyle: "short",
     timeStyle: "short",
+    timeZone: "Europe/Vilnius",
   }).format(new Date(value));
+}
+
+function conversationStatusLabel(status: string): string {
+  if (status === "NEEDS_REPLY") return "Reikia atsakyti";
+  if (status === "WAITING_CUSTOMER") return "Laukiama kliento";
+  if (status === "MANUAL_REVIEW") return "Reikia peržiūros";
+  if (status === "CLOSED") return "Uždarytas";
+  return status;
 }

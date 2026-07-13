@@ -17,7 +17,10 @@ import {
   parseTestInquiryLeadLlmFirst,
   type LlmFirstParseResult,
 } from "@/lib/leads/llm-first-parse";
-import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
+import type {
+  LeadProcessingInput,
+  TestInquiryInput,
+} from "@/lib/leads/test-inquiry-schema";
 import {
   isShadowEnabled,
   runShadowParse,
@@ -74,21 +77,21 @@ export type TestLeadPipelineResult = {
   shadowDiff?: ShadowDiff;
 };
 
-type RunTestLeadPipelineInput = {
-  input: TestInquiryInput;
+type RunLeadPipelineInput = {
+  input: LeadProcessingInput;
   rules: ClientRules;
   leadId: string;
   isTest: boolean;
   aiOptions?: Parameters<typeof fillAiGaps>[1];
 };
 
-export async function runTestLeadPipeline({
+export async function runLeadPipeline({
   input,
   rules,
   leadId,
   isTest,
   aiOptions = {},
-}: RunTestLeadPipelineInput): Promise<TestLeadPipelineResult> {
+}: RunLeadPipelineInput): Promise<TestLeadPipelineResult> {
   const trace: LeadProcessingTrace = { stages: [] };
   const llmFirstEnabled = isLlmFirstParseEnabled(aiOptions.env ?? process.env);
   let llmFirstResult: LlmFirstParseResult | null = null;
@@ -394,6 +397,16 @@ export async function runTestLeadPipeline({
     shadowParseResult,
     shadowDiff,
   };
+}
+
+export function runTestLeadPipeline(input: {
+  input: TestInquiryInput;
+  rules: ClientRules;
+  leadId: string;
+  isTest: boolean;
+  aiOptions?: Parameters<typeof fillAiGaps>[1];
+}): Promise<TestLeadPipelineResult> {
+  return runLeadPipeline(input);
 }
 
 function attachTrace(error: AppConfigError, trace: LeadProcessingTrace): void {

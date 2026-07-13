@@ -25,15 +25,16 @@ apačioje yra atsijungimo mygtukas. Kiekvienas įprastas vartotojas mato tik sav
 
 ## Meniu apžvalga
 
-| Skiltis                                                    | Kam skirta                                               |
-| ---------------------------------------------------------- | -------------------------------------------------------- |
-| **Užklausos**                                              | Visos gautos užklausos ir jų būsenos.                    |
-| **Testavimas**                                             | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą. |
-| **Paslaugos**                                              | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.       |
-| **Taisyklės**                                              | Kainodara ir klausimai klientams.                        |
-| **Užimtumas**                                              | Kada ir kuriuose regionuose priimate užsakymus.          |
-| **Super Admin**                                            | Techninė konfigūracija, matoma tik Super Admin paskyrai. |
-| Atsakymai, Follow-up, Ataskaitos, Integracijos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                          |
+| Skiltis                                      | Kam skirta                                               |
+| -------------------------------------------- | -------------------------------------------------------- |
+| **Užklausos**                                | Visos gautos užklausos ir jų būsenos.                    |
+| **Testavimas**                               | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą. |
+| **Paslaugos**                                | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.       |
+| **Taisyklės**                                | Kainodara ir klausimai klientams.                        |
+| **Užimtumas**                                | Kada ir kuriuose regionuose priimate užsakymus.          |
+| **Integracijos**                             | Atskirai prijungiamos svetainės formos ir Paslaugos.lt.  |
+| **Super Admin**                              | Techninė konfigūracija, matoma tik Super Admin paskyrai. |
+| Atsakymai, Follow-up, Ataskaitos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                          |
 
 ---
 
@@ -45,9 +46,64 @@ Sąraše matote visas užklausas su būsena:
 - **manual_review** — sistemai pritrūko informacijos ar tikrumo; užklausą
   reikia peržiūrėti pačiam (priežastis nurodyta prie užklausos).
 
-Paspaudę užklausą pamatysite: originalų kliento tekstą, ką sistema suprato
-(paslauga, išmatavimai, miestas), kokios taisyklės pritaikytos ir parengtą
-atsakymo tekstą.
+Paspaudę užklausą pamatysite: originalų kliento tekstą, source žymą, ką
+sistema suprato (paslauga, išmatavimai, miestas), kokios taisyklės pritaikytos
+ir visas atsakymo revizijas. Iš integracijos gautos užklausos papildomai turi
+pokalbio timeline su kiekviena realia kliento žinute ir rankiniais veiksmais.
+
+Pokalbio būsenos:
+
+- **NEEDS_REPLY** — klientas parašė ir reikia atsakyti.
+- **WAITING_CUSTOMER** — atsakėte kitame kanale ir laukiate kliento.
+- **MANUAL_REVIEW** — būtina jūsų peržiūra.
+- **CLOSED** — pokalbis uždarytas.
+
+Jei atsakėte telefonu, iš savo pašto ar kitu kanalu, spauskite
+**„Pažymėti, kad atsakyta kitur“**. Galite palikti pastabą. FirstReply įrašo
+laiką ir vartotoją, pakeičia būseną į `WAITING_CUSTOMER` ir seną juodraštį
+pažymi nebeaktualiu. Sistema nesukuria netikros išsiųstos žinutės.
+
+Pokalbio modelis paruoštas ateities patikimai identifikuotam email thread:
+tuomet FirstReply galės peržiūrėti bendrą kontekstą, parengti naują atsakymo
+reviziją, o ankstesnę palikti istorijoje kaip `superseded`. V1 web forma thread
+ID neturi, o Paslaugos.lt forwardinimo headeriai nėra pakankamas siuntėjo
+tapatybės įrodymas. Todėl V1 kliento atsakymai automatiškai nepapildo esamo
+pokalbio: Paslaugos.lt tęsinys rodomas kaip atskiras `MANUAL_REVIEW` pokalbis,
+o atsakymas telefonu ar savo paštu fiksuojamas rankiniu veiksmu „Atsakyta
+kitur“.
+
+## Integracijos
+
+Integracijų puslapyje kiekvienas šaltinis kuriamas atskirai. Integracijų
+skaičius dabar neribojamas. Kortelėje matysite būseną, eventų ir žinučių
+skaičius, paskutinio evento rezultatą bei prijungimo duomenis.
+
+### Svetainės forma
+
+Sukurkite atskirą integraciją kiekvienai norimai formai. Webhook URL ir HMAC
+signing secret perduokite svetainės programuotojui arba įveskite į Make/Zapier
+server-side automatizaciją. Signing secret negalima dėti į viešą formos
+JavaScript — jį matytų visi svetainės lankytojai.
+
+### Paslaugos.lt
+
+Sukūrus integraciją gausite unikalų `p-…@…` adresą. Savo el. pašte sukurkite
+automatinę taisyklę, kuri į šį adresą persiunčia **tik Paslaugos.lt
+pranešimus** (pagal siuntėją ir, jei reikia, temos požymį).
+
+**Visos pašto dėžutės persiųsti nereikia ir nerekomenduojama.** Kiti jūsų
+laiškai lieka dabartiniuose kanaluose ir FirstReply jų negauna. Jei norite
+prijungti kitą source, palaukite, kol jam bus palaikomas atskiras adapteris.
+
+Pirmiausia išbandykite taisyklę su vienu Paslaugos.lt laišku. Jei į specialų
+adresą pateks neatpažintas laiškas, sistema jo nelaikys kitu source ir
+automatiškai neatsakys — jis bus pažymėtas `SOURCE_FORMAT_UNRECOGNIZED`.
+Laiškai su priedais taip pat lieka rankinėje peržiūroje, nes V1 analizuoja tik
+priedų metadata, ne jų turinį.
+
+Išjungus integraciją nauji eventai nepriimami. Rotuojant web formos raktą ar
+Paslaugos.lt adresą senoji reikšmė iš karto nustoja veikti, todėl ją būtina
+atnaujinti siuntėjo serveryje arba pašto taisyklėje.
 
 ## Testavimas
 
