@@ -144,7 +144,9 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
    kodu, o dashboarde galima pasirinkti klientą `id=1`.
 3. **`/dashboard`** rodo pasirinkto kliento užklausų sąrašą — DB ir sesija veikia.
 4. Dashboarde sukurkite Paslaugos.lt integraciją ir kliento pašte taisyklę,
-   kuri persiunčia tik Paslaugos.lt laiškus. Visos dėžutės persiųsti negalima.
+   kuri persiunčia tik Paslaugos.lt laiškus ir išsaugo originalų `From`
+   (`redirect` arba atitinkamas automatinio forward režimas). Visos dėžutės
+   persiųsti negalima.
 5. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
    „Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje.
    Kiek kainuotų?“ → turi grįžti parengtas atsakymas su kaina — veikia visas
@@ -156,6 +158,8 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
    `OPENAI_API_KEY` / `OPENAI_MODEL`.
 8. Jei sukonfigūruotas Resend, išbandykite tikslų Paslaugos.lt forwarding
    filtrą ir dashboarde patikrinkite source, timeline bei paskutinį eventą.
+   Eventas neturi būti `SOURCE_FORMAT_UNRECOGNIZED`; jei yra, patikrinkite, ar
+   pašto provideris neperrašė originalaus Paslaugos.lt `From`.
 
 Providerio credentialų nėra CI, todėl web formos ir Resend/Railway smoke
 testai yra privalomas operatoriaus žingsnis po deploy.
@@ -168,20 +172,20 @@ Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
 
 ## Dažnos problemos
 
-| Simptomas                                      | Priežastis / sprendimas                                                                                                                       |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).                                         |
-| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed.                           |
-| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                                                 |
-| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.                              |
-| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                                                      |
-| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                                                         |
-| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.                              |
-| Web forma grąžina `INVALID_SIGNATURE`          | Pasirašytas ne tikslus raw JSON arba neteisinga `${timestamp}.${eventId}.${rawBody}` eilutė; po rotacijos atnaujinkite secret.                |
-| Web forma grąžina `STALE_TIMESTAMP`            | Siuntėjo serverio laikrodis skiriasi daugiau nei 5 min. arba retry naudoja seną timestamp; pasirašykite iš naujo, palikdami tą patį event ID. |
-| Resend eventas ignoruojamas                    | Gavėjo adresas nesutampa su aktyvios Paslaugos.lt integracijos adresu arba pašto taisyklė vis dar naudoja seną adresą.                        |
-| `SOURCE_FORMAT_UNRECOGNIZED`                   | Laiške nerastas Paslaugos.lt formatas; neatsakykite automatiškai, nuasmenintą pavyzdį pridėkite kaip regresinį fixture.                       |
-| `UNAUTHENTICATED_THREAD_REFERENCES`            | Paslaugos.lt laiškas turi thread headerius, bet Resend nepateikė patikimos siuntėjo tapatybės; V1 palieka atskirą rankinės peržiūros pokalbį. |
+| Simptomas                                      | Priežastis / sprendimas                                                                                                                                                                                                       |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).                                                                                                                         |
+| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed.                                                                                                           |
+| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                                                                                                                                 |
+| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.                                                                                                              |
+| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                                                                                                                                      |
+| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                                                                                                                                         |
+| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.                                                                                                              |
+| Web forma grąžina `INVALID_SIGNATURE`          | Pasirašytas ne tikslus raw JSON arba neteisinga `${timestamp}.${eventId}.${rawBody}` eilutė; po rotacijos atnaujinkite secret.                                                                                                |
+| Web forma grąžina `STALE_TIMESTAMP`            | Siuntėjo serverio laikrodis skiriasi daugiau nei 5 min. arba retry naudoja seną timestamp; pasirašykite iš naujo, palikdami tą patį event ID.                                                                                 |
+| Resend eventas ignoruojamas                    | Gavėjo adresas nesutampa su aktyvios Paslaugos.lt integracijos adresu arba pašto taisyklė vis dar naudoja seną adresą.                                                                                                        |
+| `SOURCE_FORMAT_UNRECOGNIZED`                   | Trūksta žinomos temos/šablono arba originalaus Paslaugos.lt `From`; naudokite `redirect`/forward režimą, kuris jo neperrašo. Neatsakykite automatiškai, o naujo formato nuasmenintą pavyzdį pridėkite kaip regresinį fixture. |
+| `UNAUTHENTICATED_THREAD_REFERENCES`            | Paslaugos.lt laiškas turi thread headerius, bet Resend nepateikė patikimos siuntėjo tapatybės; V1 palieka atskirą rankinės peržiūros pokalbį.                                                                                 |
 
 ## 8. Atnaujinimai
 
