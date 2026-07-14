@@ -1,12 +1,16 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
+import { ConfirmSubmitButton } from "@/components/dashboard/ConfirmSubmitButton";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import { getLeadDetail, type LeadDetail } from "@/lib/leads/get-lead-detail";
+import { defaultReplySubject } from "@/lib/outbound/helpers";
 import {
   closeConversationAction,
   markAnsweredExternallyAction,
   reopenConversationAction,
+  sendConversationResponseAction,
 } from "./actions";
 
 export const runtime = "nodejs";
@@ -14,10 +18,13 @@ export const dynamic = "force-dynamic";
 
 export default async function LeadDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ sent?: string; sendError?: string }>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
 
   try {
     const client = await getCurrentClient();
@@ -36,6 +43,22 @@ export default async function LeadDetailPage({
         </div>
 
         <LeadOverview lead={lead} />
+        {query?.sent ? (
+          <div
+            role="status"
+            className="mt-5 rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm font-semibold text-brand"
+          >
+            Atsakymas priimtas siųsti ir įrašytas pokalbio istorijoje.
+          </div>
+        ) : null}
+        {query?.sendError ? (
+          <div
+            role="alert"
+            className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm font-semibold text-warn-text"
+          >
+            {query.sendError}
+          </div>
+        ) : null}
         {lead.conversation ? (
           <ConversationPanel lead={lead} />
         ) : (
@@ -184,15 +207,17 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
                 <span className="font-bold text-ink-soft">
-                  {conversation.sourceType === "PASLAUGOS_LT"
-                    ? `Persiuntė: ${
-                        item.message.senderName ||
+                  {item.message.direction === "OUTBOUND"
+                    ? `${outboundActorLabel(item.message.outboundDispatch?.status)}: ${item.message.senderName || item.message.senderEmail || "FirstReply"}`
+                    : conversation.sourceType === "PASLAUGOS_LT"
+                      ? `Persiuntė: ${
+                          item.message.senderName ||
+                          item.message.senderEmail ||
+                          "nežinomas siuntėjas"
+                        }`
+                      : item.message.senderName ||
                         item.message.senderEmail ||
-                        "nežinomas siuntėjas"
-                      }`
-                    : item.message.senderName ||
-                      item.message.senderEmail ||
-                      "Nežinomas siuntėjas"}
+                        "Nežinomas siuntėjas"}
                 </span>
                 <span>{formatDate(item.message.receivedAt)}</span>
               </div>
@@ -204,6 +229,62 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
                 {item.message.text}
               </p>
+              {item.message.outboundDispatch ? (
+                <>
+                  <div className="mt-3 text-xs text-ink-muted">
+                    Iš: {item.message.senderName || "FirstReply"}
+                    {item.message.senderEmail
+                      ? ` <${item.message.senderEmail}>`
+                      : ""}{" "}
+                    · Kam: {item.message.outboundDispatch.toEmail} · Reply-To:{" "}
+                    {item.message.outboundDispatch.replyToEmail} · Būsena:{" "}
+                    {dispatchStatusLabel(item.message.outboundDispatch.status)}
+                    {item.message.outboundDispatch.sentByEmail
+                      ? ` · Veiksmą atliko ${item.message.outboundDispatch.sentByEmail}`
+                      : ""}
+                    {item.message.outboundDispatch.errorMessage
+                      ? ` · ${item.message.outboundDispatch.errorMessage}`
+                      : ""}
+                  </div>
+                  {isDispatchRetryable(item.message.outboundDispatch) &&
+                  conversation.status !== "CLOSED" &&
+                  process.env.EMAIL_SENDING_ENABLED === "true" ? (
+                    <form
+                      action={sendConversationResponseAction}
+                      className="mt-3"
+                    >
+                      <input type="hidden" name="leadId" value={lead.id} />
+                      <input
+                        type="hidden"
+                        name="responseRevisionId"
+                        value={item.message.outboundDispatch.responseRevisionId}
+                      />
+                      <input
+                        type="hidden"
+                        name="sendRequestId"
+                        value={item.message.outboundDispatch.sendRequestId}
+                      />
+                      <input
+                        type="hidden"
+                        name="subject"
+                        value={
+                          item.message.subject ?? "Atsakymas į jūsų užklausą"
+                        }
+                      />
+                      <input
+                        type="hidden"
+                        name="text"
+                        value={item.message.text}
+                      />
+                      <ConfirmSubmitButton
+                        label="Saugiai bandyti dar kartą"
+                        confirmText="Pakartoti tą patį siuntimą su tuo pačiu idempotency raktu?"
+                        className="rounded-lg border border-warn-border bg-white px-3 py-2 text-xs font-bold text-warn-text"
+                      />
+                    </form>
+                  ) : null}
+                </>
+              ) : null}
               {item.message.hasAttachments ? (
                 <div className="mt-3 text-xs font-bold text-warn-text">
                   Yra neanalizuotų priedų — būtina rankinė peržiūra.
@@ -232,6 +313,8 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
         )}
       </div>
 
+      <SendResponseForm lead={lead} />
+
       {conversation.status !== "CLOSED" ? (
         <form
           action={markAnsweredExternallyAction}
@@ -259,6 +342,147 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
         </p>
       )}
     </section>
+  );
+}
+
+function SendResponseForm({ lead }: { lead: LeadDetail }) {
+  const conversation = lead.conversation;
+  if (!conversation || conversation.status === "CLOSED") return null;
+  const activeResponse = lead.responses.find(
+    (response) =>
+      response.status === "ready" || response.status === "manual_review",
+  );
+  const pendingDispatch = conversation.messages.find((message) => {
+    const dispatch = message.outboundDispatch;
+    if (!dispatch || dispatch.responseRevisionId !== activeResponse?.id) {
+      return false;
+    }
+    return ["SENDING", "FAILED", "UNKNOWN"].includes(dispatch.status);
+  });
+  if (conversation.sourceType !== "WEB_FORM") {
+    return (
+      <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
+        Tiesioginis siuntimas šiam šaltiniui dar nepalaikomas. Atsakykite
+        išoriniame kanale ir naudokite „Atsakyta kitur“.
+      </p>
+    );
+  }
+  if (process.env.EMAIL_SENDING_ENABLED !== "true") {
+    return (
+      <p className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm text-warn-text">
+        Realus el. laiškų siuntimas šiuo metu globaliai išjungtas. Operatorius
+        turi įjungti `EMAIL_SENDING_ENABLED` tik po domeno ir smoke testo
+        patikros.
+      </p>
+    );
+  }
+  if (
+    !activeResponse?.draftText ||
+    !lead.customerEmail ||
+    !lead.outboundSender
+  ) {
+    return (
+      <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
+        Siųsti bus galima, kai yra aktyvus juodraštis, kliento el. paštas ir
+        patvirtintas numatytasis siuntėjas.
+      </p>
+    );
+  }
+  if (pendingDispatch) {
+    const dispatch = pendingDispatch.outboundDispatch;
+    const guidance =
+      dispatch?.status === "UNKNOWN"
+        ? "Rezultatas neaiškus. Patikrinkite Resend žurnalą; naujas siuntimas blokuojamas, kol būsena neišspręsta."
+        : dispatch?.status === "SENDING" && !isDispatchRetryable(dispatch)
+          ? "Siuntimas dar apdorojamas. Atnaujinkite puslapį po kelių minučių."
+          : "Naudokite timeline rodomą saugų retry su tuo pačiu request ID.";
+    return (
+      <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
+        Ši atsakymo revizija jau turi nebaigtą siuntimą. {guidance}
+      </p>
+    );
+  }
+  const latestInboundSubject =
+    [...conversation.messages]
+      .reverse()
+      .find((message) => message.direction === "INBOUND")?.subject ?? null;
+  return (
+    <form
+      action={sendConversationResponseAction}
+      className="mt-5 rounded-lg border border-brand-tintborder bg-brand-tint p-4"
+    >
+      <input type="hidden" name="leadId" value={lead.id} />
+      <input
+        type="hidden"
+        name="responseRevisionId"
+        value={activeResponse.id}
+      />
+      <input type="hidden" name="sendRequestId" value={randomUUID()} />
+      <div className="text-sm font-extrabold text-ink">Atsakyti klientui</div>
+      <p className="mt-1 text-xs text-ink-soft">
+        Iš: {lead.outboundSender.fromName} &lt;{lead.outboundSender.fromEmail}
+        &gt; · Kam: {lead.customerEmail} · Reply-To:{" "}
+        {lead.outboundSender.replyToEmail}
+      </p>
+      <label className="mt-3 block text-sm font-bold text-ink">
+        Tema
+        <input
+          name="subject"
+          defaultValue={defaultReplySubject(latestInboundSubject)}
+          maxLength={300}
+          required
+          className="mt-2 min-h-11 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand"
+        />
+      </label>
+      <label className="mt-3 block text-sm font-bold text-ink">
+        Atsakymo tekstas
+        <textarea
+          name="text"
+          defaultValue={activeResponse.draftText}
+          maxLength={20000}
+          rows={8}
+          required
+          className="mt-2 w-full rounded-lg border border-line bg-white px-3 py-2 text-sm leading-relaxed outline-none focus:border-brand"
+        />
+      </label>
+      <ConfirmSubmitButton
+        label="Siųsti klientui"
+        confirmText={`Išsiųsti šį laišką adresu ${lead.customerEmail}?`}
+        className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-hover"
+      />
+      <p className="mt-2 text-xs text-ink-muted">
+        Paspaudus laiškas bus realiai išsiųstas. Automatinio siuntimo nėra.
+      </p>
+    </form>
+  );
+}
+
+function dispatchStatusLabel(status: string): string {
+  if (status === "SENT") return "Priimtas siųsti";
+  if (status === "DELIVERED") return "Pristatytas";
+  if (status === "FAILED") return "Nepavyko";
+  if (status === "BOUNCED") return "Atmestas gavėjo";
+  if (status === "COMPLAINED") return "Pažymėtas kaip spam";
+  if (status === "UNKNOWN") return "Būtina patikrinti";
+  return "Siunčiamas";
+}
+
+function outboundActorLabel(status?: string): string {
+  if (status === "FAILED") return "Bandė siųsti";
+  if (status === "SENDING") return "Siunčia";
+  if (status === "UNKNOWN") return "Siuntimo rezultatas neaiškus";
+  return "Išsiuntė";
+}
+
+function isDispatchRetryable(dispatch: {
+  status: string;
+  processingStartedAt: string;
+}): boolean {
+  if (dispatch.status === "FAILED") return true;
+  return (
+    dispatch.status === "SENDING" &&
+    Date.now() - new Date(dispatch.processingStartedAt).getTime() >=
+      10 * 60 * 1000
   );
 }
 

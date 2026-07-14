@@ -72,6 +72,19 @@ pokalbio: Paslaugos.lt tęsinys rodomas kaip atskiras `MANUAL_REVIEW` pokalbis,
 o atsakymas telefonu ar savo paštu fiksuojamas rankiniu veiksmu „Atsakyta
 kitur“.
 
+### Atsakymas iš FirstReply
+
+Web formos užklausai, kuri turi kliento el. paštą ir aktyvų juodraštį, lead
+detail rodo **Atsakyti klientui** formą. Joje matysite serverio parinktus `From`,
+`To` ir `Reply-To`, galėsite pakeisti temą bei tekstą ir tik tada paspausti
+**Siųsti klientui**. Laiškas siunčiamas iš jūsų Resend patvirtinto domeno ir
+įrašomas kaip tikra outbound žinutė timeline.
+
+Paslaugos.lt užklausoms šis mygtukas sąmoningai nerodomas, kol nepatvirtintas
+platformos atsakymo mechanizmas. Naudokite Paslaugos.lt kanalą ir **Atsakyta
+kitur**. FirstReply dar automatiškai neįkelia gavėjo atsakymo ir nerodo
+delivery/bounce rezultato; `Priimtas siųsti` reiškia, kad laišką priėmė Resend.
+
 ## Integracijos
 
 Integracijų puslapyje kiekvienas šaltinis kuriamas atskirai. Integracijų

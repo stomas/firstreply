@@ -7,6 +7,7 @@ import {
   SourceIntegrationType,
 } from "@prisma/client";
 import { assertCanMarkAnsweredExternally } from "../lib/inbound/conversations";
+import { AppValidationError } from "../lib/app-errors";
 import {
   generatePaslaugosRoutingAddress,
   normalizeIntegrationName,
@@ -86,13 +87,21 @@ describe("source-specific integration helpers", () => {
     });
   });
 
-  it("requires reopening a closed conversation before an external answer", () => {
+  it("allows an external answer only while a conversation needs a reply", () => {
     assert.throws(
       () => assertCanMarkAnsweredExternally(ConversationStatus.CLOSED),
-      /atidarykite pokalbį iš naujo/,
+      /dar reikia atsakymo/,
     );
     assert.doesNotThrow(() =>
       assertCanMarkAnsweredExternally(ConversationStatus.NEEDS_REPLY),
+    );
+    assert.doesNotThrow(() =>
+      assertCanMarkAnsweredExternally(ConversationStatus.MANUAL_REVIEW),
+    );
+    assert.throws(
+      () =>
+        assertCanMarkAnsweredExternally(ConversationStatus.WAITING_CUSTOMER),
+      AppValidationError,
     );
   });
 

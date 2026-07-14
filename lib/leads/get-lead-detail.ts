@@ -19,6 +19,11 @@ export type LeadDetail = {
   isUrgent: boolean | null;
   hasAttachments: boolean | null;
   manualReviewReason: string | null;
+  outboundSender: {
+    fromName: string;
+    fromEmail: string;
+    replyToEmail: string;
+  } | null;
   service: {
     id: string;
     name: string;
@@ -50,6 +55,19 @@ export type LeadDetail = {
       subject: string | null;
       text: string;
       hasAttachments: boolean;
+      recipients: Prisma.JsonValue | null;
+      outboundDispatch: {
+        status: string;
+        sendRequestId: string;
+        responseRevisionId: string;
+        toEmail: string;
+        replyToEmail: string;
+        errorCode: string | null;
+        errorMessage: string | null;
+        processingStartedAt: string;
+        sentAt: string | null;
+        sentByEmail: string | null;
+      } | null;
     }>;
     activities: Array<{
       id: string;
@@ -107,6 +125,11 @@ export async function getLeadDetail(
           },
           messages: {
             orderBy: [{ receivedAt: "asc" }, { createdAt: "asc" }],
+            include: {
+              outboundDispatch: {
+                include: { sentByUser: { select: { email: true } } },
+              },
+            },
           },
           activities: {
             orderBy: { createdAt: "asc" },
@@ -120,6 +143,16 @@ export async function getLeadDetail(
   if (!lead) {
     throw new AppNotFoundError("Lead not found.");
   }
+
+  const outboundSender = await prisma.outboundIntegration.findFirst({
+    where: {
+      clientId,
+      isDefault: true,
+      status: "ACTIVE",
+      providerStatus: "verified",
+    },
+    select: { fromName: true, fromEmail: true, replyToEmail: true },
+  });
 
   const [pricingRules, decisionRequirements, availabilityRules] = lead.serviceId
     ? await Promise.all([
@@ -155,6 +188,7 @@ export async function getLeadDetail(
     isUrgent: lead.isUrgent,
     hasAttachments: lead.hasAttachments,
     manualReviewReason: lead.manualReviewReason,
+    outboundSender,
     service: lead.service
       ? {
           id: lead.service.id,
@@ -190,6 +224,25 @@ export async function getLeadDetail(
             subject: message.subject,
             text: message.text,
             hasAttachments: message.hasAttachments,
+            recipients: message.recipients,
+            outboundDispatch: message.outboundDispatch
+              ? {
+                  status: message.outboundDispatch.status,
+                  sendRequestId: message.outboundDispatch.sendRequestId,
+                  responseRevisionId:
+                    message.outboundDispatch.responseRevisionId,
+                  toEmail: message.outboundDispatch.toEmail,
+                  replyToEmail: message.outboundDispatch.replyToEmail,
+                  errorCode: message.outboundDispatch.errorCode,
+                  errorMessage: message.outboundDispatch.errorMessage,
+                  processingStartedAt:
+                    message.outboundDispatch.processingStartedAt.toISOString(),
+                  sentAt:
+                    message.outboundDispatch.sentAt?.toISOString() ?? null,
+                  sentByEmail:
+                    message.outboundDispatch.sentByUser?.email ?? null,
+                }
+              : null,
           })),
           activities: lead.conversation.activities.map((activity) => ({
             id: activity.id,

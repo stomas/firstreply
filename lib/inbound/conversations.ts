@@ -2,6 +2,7 @@ import { ConversationActivityType, ConversationStatus } from "@prisma/client";
 import { AppNotFoundError, AppValidationError } from "@/lib/app-errors";
 import { prisma } from "@/lib/db";
 import { lockLeadForUpdate } from "@/lib/inbound/lead-lock";
+import { assertNoUnfinishedOutboundDispatch } from "@/lib/outbound/guards";
 
 export async function markConversationAnsweredExternally(params: {
   clientId: string;
@@ -19,10 +20,16 @@ export async function markConversationAnsweredExternally(params: {
 
   await prisma.$transaction(async (tx) => {
     await lockLeadForUpdate(tx, params.leadId);
+    await assertNoUnfinishedOutboundDispatch(tx, conversation.id);
     const currentConversation = await tx.conversation.findUniqueOrThrow({
       where: { id: conversation.id },
-      select: { firstResponseAt: true, inboundVersion: true },
+      select: {
+        firstResponseAt: true,
+        inboundVersion: true,
+        status: true,
+      },
     });
+    assertCanMarkAnsweredExternally(currentConversation.status);
     await tx.conversationActivity.create({
       data: {
         conversationId: conversation.id,
@@ -57,9 +64,12 @@ export async function markConversationAnsweredExternally(params: {
 export function assertCanMarkAnsweredExternally(
   status: ConversationStatus,
 ): void {
-  if (status === ConversationStatus.CLOSED) {
+  if (
+    status !== ConversationStatus.NEEDS_REPLY &&
+    status !== ConversationStatus.MANUAL_REVIEW
+  ) {
     throw new AppValidationError(
-      "Prieš žymėdami atsakymą atidarykite pokalbį iš naujo.",
+      "„Atsakyta kitur“ galima žymėti tik pokalbiui, kuriam dar reikia atsakymo.",
     );
   }
 }
@@ -72,6 +82,7 @@ export async function reopenConversation(params: {
   const conversation = await findConversation(params.clientId, params.leadId);
   await prisma.$transaction(async (tx) => {
     await lockLeadForUpdate(tx, params.leadId);
+    await assertNoUnfinishedOutboundDispatch(tx, conversation.id);
     await tx.conversationActivity.create({
       data: {
         conversationId: conversation.id,
@@ -99,6 +110,7 @@ export async function closeConversation(params: {
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     await lockLeadForUpdate(tx, params.leadId);
+    await assertNoUnfinishedOutboundDispatch(tx, conversation.id);
     const currentConversation = await tx.conversation.findUniqueOrThrow({
       where: { id: conversation.id },
       select: { inboundVersion: true },

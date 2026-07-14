@@ -29,7 +29,8 @@ Repo sudaro:
 Dashboard turi el. pašto/slaptažodžio autentifikaciją ir DB sesijas. Įprastas
 vartotojas visada apribotas savo `Client`, o `SUPER_ADMIN` sesijoje gali
 pasirinkti aktyvų klientą. Veikia source-specific Web formos ir Paslaugos.lt
-inbound integracijos. Mokėjimų, Gmail mailbox sync, CRM ir outbound siuntimo
+inbound integracijos ir žmogaus patvirtintas outbound siuntimas Web formos
+užklausoms. Mokėjimų, Gmail mailbox sync, CRM, delivery bei reply sync
 nėra.
 
 ## 2. Tech stack
@@ -291,6 +292,8 @@ redaguojami ranka.
 | `AutosendPolicy`        | Auto-send politikos JSON (§5).                                                                                           |
 | `ResponseTemplate`      | Atsakymų šablonai: `price_estimate`, `ask_missing_info`, `decline_location`, `offering_answer` (su `{{placeholder}}`).   |
 | `Lead` / `LeadResponse` | Užklausa + atsakymo įrašas (`decisionJson` su pilnu trace).                                                              |
+| `OutboundIntegration`   | Klientui priklausanti Resend siuntėjo tapatybė, domeno/DNS būsena ir numatytasis siuntėjas.                              |
+| `OutboundDispatch`      | Nekintamas loginio siuntimo rezervacijos, idempotency, providerio ir būsenos auditas.                                    |
 
 Migracijos — `prisma/migrations` (deploy: `npm run db:migrate`), seed —
 `prisma/seed.ts` (idempotentiškas upsert, DEV klientas su 3 paslaugomis).
@@ -431,8 +434,10 @@ Pilnas kontraktas, setup ir retry lentelė:
    manual review. Tai sąmoninga saugi elgsena.
 3. **Auth MVP** — nėra el. pašto patvirtinimo, slaptažodžio atkūrimo, kvietimų
    ar papildomų įmonės vartotojų.
-4. **Realaus siuntimo nėra** — `autoSendAllowed` tik žymi, kad politika
-   leistų; siuntimo integracija dar nepadaryta.
+4. **Automatinio siuntimo nėra** — `autoSendAllowed` tik žymi politikos
+   rezultatą. Realus siuntimas galimas tik žmogui redagavus ir paspaudus
+   **Siųsti klientui**, tik Web formos source ir tik iš patvirtinto siuntėjo.
+   Delivery būsena šiame etape reiškia tik Resend priėmimą, ne pristatymą.
 5. **Paslaugos.lt fixture'ai** — kol negauta realių nuasmenintų laiškų,
    adapteris naudoja plain-text/HTML fallback ir neatpažintą formatą perduoda
    rankinei peržiūrai.

@@ -10,6 +10,19 @@ Susiję dokumentai: [Inbound integracija](./INBOUND-INTEGRATION.md) ·
 [Railway diegimas](./DEPLOY-RAILWAY.md) ·
 [Naudotojo gidas](./NAUDOTOJO-GIDAS.md)
 
+## Įgyvendinimo būsena
+
+**2026-07-14 įgyvendinti 1 ir 2 etapai bei anksčiau rekomenduotas artimiausias
+ticket:** Resend outbound siuntėjo tapatybė, DNS verification UI ir žmogaus
+patvirtintas idempotentinis siuntimas. 3–7 etapai lieka roadmap.
+
+Realiam produkciniam įjungimui dar būtini migracijos pritaikymas, patvirtintas
+kliento domenas ir kontroliuojamas Resend/Railway smoke testas. Globalus
+`EMAIL_SENDING_ENABLED` po deploy pagal nutylėjimą lieka `false`.
+
+Šiame etape `Reply-To` yra kliento sukonfigūruota įmonės pašto dėžutė. Unikalus
+pokalbio reply routing adresas ir automatinis atsakymo įkėlimas yra 4 etapas.
+
 ## 1. Dabartinė bazė
 
 Jau įgyvendinta:
@@ -22,8 +35,10 @@ Jau įgyvendinta:
 - Resend webhooko raw-body parašo tikrinimas ir tikslus gavėjo routing;
 - jokio visos kliento pašto dėžutės ingest.
 
-Dabartinė V1 riba: FirstReply pats laiško nesiunčia ir išorinių atsakymų
-automatiškai nesinchronizuoja. Paslaugos.lt forwardinimo thread headeriai nėra
+Dabartinė riba: FirstReply žmogui patvirtinus gali siųsti atsakymą Web formos
+užklausai iš aktyvaus Resend patvirtinto kliento domeno. Delivery webhookai ir
+išoriniai atsakymai dar automatiškai nesinchronizuojami. Paslaugos.lt
+forwardinimo thread headeriai nėra
 laikomi patikima siuntėjo tapatybe, todėl automatiškai pokalbių nesujungia.
 
 ## 2. Tikslinis naudotojo srautas
@@ -88,7 +103,7 @@ Prieš outbound:
 sukuria vieną message/lead, retry nesukuria dublikato, o operatorius mato
 diagnozuojamą rezultatą.
 
-### Etapas 1 — outbound siuntėjo tapatybė
+### Etapas 1 — outbound siuntėjo tapatybė ✅ Įgyvendinta 2026-07-14
 
 Pridėti atskirą `OutboundIntegration`, neperkraunant inbound
 `SourceIntegration` semantikos.
@@ -124,7 +139,7 @@ Dashboard `/dashboard/integrations` turi leisti:
 **Done:** nepatvirtintas arba svetimam klientui priklausantis siuntėjas negali
 būti naudojamas; aktyvus siuntėjas aiškiai rodomas UI.
 
-### Etapas 2 — žmogaus patvirtintas siuntimas
+### Etapas 2 — žmogaus patvirtintas siuntimas ✅ Įgyvendinta 2026-07-14
 
 Lead detail pridėti redaguojamą atsakymo formą:
 
@@ -182,8 +197,17 @@ Siuntimo algoritmas:
 
 Negalima DB transakcijos laikyti atidarytos per tinklo kvietimą.
 
-**Done:** dvigubas paspaudimas, du paralelūs requestai ir crash/retry sukuria
-vieną outbound message bei vieną realų laišką.
+Įgyvendinta kaip autentifikuotas Next.js server action lead detail puslapyje.
+`clientId`, gavėjas, source, aktyvi revizija ir siuntėjas nustatomi iš serverio
+sesijos bei DB. V1 siuntimas leidžiamas tik `WEB_FORM`; `PASLAUGOS_LT` palieka
+„Atsakyta kitur“. Prieš Resend kvietimą sukuriama nekintama message/dispatch
+rezervacija, o retry naudoja tą patį raktą tik Resend 24 val. lango saugioje
+23 val. riboje. Neaiškus pasenęs siuntimas pažymimas `UNKNOWN`.
+
+**Kodas įgyvendintas:** DB rezervacija ir vienodas providerio idempotency raktas
+projektuoti taip, kad dvigubas paspaudimas, paralelūs requestai ir crash/retry
+sukurtų vieną outbound message bei vieną realų laišką. Disposable PostgreSQL
+concurrency ir realus Resend/Railway smoke acceptance dar lieka rollout vartai.
 
 ### Etapas 3 — delivery ir bounce tracking
 
@@ -443,9 +467,9 @@ Minimalios metrikos per klientą/integraciją:
 - reply routing mismatch / manual review;
 - pranešimų kiekis, kad vėlesnė kainodara remtųsi naudojimu.
 
-## 9. Atviri sprendimai prieš konkretų įgyvendinimą
+## 9. Priimti sprendimai 1–2 etapams ir likę klausimai
 
-Šiuos klausimus reikia patvirtinti pirmo outbound ticket planavimo metu:
+Pirmiems keturiems klausimams pritaikytos rekomenduotos V1 reikšmės:
 
 1. Ar kiekvienas klientas tvirtina savo domeną Resend? Rekomendacija — **taip**.
 2. Ar vienas klientas gali turėti kelis siuntėjo adresus? Rekomendacija — modelis
@@ -461,9 +485,10 @@ Minimalios metrikos per klientą/integraciją:
 7. Kokie konkretūs message/delivery eventų saugojimo terminai? Suderinti su
    privatumo politika prieš public rollout.
 
-## 10. Rekomenduojamas artimiausias ticket
+## 10. Įgyvendintas ticket ir rekomenduojamas kitas žingsnis
 
-**Pavadinimas:** Resend outbound identity ir žmogaus patvirtintas siuntimas.
+**✅ Įgyvendinta 2026-07-14:** Resend outbound identity ir žmogaus patvirtintas
+siuntimas.
 
 **Scope:**
 
@@ -481,3 +506,7 @@ reply routing, Paslaugos.lt direct reply, Gmail/Microsoft sync ir auto-send.
 
 Tokiu skaidymu pirmas ticket saugiai pristato realų siuntimą, o delivery bei
 reply tracking lieka atskiri, lengviau peržiūrimi etapai.
+
+**Kitas rekomenduojamas ticket:** 3 etapas — idempotentinis Resend delivery,
+bounce ir complaint webhookų sekimas. Reply routing ir Paslaugos.lt direct
+reply į šį kitą ticket neįtraukiami.

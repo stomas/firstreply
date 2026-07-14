@@ -22,7 +22,7 @@ Susiję dokumentai: [Architektūra](./ARCHITEKTURA.md) ·
 
 Integracijų skaičius dabar neribojamas. Kiekviena integracija atskirai kaupia
 eventų ir žinučių skaičių, todėl kainodara vėliau gali remtis faktiniu
-naudojimu. `GENERIC_EMAIL`, Gmail Inbox/Sent sync ir outbound siuntimas V1
+naudojimu. `GENERIC_EMAIL` ir Gmail Inbox/Sent sync V1
 nepalaikomi.
 
 ## Duomenų srautas
@@ -182,7 +182,9 @@ Lead detail timeline rodo tik realiai priimtas inbound žinutes ir audituotus
 rankinius veiksmus. Jei darbuotojas atsakė telefonu, iš savo pašto ar kitu
 kanalu, jis spaudžia **Atsakyta kitur** ir gali palikti pastabą. Tai pakeičia
 būseną į `WAITING_CUSTOMER`, pažymi aktyvų juodraštį `superseded`, bet
-nesukuria fiktyvaus outbound message. V1 išorinių atsakymų automatiškai
+nesukuria fiktyvaus outbound message. Web formos pokalbiui dabar galima
+žmogaus patvirtinta siunta per Resend; ji sukuria tikrą `OUTBOUND` message.
+Paslaugos.lt direct reply ir išoriniai atsakymai automatiškai
 nesinchronizuoja; uždarytą pokalbį prieš tokį veiksmą reikia atidaryti iš naujo.
 
 Priedų turinys V1 neanalizuojamas. Saugoma tik metadata, o visas pokalbis

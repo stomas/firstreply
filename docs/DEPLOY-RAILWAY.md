@@ -44,9 +44,10 @@ App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais 
 | `SHADOW_AI_PARSE`               | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
 | `LEAD_WEBHOOK_URL`              | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
 | `INBOUND_SIGNING_MASTER_SECRET` | Inbound       | Bent 32 atsitiktinių baitų serverio secret, iš kurio išvedami atskirų web formų HMAC raktai.                                                                                            |
-| `RESEND_API_KEY`                | Paslaugos.lt  | Resend API raktas pilnam gautam laiškui paimti.                                                                                                                                         |
+| `RESEND_API_KEY`                | El. paštas    | Resend API raktas pilnam gautam laiškui paimti, outbound domenui valdyti ir žmogaus patvirtintam laiškui siųsti.                                                                        |
 | `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt  | Resend webhook signing secret (`whsec_…`), skirtas raw payload patikrai.                                                                                                                |
 | `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt  | Resend sukonfigūruotas receiving domenas be `@`, pvz. `in.firstreply.lt`.                                                                                                               |
+| `EMAIL_SENDING_ENABLED`         | Outbound      | Globalus realaus siuntimo kill switch. Po deploy laikyti `false`, kol patvirtintas siuntėjo domenas ir suplanuotas smoke testas.                                                        |
 
 `NODE_ENV=production` ir `PORT` Railway nustato pats — jų kurti nereikia.
 
@@ -117,8 +118,22 @@ response templates gali būti perrašyti pagal seed duomenis.
    `email.received` eventą.
 4. Webhook signing secret įrašykite į `RESEND_WEBHOOK_SECRET`, API raktą — į
    `RESEND_API_KEY`, tada redeploy.
-5. Dashboarde sukurkite Paslaugos.lt integraciją ir kliento pašte taisyklę,
-   kuri persiunčia tik Paslaugos.lt laiškus. Visos dėžutės persiųsti negalima.
+
+### Outbound domenas ir saugus įjungimas
+
+1. Railway pirmiausia nustatykite `EMAIL_SENDING_ENABLED=false` ir pritaikykite
+   migracijas.
+2. Dashboard **Integracijos → Atsakymų siuntimas** sukurkite atskirą kliento
+   subdomeną, DNS tiekėjui nukopijuokite parodytus Resend įrašus.
+3. Spauskite **Tikrinti DNS**. Siuntėją galima naudoti tik kai providerio
+   būsena `verified`, integracija aktyvi ir pasirinkta numatytąja.
+4. Tik su saugiu testiniu Web formos leadu nustatykite
+   `EMAIL_SENDING_ENABLED=true`, redeploy ir išsiųskite vieną žmogaus patvirtintą
+   atsakymą.
+5. Patikrinkite Resend žurnalą, gavėjo dėžutę, vieną `OUTBOUND` timeline įrašą
+   ir vieną `OutboundDispatch`. Šiame etape dashboard `SENT` reiškia Resend
+   priėmimą; delivery/bounce webhookai dar neįgyvendinti.
+6. Kilus abejonei iš karto grąžinkite kill switch į `false`.
 
 ## 6. Patikrinimas po diegimo
 
@@ -128,16 +143,18 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
 2. **`/super-admin/signup`** sukuria administratorių su nustatytu registracijos
    kodu, o dashboarde galima pasirinkti klientą `id=1`.
 3. **`/dashboard`** rodo pasirinkto kliento užklausų sąrašą — DB ir sesija veikia.
-4. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
+4. Dashboarde sukurkite Paslaugos.lt integraciją ir kliento pašte taisyklę,
+   kuri persiunčia tik Paslaugos.lt laiškus. Visos dėžutės persiųsti negalima.
+5. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
    „Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje.
    Kiek kainuotų?“ → turi grįžti parengtas atsakymas su kaina — veikia visas
    pipeline, įskaitant OpenAI.
-5. **`/dashboard/integrations`** → sukurkite web formos integraciją; URL ir
+6. **`/dashboard/integrations`** → sukurkite web formos integraciją; URL ir
    signing secret turi būti matomi. Išsiųskite pasirašytą smoke eventą pagal
    [runbooką](./INBOUND-INTEGRATION.md) ir patikrinkite vieną realų leadą.
-6. Jei parengtas atsakymas grąžina „AI generation is not configured“ — patikrinkite
+7. Jei parengtas atsakymas grąžina „AI generation is not configured“ — patikrinkite
    `OPENAI_API_KEY` / `OPENAI_MODEL`.
-7. Jei sukonfigūruotas Resend, išbandykite tikslų Paslaugos.lt forwarding
+8. Jei sukonfigūruotas Resend, išbandykite tikslų Paslaugos.lt forwarding
    filtrą ir dashboarde patikrinkite source, timeline bei paskutinį eventą.
 
 Providerio credentialų nėra CI, todėl web formos ir Resend/Railway smoke

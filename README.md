@@ -15,7 +15,8 @@ This repository contains the landing page plus an authenticated, DB-backed
 client dashboard, response pipeline, and source-specific inbound integrations.
 V1 accepts signed web-form events and Paslaugos.lt notifications routed through
 dedicated Resend addresses. It intentionally does not include payments, CRM,
-Gmail mailbox sync, or outbound sending.
+Gmail mailbox sync, delivery/reply sync, or automatic sending. Human-approved
+outbound sending for Web form conversations is available behind a kill switch.
 
 ## Documentation
 
@@ -148,9 +149,10 @@ service **Variables** tab.
 | `LLM_FIRST_PARSE`               | No           | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
 | `SHADOW_AI_PARSE`               | No           | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
 | `INBOUND_SIGNING_MASTER_SECRET` | Inbound      | Server only | Master secret (at least 32 random bytes) used to derive each web-form integration's versioned signing secret.      |
-| `RESEND_API_KEY`                | Paslaugos.lt | Server only | Retrieves a verified inbound email from Resend after `email.received`.                                             |
+| `RESEND_API_KEY`                | Email        | Server only | Retrieves verified inbound email and provisions/sends from client-verified outbound domains.                       |
 | `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt | Server only | Verifies the exact raw Resend/Svix webhook payload.                                                                |
 | `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt | Server only | Verified Resend receiving domain used for unique `p-…@domain` routing addresses.                                   |
+| `EMAIL_SENDING_ENABLED`         | Outbound     | Server only | Global kill switch for human-approved Resend sends; defaults to `false`.                                           |
 | `NODE_ENV`                      | Auto         | Server      | `development` locally; Railway sets `production` automatically.                                                    |
 
 > **Security:** `LEAD_WEBHOOK_URL`, `SUPER_ADMIN_SIGNUP_CODE`,
@@ -270,7 +272,7 @@ The skeleton keeps future work easy:
 - All copy lives in `lib/constants.ts`; the lead contract lives in
   `lib/lead-schema.ts`.
 
-Additional source adapters, CRM, Gmail/Microsoft mailbox sync, outbound
-sending, multiple users, and advanced reports remain roadmap items. Source
+Additional source adapters, CRM, Gmail/Microsoft mailbox sync, delivery/reply
+tracking, multiple users, and advanced reports remain roadmap items. Source
 count is not limited in V1; usage is measured per integration for future
 pricing decisions.

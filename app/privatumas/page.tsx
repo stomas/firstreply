@@ -37,7 +37,8 @@ export default function PrivacyPage() {
         telefono numerį, miestą, užklausos tekstą, puslapio URL, laiško
         antraštes, gavėjus, laiką ir priedų metadata. Priedų turinio ši versija
         neanalizuoja. Taip pat saugome source integracijos, apdorojimo būsenos,
-        atsakymo juodraščio ir audituotų naudotojo veiksmų duomenis.
+        atsakymo juodraščio, žmogaus patvirtinto išsiųsto laiško, siuntėjo bei
+        gavėjo adresų, siuntimo būsenos ir audituotų naudotojo veiksmų duomenis.
       </p>
 
       <h2 className="mt-8 text-xl font-bold text-ink">Šaltinių ribojimas</h2>
