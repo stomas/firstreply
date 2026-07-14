@@ -133,14 +133,20 @@ anuliuoja seną secret; prieš patvirtinant rotaciją UI apie tai įspėja.
 
 1. Resend sukonfigūruokite inbound priėmimo domeną, pvz.
    `in.firstreply.lt`, ir nustatykite jį kaip `RESEND_INBOUND_DOMAIN`.
-2. Resend webhooke įjunkite `email.received` įvykį į:
+2. Viename Resend webhooke įjunkite `email.received` ir outbound delivery
+   eventus į neutralų endpointą:
 
    ```text
-   POST https://<FirstReply domenas>/api/integrations/inbound/resend
+   POST https://<FirstReply domenas>/api/integrations/resend
    ```
 
 3. `RESEND_API_KEY` naudojamas pilnam laiškui paimti, o
    `RESEND_WEBHOOK_SECRET` — raw webhook parašui patikrinti.
+
+Senas `/api/integrations/inbound/resend` lieka tik inbound-only suderinamumo
+route. Produkcijoje abiejų webhookų vienu metu nelaikykite aktyvių. Pilna eventų
+konfigūracija ir perjungimo seka:
+[RESEND-ROLLOUT-CHECKLIST.md](./RESEND-ROLLOUT-CHECKLIST.md).
 
 ### Kliento paruošimas
 

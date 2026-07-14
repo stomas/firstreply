@@ -12,6 +12,11 @@ import { AppConfigError, AppValidationError } from "@/lib/app-errors";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import { lockLeadForUpdate } from "@/lib/inbound/lead-lock";
 import {
+  applyPendingOutboundDeliveryEvents,
+  OUTBOUND_DISPATCH_TAG,
+  reconcileProviderAcceptance,
+} from "@/lib/outbound/delivery";
+import {
   assertOutboundSource,
   classifyDispatchRetry,
   formatSender,
@@ -89,6 +94,7 @@ export async function sendConversationResponse(params: {
         subject: reservation.subject,
         text: reservation.text,
         html: plainTextToSafeHtml(reservation.text),
+        tags: [{ name: OUTBOUND_DISPATCH_TAG, value: reservation.id }],
       },
       { idempotencyKey: reservation.idempotencyKey },
     );
@@ -175,6 +181,14 @@ async function reserveDispatch(params: {
       ) {
         throw new AppValidationError(
           "Tas pats siuntimo request ID panaudotas kitam laiškui.",
+        );
+      }
+      if (
+        existing.status === OutboundDispatchStatus.FAILED &&
+        existing.providerMessageId
+      ) {
+        throw new AppValidationError(
+          "Providerio priimto, bet vėliau nepristatyto laiško kartoti tuo pačiu siuntimu negalima.",
         );
       }
       const retryDecision = classifyDispatchRetry({
@@ -325,6 +339,7 @@ async function reserveDispatch(params: {
             status: OutboundDispatchStatus.FAILED,
             errorCode: "TRANSPORT_UNCERTAIN",
           },
+          { providerMessageId: { not: null } },
         ],
       },
       select: { id: true },
@@ -399,12 +414,6 @@ async function acceptLease(
   return prisma.$transaction(async (tx) => {
     await lockLeadForUpdate(tx, leadId);
     const now = new Date();
-    const currentConversation = await tx.conversation.findUniqueOrThrow({
-      where: { id: dispatch.conversationId },
-      select: { inboundVersion: true, firstResponseAt: true },
-    });
-    const sameGeneration =
-      currentConversation.inboundVersion === dispatch.conversationVersion;
     const accepted = await tx.outboundDispatch.updateMany({
       where: {
         id: dispatch.id,
@@ -417,53 +426,23 @@ async function acceptLease(
         sentAt: now,
       },
     });
-    if (accepted.count !== 1) return false;
-    await tx.conversationMessage.update({
-      where: { id: dispatch.conversationMessageId },
-      data: { provider: "resend", providerMessageId },
-    });
-    await tx.leadResponse.update({
-      where: { id: dispatch.responseRevisionId },
-      data: { status: "sent", sentText: dispatch.text },
-    });
-    if (sameGeneration) {
-      await tx.leadResponse.updateMany({
-        where: {
-          leadId,
-          id: { not: dispatch.responseRevisionId },
-          status: { in: sendableResponseStatuses },
-        },
-        data: { status: "superseded" },
+    if (accepted.count !== 1) {
+      const reconciled = await tx.outboundDispatch.findUnique({
+        where: { id: dispatch.id },
+        select: { providerMessageId: true, sentAt: true },
       });
+      return (
+        reconciled?.providerMessageId === providerMessageId &&
+        reconciled.sentAt !== null
+      );
     }
-    const conversationUpdated = await tx.conversation.updateMany({
-      where: {
-        id: dispatch.conversationId,
-        inboundVersion: dispatch.conversationVersion,
-        status: {
-          in: [
-            ConversationStatus.NEEDS_REPLY,
-            ConversationStatus.MANUAL_REVIEW,
-          ],
-        },
-      },
-      data: {
-        status: ConversationStatus.WAITING_CUSTOMER,
-        responseVersion: dispatch.conversationVersion,
-        firstResponseAt: currentConversation.firstResponseAt ?? now,
-        closedAt: null,
-      },
-    });
-    if (conversationUpdated.count === 1) {
-      await tx.lead.update({
-        where: { id: leadId },
-        data: {
-          status: "answered",
-          responseDraft: dispatch.text,
-          responseSentAt: now,
-        },
-      });
-    }
+    await reconcileProviderAcceptance(
+      tx,
+      { ...dispatch, leadId, providerMessageId: null, sentAt: null },
+      providerMessageId,
+      now,
+    );
+    await applyPendingOutboundDeliveryEvents(tx, dispatch.id);
     return true;
   });
 }

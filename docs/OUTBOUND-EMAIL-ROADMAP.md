@@ -12,9 +12,9 @@ Susiję dokumentai: [Inbound integracija](./INBOUND-INTEGRATION.md) ·
 
 ## Įgyvendinimo būsena
 
-**2026-07-14 įgyvendinti 1 ir 2 etapai bei anksčiau rekomenduotas artimiausias
-ticket:** Resend outbound siuntėjo tapatybė, DNS verification UI ir žmogaus
-patvirtintas idempotentinis siuntimas. 3–7 etapai lieka roadmap.
+**2026-07-14 įgyvendinti 1–3 etapai:** Resend outbound siuntėjo tapatybė, DNS
+verification UI, žmogaus patvirtintas idempotentinis siuntimas ir delivery,
+bounce, complaint bei suppression webhookų sekimas. 4–7 etapai lieka roadmap.
 
 Realiam produkciniam įjungimui dar būtini migracijos pritaikymas, patvirtintas
 kliento domenas ir kontroliuojamas Resend/Railway smoke testas. Globalus
@@ -36,8 +36,8 @@ Jau įgyvendinta:
 - jokio visos kliento pašto dėžutės ingest.
 
 Dabartinė riba: FirstReply žmogui patvirtinus gali siųsti atsakymą Web formos
-užklausai iš aktyvaus Resend patvirtinto kliento domeno. Delivery webhookai ir
-išoriniai atsakymai dar automatiškai nesinchronizuojami. Paslaugos.lt
+užklausai iš aktyvaus Resend patvirtinto kliento domeno ir rodyti Resend
+pristatymo rezultatą. Kliento atsakymai dar automatiškai nesinchronizuojami. Paslaugos.lt
 forwardinimo thread headeriai nėra
 laikomi patikima siuntėjo tapatybe, todėl automatiškai pokalbių nesujungia.
 
@@ -209,7 +209,7 @@ projektuoti taip, kad dvigubas paspaudimas, paralelūs requestai ir crash/retry
 sukurtų vieną outbound message bei vieną realų laišką. Disposable PostgreSQL
 concurrency ir realus Resend/Railway smoke acceptance dar lieka rollout vartai.
 
-### Etapas 3 — delivery ir bounce tracking
+### Etapas 3 — delivery ir bounce tracking ✅ Įgyvendinta 2026-07-14
 
 Resend webhooko įėjimą rekomenduojama perkelti į neutralų endpointą:
 
@@ -220,8 +220,10 @@ POST /api/integrations/resend
 Jis vieną kartą tikrina raw-body parašą ir dispatchina:
 
 - `email.received` → inbound adapteriui;
-- `email.sent` / `email.delivered` → outbound delivery būsenai;
-- `email.bounced` / `email.failed` / `email.complained` → klaidos būsenai.
+- `email.sent` / `email.delivered` / `email.delivery_delayed` → outbound
+  delivery būsenai;
+- `email.bounced` / `email.failed` / `email.complained` /
+  `email.suppressed` → klaidos būsenai.
 
 Esamą `/api/integrations/inbound/resend` laikinai palikti suderinamumui arba
 per vieną release pakeisti Resend webhook URL. Negalima abiem endpointams
@@ -242,6 +244,15 @@ Timeline rodo:
 **Done:** webhook retry ir eventų atėjimas ne eilės tvarka nekeičia galutinės
 būsenos klaidingai; bounce matomas dashboarde ir nepalieka pokalbio kaip
 sėkmingai laukiančio kliento.
+
+Įgyvendintas neutralus endpointas, viena raw-body parašo patikra,
+`OutboundDeliveryEvent` deduplikacija pagal `svix-id`, tikslaus gavėjo ir
+provider message ID/dispatch tag routing, race reconciliation bei lokalizuota
+timeline būsena. Bounce, failed, complaint ir suppression palieka audituotą
+activity ir dar nepasikeitusį `WAITING_CUSTOMER` pokalbį perkelia į
+`MANUAL_REVIEW`. Kodo kokybės vartai
+praeiti; realus Railway/Resend acceptance vykdomas pagal
+[paleidimo checklist](./RESEND-ROLLOUT-CHECKLIST.md).
 
 ### Etapas 4 — kliento atsakymo routing
 
@@ -467,7 +478,7 @@ Minimalios metrikos per klientą/integraciją:
 - reply routing mismatch / manual review;
 - pranešimų kiekis, kad vėlesnė kainodara remtųsi naudojimu.
 
-## 9. Priimti sprendimai 1–2 etapams ir likę klausimai
+## 9. Priimti sprendimai 1–3 etapams ir likę klausimai
 
 Pirmiems keturiems klausimams pritaikytos rekomenduotos V1 reikšmės:
 
@@ -485,10 +496,10 @@ Pirmiems keturiems klausimams pritaikytos rekomenduotos V1 reikšmės:
 7. Kokie konkretūs message/delivery eventų saugojimo terminai? Suderinti su
    privatumo politika prieš public rollout.
 
-## 10. Įgyvendintas ticket ir rekomenduojamas kitas žingsnis
+## 10. Įgyvendinti ticketai ir rekomenduojamas kitas žingsnis
 
-**✅ Įgyvendinta 2026-07-14:** Resend outbound identity ir žmogaus patvirtintas
-siuntimas.
+**✅ Įgyvendinta 2026-07-14:** Resend outbound identity, žmogaus patvirtintas
+siuntimas ir delivery/bounce/complaint/suppression sekimas.
 
 **Scope:**
 
@@ -498,15 +509,17 @@ siuntimas.
 - autentifikuotas idempotentinis **Siųsti klientui** veiksmas;
 - tikras `OUTBOUND` timeline message;
 - Resend accepted/failed persistencija;
+- pasirašytų delivery webhookų eventų auditas ir monotoniška būsena;
+- bounce/complaint/suppression manual-review activity;
 - globalus kill switch;
 - testai, deployment ir naudotojo dokumentacija.
 
-**Out of scope tam ticket:** delivery webhookų pilna būsenų matrica, inbound
-reply routing, Paslaugos.lt direct reply, Gmail/Microsoft sync ir auto-send.
+**Out of scope:** inbound reply routing, Paslaugos.lt direct reply,
+Gmail/Microsoft sync ir auto-send.
 
-Tokiu skaidymu pirmas ticket saugiai pristato realų siuntimą, o delivery bei
-reply tracking lieka atskiri, lengviau peržiūrimi etapai.
+Tokiu skaidymu 1–2 etapai saugiai pristatė realų siuntimą, 3 etapas atskirai
+įgyvendino delivery tracking, o reply tracking lieka 4 etapu.
 
-**Kitas rekomenduojamas ticket:** 3 etapas — idempotentinis Resend delivery,
-bounce ir complaint webhookų sekimas. Reply routing ir Paslaugos.lt direct
-reply į šį kitą ticket neįtraukiami.
+**Kitas rekomenduojamas ticket:** 4 etapas — unikalaus pokalbio reply adreso ir
+patikimo kliento atsakymo routing techninis spike bei įgyvendinimas.
+Paslaugos.lt direct reply į jį neįtraukiamas be realių platformos fixture'ų.

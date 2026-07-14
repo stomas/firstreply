@@ -294,6 +294,7 @@ redaguojami ranka.
 | `Lead` / `LeadResponse` | Užklausa + atsakymo įrašas (`decisionJson` su pilnu trace).                                                              |
 | `OutboundIntegration`   | Klientui priklausanti Resend siuntėjo tapatybė, domeno/DNS būsena ir numatytasis siuntėjas.                              |
 | `OutboundDispatch`      | Nekintamas loginio siuntimo rezervacijos, idempotency, providerio ir būsenos auditas.                                    |
+| `OutboundDeliveryEvent` | Pasirašyto Resend delivery evento deduplikacija, diagnostika ir pritaikymo auditas.                                      |
 
 Migracijos — `prisma/migrations` (deploy: `npm run db:migrate`), seed —
 `prisma/seed.ts` (idempotentiškas upsert, DEV klientas su 3 paslaugomis).
@@ -376,12 +377,23 @@ Vieši route'ai:
 ```text
 POST /api/integrations/inbound/web-form/{integrationId}
 POST /api/integrations/inbound/resend
+POST /api/integrations/resend
 ```
 
-Abu route'ai prieš parsing patikrina raw body parašą. Web forma papildomai
+Webhook route'ai prieš parsing patikrina raw body parašą. Web forma papildomai
 tikrina 5 min. timestamp langą ir unikalų event ID. Resend naudoja oficialų
 Svix/Resend parašą, tada per API paima pilną gautą laišką. Neaktyvi ar kito
 tipo integracija routinge nedalyvauja.
+
+Neutralus `/api/integrations/resend` vieną kartą verifikuoja Resend/Svix raw
+body ir dispatchina `email.received` į inbound, o delivery eventus — į
+`OutboundDeliveryEvent`. Eventas deduplikuojamas pagal stabilų `svix-id`,
+siunta parenkama pagal provider message ID arba pasirašytame evente grąžintą
+nekintamą dispatch tag ir dar kartą tikrinamas tikslus gavėjas. Būsenos
+taikomos pagal providerio event laiką; vėlyvas `sent` ar `delivery_delayed`
+negali pažeminti `DELIVERED`, o terminalus bounce/complaint eventas palieka
+audituotą activity ir tik tos pačios nepasikeitusios generacijos
+`WAITING_CUSTOMER` pokalbį perkelia į `MANUAL_REVIEW`.
 
 Persistencijos grandinė:
 
@@ -437,7 +449,8 @@ Pilnas kontraktas, setup ir retry lentelė:
 4. **Automatinio siuntimo nėra** — `autoSendAllowed` tik žymi politikos
    rezultatą. Realus siuntimas galimas tik žmogui redagavus ir paspaudus
    **Siųsti klientui**, tik Web formos source ir tik iš patvirtinto siuntėjo.
-   Delivery būsena šiame etape reiškia tik Resend priėmimą, ne pristatymą.
+   Resend priėmimas ir delivery/bounce/complaint/suppression būsenos rodomos
+   timeline; automatinio kliento reply ingest vis dar nėra.
 5. **Paslaugos.lt fixture'ai** — kol negauta realių nuasmenintų laiškų,
    adapteris naudoja plain-text/HTML fallback ir neatpažintą formatą perduoda
    rankinei peržiūrai.

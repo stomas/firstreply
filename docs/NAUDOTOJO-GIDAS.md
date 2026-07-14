@@ -82,8 +82,12 @@ detail rodo **Atsakyti klientui** formą. Joje matysite serverio parinktus `From
 
 Paslaugos.lt užklausoms šis mygtukas sąmoningai nerodomas, kol nepatvirtintas
 platformos atsakymo mechanizmas. Naudokite Paslaugos.lt kanalą ir **Atsakyta
-kitur**. FirstReply dar automatiškai neįkelia gavėjo atsakymo ir nerodo
-delivery/bounce rezultato; `Priimtas siųsti` reiškia, kad laišką priėmė Resend.
+kitur**. FirstReply dar automatiškai neįkelia gavėjo atsakymo, tačiau timeline
+rodo Resend delivery rezultatą: `Priimtas siųsti`, `Pristatytas`, `Pristatymas
+vėluoja`, `Atmestas gavėjo`, `Pažymėtas kaip spam` arba slopinimo/klaidos
+būseną. Nepristatytas laiškas dar nepasikeitusį, kliento atsakymo laukiantį
+pokalbį perkelia į **Reikia peržiūros**; patikrinkite gavėjo adresą ir
+nesiųskite pakartotinai aklai.
 
 ## Integracijos
 
