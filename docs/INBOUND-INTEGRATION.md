@@ -9,6 +9,7 @@ svetainės formos webhooką ir Paslaugos.lt laiškų priėmimą per Resend.
 > Paslaugos.lt pranešimus.
 
 Susiję dokumentai: [Architektūra](./ARCHITEKTURA.md) ·
+[Outbound ir atsakymų roadmap](./OUTBOUND-EMAIL-ROADMAP.md) ·
 [Naudotojo gidas](./NAUDOTOJO-GIDAS.md) ·
 [Railway diegimas](./DEPLOY-RAILWAY.md)
 

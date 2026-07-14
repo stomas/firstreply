@@ -19,12 +19,13 @@ Gmail mailbox sync, or outbound sending.
 
 ## Documentation
 
-| Document                                                     | Audience                                                                                  |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)               | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT) |
-| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md) | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)       |
-| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)         | Business users — how to use the dashboard (LT)                                            |
-| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)           | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)       |
+| Document                                                           | Audience                                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                     | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)   |
+| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)       | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)         |
+| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md) | Product/developers — outbound sending, delivery and customer-reply implementation plan (LT) |
+| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)               | Business users — how to use the dashboard (LT)                                              |
+| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                 | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)         |
 
 ---
 
