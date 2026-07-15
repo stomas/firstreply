@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  return handleResendWebhookRequest(request, "inbound_only");
+  return handleResendWebhookRequest(request, "all_email_events");
 }
 
 export function GET() {
