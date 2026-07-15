@@ -449,11 +449,12 @@ Pilnas kontraktas, setup ir retry lentelė:
 4. **Automatinio siuntimo nėra** — `autoSendAllowed` tik žymi politikos
    rezultatą. Realus siuntimas galimas tik žmogui redagavus ir paspaudus
    **Siųsti klientui**, tik Web formos source ir tik iš patvirtinto siuntėjo.
-   Resend priėmimas ir delivery/bounce/complaint/suppression būsenos rodomos
-   timeline; automatinio kliento reply ingest vis dar nėra.
-5. **Paslaugos.lt fixture'ai** — kol negauta realių nuasmenintų laiškų,
-   adapteris naudoja plain-text/HTML fallback ir neatpažintą formatą perduoda
-   rankinei peržiūrai.
+   Delivery būsena šiame etape reiškia tik Resend priėmimą, ne pristatymą.
+5. **Paslaugos.lt fixture'ai** — realus nuasmenintas 2026-07-14 fixture'as
+   patvirtina atvejį, kai plain-text dalyje yra tik web nuoroda, o užklausa yra
+   HTML. Adapteris tokiu atveju pasirenka HTML, izoliuoja užklausos sekciją ir
+   reikalauja Paslaugos.lt siuntėjo domeno požymio; neatpažintas formatas
+   perduodamas rankinei peržiūrai. Kitų šablonų fixture'ai pridedami juos gavus.
 6. **Gmail Inbox/Sent sync nėra** — išorinis atsakymas V1 pažymimas rankiniu
    audituotu „Atsakyta kitur“ veiksmu.
 7. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento

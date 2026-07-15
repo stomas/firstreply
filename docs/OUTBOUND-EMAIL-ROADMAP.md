@@ -94,8 +94,10 @@ Prieš outbound:
 2. Sukonfigūruoti `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`,
    `RESEND_INBOUND_DOMAIN` ir `INBOUND_SIGNING_MASTER_SECRET`.
 3. Atlikti realius Web formos bei Resend/Railway smoke testus.
-4. Pridėti nuasmenintus Paslaugos.lt fixture'us ir sugriežtinti adapterį pagal
-   tikrą formatą.
+4. ✅ Įgyvendinta 2026-07-14 — pridėtas pirmas realiu laišku paremtas,
+   nuasmenintas Paslaugos.lt fixture'as; adapteris teisingai pasirenka HTML,
+   kai plain-text tėra web nuoroda, izoliuoja užklausą ir nepasitiki vien body
+   įrašytu source pavadinimu. Kitų formatų fixture'ai bus kaupiami iteratyviai.
 5. Užpildyti realius privatumo politikos valdytojo, saugojimo, teisinio pagrindo
    ir tarptautinių perdavimų duomenis bei atlikti teisinę peržiūrą.
 

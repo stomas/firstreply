@@ -106,7 +106,9 @@ JavaScript — jį matytų visi svetainės lankytojai.
 
 Sukūrus integraciją gausite unikalų `p-…@…` adresą. Savo el. pašte sukurkite
 automatinę taisyklę, kuri į šį adresą persiunčia **tik Paslaugos.lt
-pranešimus** (pagal siuntėją ir, jei reikia, temos požymį).
+pranešimus** (pagal siuntėją ir, jei reikia, temos požymį). Rinkitės
+`redirect` arba automatinio persiuntimo variantą, kuris išsaugo originalų
+Paslaugos.lt `From`; paprastas rankinis `Fwd:` tam netinka.
 
 **Visos pašto dėžutės persiųsti nereikia ir nerekomenduojama.** Kiti jūsų
 laiškai lieka dabartiniuose kanaluose ir FirstReply jų negauna. Jei norite
@@ -115,6 +117,10 @@ prijungti kitą source, palaukite, kol jam bus palaikomas atskiras adapteris.
 Pirmiausia išbandykite taisyklę su vienu Paslaugos.lt laišku. Jei į specialų
 adresą pateks neatpažintas laiškas, sistema jo nelaikys kitu source ir
 automatiškai neatsakys — jis bus pažymėtas `SOURCE_FORMAT_UNRECOGNIZED`.
+Po pirmo testo būtinai patikrinkite, kad šios žymos nėra. Jei ji atsirado,
+pašto provideris galėjo perrašyti `From`: pakeiskite taisyklę į originalų
+siuntėją išsaugantį `redirect`/forward režimą arba palikite laišką rankinei
+peržiūrai.
 Laiškai su priedais taip pat lieka rankinėje peržiūroje, nes V1 analizuoja tik
 priedų metadata, ne jų turinį.
 

@@ -161,16 +161,33 @@ Resend webhooko parašas tikrinamas prieš JSON interpretavimą. Integracija
 parenkama pagal tikslų gavėjo adresą ir aktyvų `PASLAUGOS_LT` įrašą. Laiško
 body esantis `source`, `clientId` ar panašus tekstas routing nekeičia.
 
-Adapteris renkasi plain text, o jo nesant HTML konvertuoja į tekstą, pašalina
-dažniausią forwarding boilerplate ir perduoda kontaktų, vietos, paslaugos bei
-matmenų ištraukimą bendram FirstReply pipeline. Transporto siuntėjo adresas
-nesaugomas kaip kliento kontaktas, nes persiunčiant tai dažniausiai yra pačios
-įmonės pašto dėžutė.
+Pagal 2026-07-14 gautą nuasmenintą realaus laiško fixture'ą adapteris atpažįsta
+Paslaugos.lt `multipart/alternative` ypatybę: `text/plain` dalyje gali būti tik
+„Nematote turinio?“ nuoroda, o visa užklausa pateikta HTML. Tokiu atveju HTML
+konvertuojamas į tekstą, pagal temos paslaugos pavadinimą izoliuojama užklausos
+dalis, nukerpamas portalo footer'is ir tik tada turinys perduodamas bendram
+FirstReply pipeline. Kitais atvejais lieka plain-text/HTML fallback.
 
-Kol nėra realių nuasmenintų Paslaugos.lt fixture'ų, veikia bendras plain-text
-fallback. Neatpažintas formatas lieka `MANUAL_REVIEW` su
+Vien Paslaugos.lt pavadinimo laiško body neužtenka formatui patvirtinti.
+Adapteris parse'ina faktinį `From`, `Sender` arba `Return-Path` mailbox adresą,
+reikalauja `paslaugos.lt` domeno ir kartu tikrina žinomą temos bei laiško
+šabloną. Tai yra kelių formatinių požymių heuristika, o ne autentifikuotos SMTP
+siuntėjo tapatybės garantija. Transporto siuntėjo adresas nesaugomas kaip
+kliento kontaktas. Neatpažintas arba visų požymių neturintis formatas lieka
+`MANUAL_REVIEW` su
 `SOURCE_FORMAT_UNRECOGNIZED`; jis niekada neperklasifikuojamas kaip kitas
 source ir automatinis atsakymas neruošiamas.
+
+Pašto taisyklė turi naudoti automatinį persiuntimą, išsaugantį originalų
+`From`. Po pirmo testo patikrinkite, kad eventas nėra pažymėtas
+`SOURCE_FORMAT_UNRECOGNIZED`. Rankiniu būdu kuriamas `Fwd:` laiškas arba
+provideris, perrašantis `From` kliento adresu, saugumo sumetimais paliks laišką
+`MANUAL_REVIEW`; tokiu atveju rinkitės pašto providerio `redirect` arba
+originalų siuntėją išsaugantį automatinio forward variantą.
+
+Regresinis fixture'as yra
+`tests/fixtures/paslaugos-lt/new-excel-automation.ts`. Jame nėra originalaus
+gavėjo, užklausos numerio, kontaktų ar techninių laiško identifikatorių.
 
 Adreso rotacija iš karto anuliuoja seną routing adresą. Po rotacijos būtina
 atnaujinti kliento pašto taisyklę.
