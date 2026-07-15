@@ -12,6 +12,68 @@ enum UserRole {
   SUPER_ADMIN
 }
 
+enum SourceIntegrationType {
+  WEB_FORM
+  PASLAUGOS_LT
+}
+
+enum SourceIntegrationTransport {
+  HTTP_WEBHOOK
+  RESEND_EMAIL
+}
+
+enum SourceIntegrationStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InboundEventStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum ConversationStatus {
+  NEEDS_REPLY
+  WAITING_CUSTOMER
+  MANUAL_REVIEW
+  CLOSED
+}
+
+enum ConversationMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum ConversationActivityType {
+  ANSWERED_EXTERNALLY
+  REOPENED
+  CLOSED
+}
+
+enum OutboundIntegrationProvider {
+  RESEND
+}
+
+enum OutboundIntegrationStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  DISABLED
+  FAILED
+}
+
+enum OutboundDispatchStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  BOUNCED
+  FAILED
+  COMPLAINED
+  UNKNOWN
+}
+
 model Client {
   id          String   @id @default(cuid())
   tenantId    String?  @unique @map("tenant_id") @db.Uuid
@@ -29,6 +91,10 @@ model Client {
   leads                Lead[]
   users                User[]                @relation("ClientUsers")
   selectedSessions     AuthSession[]         @relation("SelectedClientSessions")
+  sourceIntegrations   SourceIntegration[]
+  conversations        Conversation[]
+  outboundIntegrations OutboundIntegration[]
+  outboundDispatches   OutboundDispatch[]
 
   @@map("clients")
 }
@@ -61,8 +127,10 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  client   Client?       @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
-  sessions AuthSession[]
+  client                 Client?                @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
+  sessions               AuthSession[]
+  conversationActivities ConversationActivity[]
+  outboundDispatches     OutboundDispatch[]
 
   @@index([clientId])
   @@map("users")
@@ -232,11 +300,15 @@ model Lead {
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  tenant    Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  service   Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  responses LeadResponse[]
+  client             Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenant             Tenant?            @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  service            Service?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  responses          LeadResponse[]
+  conversation       Conversation?
+  inboundEvents      InboundEvent[]
+  outboundDispatches OutboundDispatch[]
 
+  @@unique([id, clientId])
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
   @@index([clientId, createdAt])
@@ -258,11 +330,221 @@ model LeadResponse {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead               Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  outboundDispatches OutboundDispatch[]
 
+  @@unique([id, leadId])
   @@index([leadId, createdAt])
   @@index([status])
   @@map("responses")
+}
+
+model SourceIntegration {
+  id             String                     @id @default(cuid())
+  clientId       String                     @map("client_id")
+  sourceType     SourceIntegrationType      @map("source_type")
+  transport      SourceIntegrationTransport
+  name           String
+  status         SourceIntegrationStatus    @default(ACTIVE)
+  routingAddress String?                    @unique @map("routing_address")
+  secretVersion  Int                        @default(1) @map("secret_version")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+
+  client        Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  inboundEvents InboundEvent[]
+  conversations Conversation[]
+  messages      ConversationMessage[]
+
+  @@index([clientId, status])
+  @@index([clientId, sourceType])
+  @@map("source_integrations")
+}
+
+model Conversation {
+  id                  String             @id @default(cuid())
+  clientId            String             @map("client_id")
+  sourceIntegrationId String             @map("source_integration_id")
+  leadId              String?            @unique @map("lead_id")
+  status              ConversationStatus @default(NEEDS_REPLY)
+  subject             String?
+  customerName        String?            @map("customer_name")
+  customerEmail       String?            @map("customer_email")
+  lastInboundAt       DateTime?          @map("last_inbound_at")
+  firstResponseAt     DateTime?          @map("first_response_at")
+  closedAt            DateTime?          @map("closed_at")
+  inboundVersion      Int                @default(0) @map("inbound_version")
+  responseVersion     Int                @default(0) @map("response_version")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  client             Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sourceIntegration  SourceIntegration      @relation(fields: [sourceIntegrationId], references: [id], onDelete: Cascade)
+  lead               Lead?                  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages           ConversationMessage[]
+  activities         ConversationActivity[]
+  outboundDispatches OutboundDispatch[]
+
+  @@unique([id, clientId])
+  @@unique([id, leadId])
+  @@index([clientId, status, updatedAt])
+  @@index([sourceIntegrationId, updatedAt])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id                  String                       @id @default(cuid())
+  conversationId      String                       @map("conversation_id")
+  sourceIntegrationId String                       @map("source_integration_id")
+  provider            String
+  providerMessageId   String                       @map("provider_message_id")
+  internetMessageId   String?                      @map("internet_message_id")
+  inReplyTo           String?                      @map("in_reply_to")
+  references          Json?
+  direction           ConversationMessageDirection @default(INBOUND)
+  senderEmail         String?                      @map("sender_email")
+  senderName          String?                      @map("sender_name")
+  recipients          Json
+  cc                  Json?
+  subject             String?
+  text                String
+  attachments         Json?
+  hasAttachments      Boolean                      @default(false) @map("has_attachments")
+  manualReviewReason  String?                      @map("manual_review_reason")
+  receivedAt          DateTime                     @map("received_at")
+  createdAt           DateTime                     @default(now()) @map("created_at")
+
+  conversation      Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sourceIntegration SourceIntegration @relation(fields: [sourceIntegrationId], references: [id], onDelete: Cascade)
+  inboundEvent      InboundEvent?
+  outboundDispatch  OutboundDispatch?
+
+  @@unique([sourceIntegrationId, providerMessageId])
+  @@unique([sourceIntegrationId, internetMessageId])
+  @@unique([id, conversationId])
+  @@index([conversationId, receivedAt])
+  @@map("conversation_messages")
+}
+
+model ConversationActivity {
+  id             String                   @id @default(cuid())
+  conversationId String                   @map("conversation_id")
+  actorUserId    String?                  @map("actor_user_id")
+  type           ConversationActivityType
+  note           String?
+  createdAt      DateTime                 @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  actorUser    User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_activities")
+}
+
+model InboundEvent {
+  id                  String             @id @default(cuid())
+  sourceIntegrationId String             @map("source_integration_id")
+  externalEventId     String             @map("external_event_id")
+  provider            String
+  status              InboundEventStatus @default(PROCESSING)
+  attemptCount        Int                @default(1) @map("attempt_count")
+  errorCode           String?            @map("error_code")
+  errorMessage        String?            @map("error_message")
+  metadata            Json?
+  processingStartedAt DateTime           @default(now()) @map("processing_started_at")
+  processingToken     String             @map("processing_token")
+  completedAt         DateTime?          @map("completed_at")
+  messageId           String?            @unique @map("message_id")
+  leadId              String?            @map("lead_id")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  sourceIntegration SourceIntegration    @relation(fields: [sourceIntegrationId], references: [id], onDelete: Cascade)
+  message           ConversationMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  lead              Lead?                @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceIntegrationId, externalEventId])
+  @@index([status, updatedAt])
+  @@index([sourceIntegrationId, createdAt])
+  @@index([leadId])
+  @@map("inbound_events")
+}
+
+model OutboundIntegration {
+  id               String                      @id @default(cuid())
+  clientId         String                      @map("client_id")
+  provider         OutboundIntegrationProvider @default(RESEND)
+  status           OutboundIntegrationStatus   @default(PENDING_VERIFICATION)
+  name             String
+  domain           String                      @unique
+  fromName         String                      @map("from_name")
+  fromEmail        String                      @map("from_email")
+  replyToEmail     String                      @map("reply_to_email")
+  providerDomainId String                      @unique @map("provider_domain_id")
+  providerStatus   String                      @map("provider_status")
+  dnsRecords       Json?                       @map("dns_records")
+  isDefault        Boolean                     @default(false) @map("is_default")
+  lastError        String?                     @map("last_error")
+  verifiedAt       DateTime?                   @map("verified_at")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+
+  client     Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dispatches OutboundDispatch[]
+
+  @@unique([clientId, fromEmail])
+  @@unique([id, clientId])
+  @@index([clientId, status])
+  @@index([clientId, isDefault])
+  @@map("outbound_integrations")
+}
+
+model OutboundDispatch {
+  id                    String                 @id @default(cuid())
+  clientId              String                 @map("client_id")
+  leadId                String                 @map("lead_id")
+  conversationId        String                 @map("conversation_id")
+  conversationMessageId String                 @unique @map("conversation_message_id")
+  outboundIntegrationId String                 @map("outbound_integration_id")
+  responseRevisionId    String                 @map("response_revision_id")
+  conversationVersion   Int                    @map("conversation_version")
+  sentByUserId          String?                @map("sent_by_user_id")
+  sendRequestId         String                 @map("send_request_id")
+  idempotencyKey        String                 @unique @map("idempotency_key")
+  status                OutboundDispatchStatus @default(QUEUED)
+  fromName              String                 @map("from_name")
+  fromEmail             String                 @map("from_email")
+  toEmail               String                 @map("to_email")
+  replyToEmail          String                 @map("reply_to_email")
+  subject               String
+  text                  String
+  providerMessageId     String?                @unique @map("provider_message_id")
+  attemptCount          Int                    @default(1) @map("attempt_count")
+  processingToken       String                 @map("processing_token")
+  processingStartedAt   DateTime               @default(now()) @map("processing_started_at")
+  errorCode             String?                @map("error_code")
+  errorMessage          String?                @map("error_message")
+  sentAt                DateTime?              @map("sent_at")
+  deliveredAt           DateTime?              @map("delivered_at")
+  failedAt              DateTime?              @map("failed_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  client              Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  lead                Lead                @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  conversation        Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationMessage ConversationMessage @relation(fields: [conversationMessageId], references: [id], onDelete: Cascade)
+  outboundIntegration OutboundIntegration @relation(fields: [outboundIntegrationId], references: [id], onDelete: Restrict)
+  responseRevision    LeadResponse        @relation(fields: [responseRevisionId], references: [id], onDelete: Restrict)
+  sentByUser          User?               @relation(fields: [sentByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, sendRequestId])
+  @@index([conversationId, createdAt])
+  @@index([outboundIntegrationId, status])
+  @@index([responseRevisionId])
+  @@index([leadId])
+  @@index([status, updatedAt])
+  @@map("outbound_dispatches")
 }
 
 model LocationZone {

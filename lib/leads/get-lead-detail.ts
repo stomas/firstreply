@@ -19,6 +19,11 @@ export type LeadDetail = {
   isUrgent: boolean | null;
   hasAttachments: boolean | null;
   manualReviewReason: string | null;
+  outboundSender: {
+    fromName: string;
+    fromEmail: string;
+    replyToEmail: string;
+  } | null;
   service: {
     id: string;
     name: string;
@@ -34,6 +39,44 @@ export type LeadDetail = {
     manualReviewReason: string | null;
     decisionJson: Prisma.JsonValue | null;
   }>;
+  conversation: {
+    id: string;
+    status: string;
+    sourceType: string;
+    sourceName: string;
+    firstResponseAt: string | null;
+    messages: Array<{
+      id: string;
+      createdAt: string;
+      receivedAt: string;
+      direction: string;
+      senderEmail: string | null;
+      senderName: string | null;
+      subject: string | null;
+      text: string;
+      hasAttachments: boolean;
+      recipients: Prisma.JsonValue | null;
+      outboundDispatch: {
+        status: string;
+        sendRequestId: string;
+        responseRevisionId: string;
+        toEmail: string;
+        replyToEmail: string;
+        errorCode: string | null;
+        errorMessage: string | null;
+        processingStartedAt: string;
+        sentAt: string | null;
+        sentByEmail: string | null;
+      } | null;
+    }>;
+    activities: Array<{
+      id: string;
+      createdAt: string;
+      type: string;
+      note: string | null;
+      actorEmail: string | null;
+    }>;
+  } | null;
   relatedRules: {
     pricingRules: Array<{
       id: string;
@@ -75,12 +118,41 @@ export async function getLeadDetail(
       responses: {
         orderBy: { createdAt: "desc" },
       },
+      conversation: {
+        include: {
+          sourceIntegration: {
+            select: { sourceType: true, name: true },
+          },
+          messages: {
+            orderBy: [{ receivedAt: "asc" }, { createdAt: "asc" }],
+            include: {
+              outboundDispatch: {
+                include: { sentByUser: { select: { email: true } } },
+              },
+            },
+          },
+          activities: {
+            orderBy: { createdAt: "asc" },
+            include: { actorUser: { select: { email: true } } },
+          },
+        },
+      },
     },
   });
 
   if (!lead) {
     throw new AppNotFoundError("Lead not found.");
   }
+
+  const outboundSender = await prisma.outboundIntegration.findFirst({
+    where: {
+      clientId,
+      isDefault: true,
+      status: "ACTIVE",
+      providerStatus: "verified",
+    },
+    select: { fromName: true, fromEmail: true, replyToEmail: true },
+  });
 
   const [pricingRules, decisionRequirements, availabilityRules] = lead.serviceId
     ? await Promise.all([
@@ -116,6 +188,7 @@ export async function getLeadDetail(
     isUrgent: lead.isUrgent,
     hasAttachments: lead.hasAttachments,
     manualReviewReason: lead.manualReviewReason,
+    outboundSender,
     service: lead.service
       ? {
           id: lead.service.id,
@@ -133,6 +206,53 @@ export async function getLeadDetail(
       manualReviewReason: response.manualReviewReason,
       decisionJson: response.decisionJson,
     })),
+    conversation: lead.conversation
+      ? {
+          id: lead.conversation.id,
+          status: lead.conversation.status,
+          sourceType: lead.conversation.sourceIntegration.sourceType,
+          sourceName: lead.conversation.sourceIntegration.name,
+          firstResponseAt:
+            lead.conversation.firstResponseAt?.toISOString() ?? null,
+          messages: lead.conversation.messages.map((message) => ({
+            id: message.id,
+            createdAt: message.createdAt.toISOString(),
+            receivedAt: message.receivedAt.toISOString(),
+            direction: message.direction,
+            senderEmail: message.senderEmail,
+            senderName: message.senderName,
+            subject: message.subject,
+            text: message.text,
+            hasAttachments: message.hasAttachments,
+            recipients: message.recipients,
+            outboundDispatch: message.outboundDispatch
+              ? {
+                  status: message.outboundDispatch.status,
+                  sendRequestId: message.outboundDispatch.sendRequestId,
+                  responseRevisionId:
+                    message.outboundDispatch.responseRevisionId,
+                  toEmail: message.outboundDispatch.toEmail,
+                  replyToEmail: message.outboundDispatch.replyToEmail,
+                  errorCode: message.outboundDispatch.errorCode,
+                  errorMessage: message.outboundDispatch.errorMessage,
+                  processingStartedAt:
+                    message.outboundDispatch.processingStartedAt.toISOString(),
+                  sentAt:
+                    message.outboundDispatch.sentAt?.toISOString() ?? null,
+                  sentByEmail:
+                    message.outboundDispatch.sentByUser?.email ?? null,
+                }
+              : null,
+          })),
+          activities: lead.conversation.activities.map((activity) => ({
+            id: activity.id,
+            createdAt: activity.createdAt.toISOString(),
+            type: activity.type,
+            note: activity.note,
+            actorEmail: activity.actorUser?.email ?? null,
+          })),
+        }
+      : null,
     relatedRules: {
       pricingRules: pricingRules.map((rule) => ({
         id: rule.id,

@@ -11,17 +11,22 @@ inquiries with an indicative price, the missing information needed for an
 accurate quote, a preliminary work-start window, and one follow-up — while
 keeping final quotes and dates under the owner's control.
 
-This repository contains the landing page plus the first minimal product
-surface: an authenticated, DB-backed client dashboard and test tool. It still
-intentionally does not include payments, CRM, or advanced integrations.
+This repository contains the landing page plus an authenticated, DB-backed
+client dashboard, response pipeline, and source-specific inbound integrations.
+V1 accepts signed web-form events and Paslaugos.lt notifications routed through
+dedicated Resend addresses. It intentionally does not include payments, CRM,
+Gmail mailbox sync, delivery/reply sync, or automatic sending. Human-approved
+outbound sending for Web form conversations is available behind a kill switch.
 
 ## Documentation
 
-| Document                                             | Audience                                                                                  |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)       | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT) |
-| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md) | Business users — how to use the dashboard (LT)                                            |
-| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)   | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)       |
+| Document                                                           | Audience                                                                                    |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                     | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)   |
+| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)       | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)         |
+| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md) | Product/developers — outbound sending, delivery and customer-reply implementation plan (LT) |
+| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)               | Business users — how to use the dashboard (LT)                                              |
+| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                 | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)         |
 
 ---
 
@@ -33,7 +38,7 @@ intentionally does not include payments, CRM, or advanced integrations.
 | Language    | TypeScript (strict)                        |
 | Styling     | Tailwind CSS v3                            |
 | Validation  | Zod (shared client + server schema)        |
-| Lead intake | API route + optional webhook               |
+| Lead intake | Signed HTTP + verified Resend inbound      |
 | Product DB  | Prisma + PostgreSQL                        |
 | Linting     | ESLint (`next/core-web-vitals`) + Prettier |
 | Deployment  | Railway (Nixpacks)                         |
@@ -47,10 +52,11 @@ No paid UI libraries and no mock product data.
 ```txt
 .
 ├── app
-│   ├── api/leads/route.ts       # Lead intake API (validation + optional webhook)
+│   ├── api/leads/route.ts       # Landing contact form (not product inbound)
+│   ├── api/integrations/inbound # Signed web form + verified Resend inbound
 │   ├── api/dashboard/test       # Test lead API, DB-backed
 │   ├── dashboard                # Minimal client dashboard and test tool
-│   ├── privatumas/page.tsx      # Privacy placeholder page (noindex)
+│   ├── privatumas/page.tsx      # Privacy information (noindex)
 │   ├── salygos/page.tsx         # Terms placeholder page (noindex)
 │   ├── globals.css
 │   ├── icon.svg                 # Favicon
@@ -63,7 +69,8 @@ No paid UI libraries and no mock product data.
 │   └── ui/                      # Button, Card, Section primitives
 ├── lib
 │   ├── ai/                      # Server-side response generation gate
-│   ├── leads/                   # Lead queries, parsing, and test flow
+│   ├── inbound/                 # Auth, routing, idempotency, adapters, conversations
+│   ├── leads/                   # Lead queries, parsing, and shared pipeline
 │   ├── rules/                   # Rules loading and response decisions
 │   ├── constants.ts             # All Lithuanian copy + config
 │   ├── lead-schema.ts           # Zod lead schema (shared)
@@ -131,20 +138,35 @@ locally and on Railway without changes.
 Copy `.env.example` → `.env.local` for local dev. In Railway, set these in the
 service **Variables** tab.
 
-| Variable                  | Required    | Scope       | Description                                                                                                        |
-| ------------------------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_SITE_URL`    | Yes         | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
-| `LEAD_WEBHOOK_URL`        | No          | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
-| `DATABASE_URL`            | Dashboard   | Server only | PostgreSQL connection string used by Prisma. Dashboard routes fail clearly without it.                             |
-| `SUPER_ADMIN_SIGNUP_CODE` | Admin setup | Server only | Secret required by `/super-admin/signup`. Use at least 24 random characters and rotate it after setup.             |
-| `OPENAI_API_KEY`          | Test tool   | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
-| `OPENAI_MODEL`            | Test tool   | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
-| `LLM_FIRST_PARSE`         | No          | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
-| `SHADOW_AI_PARSE`         | No          | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
-| `NODE_ENV`                | Auto        | Server      | `development` locally; Railway sets `production` automatically.                                                    |
+| Variable                        | Required     | Scope       | Description                                                                                                        |
+| ------------------------------- | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_SITE_URL`          | Yes          | Public      | Public base URL, no trailing slash. Used for SEO metadata, OpenGraph, robots.txt, sitemap.xml.                     |
+| `LEAD_WEBHOOK_URL`              | No           | Server only | If set, lead submissions are POSTed here (Make/Zapier/n8n/Slack/CRM). If empty, leads are only logged server-side. |
+| `DATABASE_URL`                  | Dashboard    | Server only | PostgreSQL connection string used by Prisma. Dashboard routes fail clearly without it.                             |
+| `SUPER_ADMIN_SIGNUP_CODE`       | Admin setup  | Server only | Secret required by `/super-admin/signup`. Use at least 24 random characters and rotate it after setup.             |
+| `OPENAI_API_KEY`                | Test tool    | Server only | Required for AI draft generation. If missing, test responses go to manual review with a clear error.               |
+| `OPENAI_MODEL`                  | Test tool    | Server only | Required with `OPENAI_API_KEY`; no default model is assumed.                                                       |
+| `LLM_FIRST_PARSE`               | No           | Server only | `true` enables the dashboard test tool's LLM-first parser. Default `false` keeps the deterministic parser.         |
+| `SHADOW_AI_PARSE`               | No           | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
+| `INBOUND_SIGNING_MASTER_SECRET` | Inbound      | Server only | Master secret (at least 32 random bytes) used to derive each web-form integration's versioned signing secret.      |
+| `RESEND_API_KEY`                | Email        | Server only | Retrieves verified inbound email and provisions/sends from client-verified outbound domains.                       |
+| `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt | Server only | Verifies the exact raw Resend/Svix webhook payload.                                                                |
+| `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt | Server only | Verified Resend receiving domain used for unique `p-…@domain` routing addresses.                                   |
+| `EMAIL_SENDING_ENABLED`         | Outbound     | Server only | Global kill switch for human-approved Resend sends; defaults to `false`.                                           |
+| `NODE_ENV`                      | Auto         | Server      | `development` locally; Railway sets `production` automatically.                                                    |
 
-> **Security:** `LEAD_WEBHOOK_URL` and `SUPER_ADMIN_SIGNUP_CODE` are server-only
-> secrets — never prefix them with `NEXT_PUBLIC_` or expose them to the browser.
+> **Security:** `LEAD_WEBHOOK_URL`, `SUPER_ADMIN_SIGNUP_CODE`,
+> `INBOUND_SIGNING_MASTER_SECRET`, `RESEND_API_KEY`, and
+> `RESEND_WEBHOOK_SECRET` are server-only secrets — never prefix them with
+> `NEXT_PUBLIC_` or expose them to the browser. Per-integration web-form
+> signing secrets may be copied from the authenticated dashboard only into a
+> trusted server-side sender.
+
+Product inbound is separate from the landing contact form and
+`LEAD_WEBHOOK_URL`. Configure supported sources in `/dashboard/integrations`.
+Do not forward a complete customer mailbox: each Paslaugos.lt integration uses
+a precise mail rule that forwards only Paslaugos.lt notifications. See
+[the inbound integration runbook](./docs/INBOUND-INTEGRATION.md).
 
 ### How lead capture works
 
@@ -250,6 +272,7 @@ The skeleton keeps future work easy:
 - All copy lives in `lib/constants.ts`; the lead contract lives in
   `lib/lead-schema.ts`.
 
-Pro plan features (more sources, CRM, Gmail/Microsoft, multiple users, advanced
-reports) are shown as "Greit bus" only and are intentionally **not**
-implemented.
+Additional source adapters, CRM, Gmail/Microsoft mailbox sync, delivery/reply
+tracking, multiple users, and advanced reports remain roadmap items. Source
+count is not limited in V1; usage is measured per integration for future
+pricing decisions.

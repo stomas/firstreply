@@ -82,7 +82,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
         id: "integrations",
         label: "Integracijos",
         href: "/dashboard/integrations",
-        status: "placeholder",
+        status: "live",
       },
       {
         id: "settings",

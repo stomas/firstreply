@@ -1,4 +1,4 @@
-import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
+import type { LeadProcessingInput } from "@/lib/leads/test-inquiry-schema";
 import {
   extractDeterministicFacts,
   extractReviewSignals,
@@ -34,7 +34,7 @@ export type ParsedLeadData = {
   isUrgent: boolean;
   primaryIntent: PrimaryIntent | null;
   hasAttachments: boolean;
-  source: "dashboard_test_form";
+  source: string;
   parserVersion: string;
   contacts: ExtractedContacts;
   location: AdminUnitLocation | null;
@@ -45,7 +45,9 @@ export type ParsedLeadData = {
   conflicts: RequirementResolutionResult["conflicts"];
 };
 
-export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
+export function parseTestInquiryLead(
+  input: LeadProcessingInput,
+): ParsedLeadData {
   const extraction = extractDeterministicFacts(input.inquiryMessage);
   const asksPrice = input.asksPrice || extraction.intents.asksPrice;
 
@@ -67,8 +69,8 @@ export function parseTestInquiryLead(input: TestInquiryInput): ParsedLeadData {
       asksPrice && extraction.intents.primaryIntent === "asks_offering"
         ? "requests_quote"
         : extraction.intents.primaryIntent,
-    hasAttachments: false,
-    source: "dashboard_test_form",
+    hasAttachments: input.hasAttachments ?? false,
+    source: input.source ?? "dashboard_test_form",
     parserVersion: extraction.meta.parserVersion,
     contacts: extraction.contacts,
     location: extraction.location,
@@ -121,7 +123,7 @@ export function resolveParsedLeadRequirements(
 
 export function toEvaluationLead(params: {
   leadId: string;
-  input: TestInquiryInput;
+  input: LeadProcessingInput;
   parsed: ParsedLeadData;
 }): EvaluationLead {
   return {

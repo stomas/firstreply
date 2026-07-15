@@ -19,6 +19,7 @@ export type DashboardLead = {
   serviceName: string | null;
   city: string | null;
   status: string;
+  conversationStatus: string | null;
   latestResponseStatus: string | null;
   manualReviewReason: string | null;
 };
@@ -53,6 +54,7 @@ export async function getDashboardData(
       take: 100,
       include: {
         service: true,
+        conversation: { select: { status: true } },
         responses: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -118,6 +120,7 @@ export async function getDashboardData(
         serviceName: lead.service?.name ?? null,
         city: lead.city,
         status: lead.status,
+        conversationStatus: lead.conversation?.status ?? null,
         latestResponseStatus: latestResponse?.status ?? null,
         manualReviewReason:
           latestResponse?.manualReviewReason ?? lead.manualReviewReason,
