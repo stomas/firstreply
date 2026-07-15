@@ -64,6 +64,9 @@ export type LeadDetail = {
         replyToEmail: string;
         errorCode: string | null;
         errorMessage: string | null;
+        lastDeliveryEventType: string | null;
+        lastDeliveryEventAt: string | null;
+        createdAt: string;
         processingStartedAt: string;
         sentAt: string | null;
         sentByEmail: string | null;
@@ -235,6 +238,12 @@ export async function getLeadDetail(
                   replyToEmail: message.outboundDispatch.replyToEmail,
                   errorCode: message.outboundDispatch.errorCode,
                   errorMessage: message.outboundDispatch.errorMessage,
+                  lastDeliveryEventType:
+                    message.outboundDispatch.lastDeliveryEventType,
+                  lastDeliveryEventAt:
+                    message.outboundDispatch.lastDeliveryEventAt?.toISOString() ??
+                    null,
+                  createdAt: message.outboundDispatch.createdAt.toISOString(),
                   processingStartedAt:
                     message.outboundDispatch.processingStartedAt.toISOString(),
                   sentAt:

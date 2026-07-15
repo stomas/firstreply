@@ -175,8 +175,9 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
             </span>
           </div>
           <p className="mt-2 text-sm text-ink-soft">
-            Tikri inbound laiškai ir audituoti rankiniai veiksmai. „Atsakyta
-            kitur“ nesukuria fiktyvaus išsiųsto laiško.
+            Tikros inbound ir outbound žinutės, pristatymo įvykiai bei audituoti
+            rankiniai veiksmai. „Atsakyta kitur“ nesukuria fiktyvaus išsiųsto
+            laiško.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -238,7 +239,13 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
                       : ""}{" "}
                     · Kam: {item.message.outboundDispatch.toEmail} · Reply-To:{" "}
                     {item.message.outboundDispatch.replyToEmail} · Būsena:{" "}
-                    {dispatchStatusLabel(item.message.outboundDispatch.status)}
+                    {dispatchStatusLabel(
+                      item.message.outboundDispatch.status,
+                      item.message.outboundDispatch.lastDeliveryEventType,
+                    )}
+                    {item.message.outboundDispatch.lastDeliveryEventAt
+                      ? ` (${formatDate(item.message.outboundDispatch.lastDeliveryEventAt)})`
+                      : ""}
                     {item.message.outboundDispatch.sentByEmail
                       ? ` · Veiksmą atliko ${item.message.outboundDispatch.sentByEmail}`
                       : ""}
@@ -283,6 +290,12 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
                       />
                     </form>
                   ) : null}
+                  {isDispatchRetryExpired(item.message.outboundDispatch) ? (
+                    <p className="mt-3 text-xs font-bold text-warn-text">
+                      Saugaus retry langas pasibaigė — patikrinkite Resend
+                      žurnalą ir nekurkite naujo siuntimo aklai.
+                    </p>
+                  ) : null}
                 </>
               ) : null}
               {item.message.hasAttachments ? (
@@ -294,7 +307,16 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
           ) : (
             <div
               key={item.id}
-              className="rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm text-brand"
+              role={
+                isDeliveryFailureActivity(item.activity.type)
+                  ? "alert"
+                  : undefined
+              }
+              className={
+                isDeliveryFailureActivity(item.activity.type)
+                  ? "rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm text-warn-text"
+                  : "rounded-lg border border-brand-tintborder bg-brand-tint px-4 py-3 text-sm text-brand"
+              }
             >
               <div className="font-bold">
                 {activityLabel(item.activity.type)} ·{" "}
@@ -367,6 +389,25 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
       </p>
     );
   }
+  const terminalDelivery = [...conversation.messages]
+    .reverse()
+    .find((message) => isTerminalDelivery(message.outboundDispatch));
+  if (
+    conversation.status === "MANUAL_REVIEW" &&
+    terminalDelivery?.outboundDispatch
+  ) {
+    return (
+      <p
+        role="alert"
+        className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm text-warn-text"
+      >
+        Šis laiškas nepristatytas arba pažymėtas kaip nepageidaujamas. Saugus
+        retry sąmoningai blokuojamas: patikrinkite gavėjo adresą ir Resend
+        diagnostiką, tada susisiekite kitu kanalu ir užfiksuokite „Atsakyta
+        kitur“.
+      </p>
+    );
+  }
   if (process.env.EMAIL_SENDING_ENABLED !== "true") {
     return (
       <p className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm text-warn-text">
@@ -393,9 +434,11 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
     const guidance =
       dispatch?.status === "UNKNOWN"
         ? "Rezultatas neaiškus. Patikrinkite Resend žurnalą; naujas siuntimas blokuojamas, kol būsena neišspręsta."
-        : dispatch?.status === "SENDING" && !isDispatchRetryable(dispatch)
-          ? "Siuntimas dar apdorojamas. Atnaujinkite puslapį po kelių minučių."
-          : "Naudokite timeline rodomą saugų retry su tuo pačiu request ID.";
+        : dispatch && isDispatchRetryExpired(dispatch)
+          ? "Saugaus retry 23 val. langas pasibaigė. Patikrinkite Resend žurnalą; naujas siuntimas blokuojamas."
+          : dispatch?.status === "SENDING" && !isDispatchRetryable(dispatch)
+            ? "Siuntimas dar apdorojamas. Atnaujinkite puslapį po kelių minučių."
+            : "Naudokite timeline rodomą saugų retry su tuo pačiu request ID.";
     return (
       <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
         Ši atsakymo revizija jau turi nebaigtą siuntimą. {guidance}
@@ -457,7 +500,14 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
   );
 }
 
-function dispatchStatusLabel(status: string): string {
+function dispatchStatusLabel(
+  status: string,
+  lastDeliveryEventType?: string | null,
+): string {
+  if (lastDeliveryEventType === "email.delivery_delayed")
+    return "Pristatymas vėluoja";
+  if (lastDeliveryEventType === "email.suppressed")
+    return "Nesiųsta — adresas slopinamas";
   if (status === "SENT") return "Priimtas siųsti";
   if (status === "DELIVERED") return "Pristatytas";
   if (status === "FAILED") return "Nepavyko";
@@ -476,8 +526,12 @@ function outboundActorLabel(status?: string): string {
 
 function isDispatchRetryable(dispatch: {
   status: string;
+  createdAt: string;
   processingStartedAt: string;
+  lastDeliveryEventType: string | null;
 }): boolean {
+  if (dispatch.lastDeliveryEventType) return false;
+  if (isDispatchRetryExpired(dispatch)) return false;
   if (dispatch.status === "FAILED") return true;
   return (
     dispatch.status === "SENDING" &&
@@ -486,10 +540,43 @@ function isDispatchRetryable(dispatch: {
   );
 }
 
+function isDispatchRetryExpired(dispatch: {
+  status: string;
+  createdAt: string;
+  lastDeliveryEventType: string | null;
+}): boolean {
+  return (
+    !dispatch.lastDeliveryEventType &&
+    ["SENDING", "FAILED"].includes(dispatch.status) &&
+    Date.now() - new Date(dispatch.createdAt).getTime() > 23 * 60 * 60 * 1000
+  );
+}
+
+function isTerminalDelivery(
+  dispatch: {
+    status: string;
+    lastDeliveryEventType: string | null;
+  } | null,
+): boolean {
+  return Boolean(
+    dispatch?.lastDeliveryEventType &&
+      ["FAILED", "BOUNCED", "COMPLAINED"].includes(dispatch.status),
+  );
+}
+
+function isDeliveryFailureActivity(type: string): boolean {
+  return type.startsWith("DELIVERY_");
+}
+
 function activityLabel(type: string): string {
   if (type === "ANSWERED_EXTERNALLY") return "Atsakyta kitur";
   if (type === "REOPENED") return "Pokalbis atidarytas iš naujo";
   if (type === "CLOSED") return "Pokalbis uždarytas";
+  if (type === "DELIVERY_BOUNCED") return "Laiškas atmestas gavėjo";
+  if (type === "DELIVERY_FAILED") return "Laiško pristatyti nepavyko";
+  if (type === "DELIVERY_COMPLAINED")
+    return "Gavėjas pažymėjo laišką kaip spam";
+  if (type === "DELIVERY_SUPPRESSED") return "Resend sustabdė laiško siuntimą";
   return type;
 }
 

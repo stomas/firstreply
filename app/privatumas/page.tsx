@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         ← Grįžti į pradžią
       </Link>
       <h1 className="mt-6 text-3xl font-bold text-ink">Privatumo politika</h1>
-      <p className="mt-2 text-sm text-ink-soft">Atnaujinta 2026-07-13</p>
+      <p className="mt-2 text-sm text-ink-soft">Atnaujinta 2026-07-14</p>
       <p className="mt-4 rounded-lg border border-warn-border bg-warn-bg p-4 text-sm font-semibold leading-relaxed text-warn-text">
         Tai produkto privatumo informacijos projektas. Prieš viešą paleidimą
         būtina įrašyti realų duomenų valdytoją, teisinius pagrindus, konkrečius
@@ -38,7 +38,8 @@ export default function PrivacyPage() {
         antraštes, gavėjus, laiką ir priedų metadata. Priedų turinio ši versija
         neanalizuoja. Taip pat saugome source integracijos, apdorojimo būsenos,
         atsakymo juodraščio, žmogaus patvirtinto išsiųsto laiško, siuntėjo bei
-        gavėjo adresų, siuntimo būsenos ir audituotų naudotojo veiksmų duomenis.
+        gavėjo adresų, providerio event ID, pristatymo/bounce/complaint būsenos,
+        ribotos klaidos diagnostikos ir audituotų naudotojo veiksmų duomenis.
       </p>
 
       <h2 className="mt-8 text-xl font-bold text-ink">Šaltinių ribojimas</h2>
@@ -52,8 +53,8 @@ export default function PrivacyPage() {
       <h2 className="mt-8 text-xl font-bold text-ink">Paslaugų teikėjai</h2>
       <p className="mt-4 leading-relaxed text-ink-soft">
         Duomenims priimti, saugoti ir atsakymams parengti gali būti naudojami
-        infrastruktūros, el. pašto priėmimo (Resend), duomenų bazės ir AI
-        paslaugų teikėjai. Jiems perduodama tik tiek duomenų, kiek reikia
+        infrastruktūros, el. pašto priėmimo ir siuntimo (Resend), duomenų bazės
+        ir AI paslaugų teikėjai. Jiems perduodama tik tiek duomenų, kiek reikia
         atitinkamai funkcijai. Duomenys neparduodami ir nenaudojami nesusijusiai
         reklamai.
       </p>

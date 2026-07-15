@@ -15,18 +15,21 @@ This repository contains the landing page plus an authenticated, DB-backed
 client dashboard, response pipeline, and source-specific inbound integrations.
 V1 accepts signed web-form events and Paslaugos.lt notifications routed through
 dedicated Resend addresses. It intentionally does not include payments, CRM,
-Gmail mailbox sync, delivery/reply sync, or automatic sending. Human-approved
-outbound sending for Web form conversations is available behind a kill switch.
+Gmail mailbox sync, reply sync, or automatic sending. Human-approved outbound
+sending for Web form conversations is available behind a kill switch. Signed
+Resend delivery webhooks continue to reconcile already accepted messages even
+while new sending is disabled.
 
 ## Documentation
 
-| Document                                                           | Audience                                                                                    |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                     | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)   |
-| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)       | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)         |
-| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md) | Product/developers — outbound sending, delivery and customer-reply implementation plan (LT) |
-| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)               | Business users — how to use the dashboard (LT)                                              |
-| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                 | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)         |
+| Document                                                               | Audience                                                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                         | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)   |
+| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)           | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)         |
+| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md)     | Product/developers — outbound sending, delivery and customer-reply implementation plan (LT) |
+| [docs/RESEND-ROLLOUT-CHECKLIST.md](./docs/RESEND-ROLLOUT-CHECKLIST.md) | Operators — literal migration, webhook, delivery/bounce smoke and rollback checklist (LT)   |
+| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)                   | Business users — how to use the dashboard (LT)                                              |
+| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                     | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)         |
 
 ---
 
@@ -53,7 +56,7 @@ No paid UI libraries and no mock product data.
 .
 ├── app
 │   ├── api/leads/route.ts       # Landing contact form (not product inbound)
-│   ├── api/integrations/inbound # Signed web form + verified Resend inbound
+│   ├── api/integrations         # Signed web form + verified Resend inbound/delivery
 │   ├── api/dashboard/test       # Test lead API, DB-backed
 │   ├── dashboard                # Minimal client dashboard and test tool
 │   ├── privatumas/page.tsx      # Privacy information (noindex)
@@ -70,6 +73,7 @@ No paid UI libraries and no mock product data.
 ├── lib
 │   ├── ai/                      # Server-side response generation gate
 │   ├── inbound/                 # Auth, routing, idempotency, adapters, conversations
+│   ├── outbound/                # Sender identity, idempotent send and delivery tracking
 │   ├── leads/                   # Lead queries, parsing, and shared pipeline
 │   ├── rules/                   # Rules loading and response decisions
 │   ├── constants.ts             # All Lithuanian copy + config
@@ -150,7 +154,7 @@ service **Variables** tab.
 | `SHADOW_AI_PARSE`               | No           | Server only | `true` enables measurement-only shadow AI parse. It never affects decisions.                                       |
 | `INBOUND_SIGNING_MASTER_SECRET` | Inbound      | Server only | Master secret (at least 32 random bytes) used to derive each web-form integration's versioned signing secret.      |
 | `RESEND_API_KEY`                | Email        | Server only | Retrieves verified inbound email and provisions/sends from client-verified outbound domains.                       |
-| `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt | Server only | Verifies the exact raw Resend/Svix webhook payload.                                                                |
+| `RESEND_WEBHOOK_SECRET`         | Email        | Server only | Verifies the exact raw Resend/Svix inbound and delivery webhook payload.                                           |
 | `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt | Server only | Verified Resend receiving domain used for unique `p-…@domain` routing addresses.                                   |
 | `EMAIL_SENDING_ENABLED`         | Outbound     | Server only | Global kill switch for human-approved Resend sends; defaults to `false`.                                           |
 | `NODE_ENV`                      | Auto         | Server      | `development` locally; Railway sets `production` automatically.                                                    |

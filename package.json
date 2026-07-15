@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:shadow-report": "tsx scripts/shadow-report.ts",
+    "smoke:web-form": "tsx scripts/send-web-form-smoke.ts",
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

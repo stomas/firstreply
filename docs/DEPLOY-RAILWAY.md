@@ -6,6 +6,7 @@ minimaliomis DevOps žiniomis.
 
 Susiję dokumentai: [Techninė dokumentacija](./ARCHITEKTURA.md) ·
 [Inbound integracijos](./INBOUND-INTEGRATION.md) ·
+[Resend paleidimo checklist](./RESEND-ROLLOUT-CHECKLIST.md) ·
 [Naudotojo gidas](./NAUDOTOJO-GIDAS.md)
 
 ---
@@ -45,7 +46,7 @@ App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais 
 | `LEAD_WEBHOOK_URL`              | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
 | `INBOUND_SIGNING_MASTER_SECRET` | Inbound       | Bent 32 atsitiktinių baitų serverio secret, iš kurio išvedami atskirų web formų HMAC raktai.                                                                                            |
 | `RESEND_API_KEY`                | El. paštas    | Resend API raktas pilnam gautam laiškui paimti, outbound domenui valdyti ir žmogaus patvirtintam laiškui siųsti.                                                                        |
-| `RESEND_WEBHOOK_SECRET`         | Paslaugos.lt  | Resend webhook signing secret (`whsec_…`), skirtas raw payload patikrai.                                                                                                                |
+| `RESEND_WEBHOOK_SECRET`         | El. paštas    | Resend webhook signing secret (`whsec_…`), skirtas inbound ir delivery raw payload patikrai.                                                                                            |
 | `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt  | Resend sukonfigūruotas receiving domenas be `@`, pvz. `in.firstreply.lt`.                                                                                                               |
 | `EMAIL_SENDING_ENABLED`         | Outbound      | Globalus realaus siuntimo kill switch. Po deploy laikyti `false`, kol patvirtintas siuntėjo domenas ir suplanuotas smoke testas.                                                        |
 
@@ -113,9 +114,9 @@ response templates gali būti perrašyti pagal seed duomenis.
 1. Resend pridėkite ir DNS įrašais patvirtinkite receiving subdomeną, pvz.
    `in.firstreply.lt`.
 2. Tą patį domeną įrašykite į Railway `RESEND_INBOUND_DOMAIN`.
-3. Resend sukurkite webhooką į
-   `https://<jūsų-domenas>/api/integrations/inbound/resend` ir pasirinkite
-   `email.received` eventą.
+3. Resend naudokite vieną webhooką į
+   `https://<jūsų-domenas>/api/integrations/resend` ir pasirinkite inbound bei
+   outbound eventus pagal [paleidimo checklist](./RESEND-ROLLOUT-CHECKLIST.md).
 4. Webhook signing secret įrašykite į `RESEND_WEBHOOK_SECRET`, API raktą — į
    `RESEND_API_KEY`, tada redeploy.
 
@@ -130,9 +131,8 @@ response templates gali būti perrašyti pagal seed duomenis.
 4. Tik su saugiu testiniu Web formos leadu nustatykite
    `EMAIL_SENDING_ENABLED=true`, redeploy ir išsiųskite vieną žmogaus patvirtintą
    atsakymą.
-5. Patikrinkite Resend žurnalą, gavėjo dėžutę, vieną `OUTBOUND` timeline įrašą
-   ir vieną `OutboundDispatch`. Šiame etape dashboard `SENT` reiškia Resend
-   priėmimą; delivery/bounce webhookai dar neįgyvendinti.
+5. Patikrinkite Resend žurnalą, gavėjo dėžutę, vieną `OUTBOUND` timeline įrašą,
+   vieną `OutboundDispatch` ir jo `Pristatytas` būseną.
 6. Kilus abejonei iš karto grąžinkite kill switch į `false`.
 
 ## 6. Patikrinimas po diegimo
@@ -163,6 +163,9 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
 
 Providerio credentialų nėra CI, todėl web formos ir Resend/Railway smoke
 testai yra privalomas operatoriaus žingsnis po deploy.
+Tikslūs migration, webhook switch, delivery/bounce/complaint/suppression ir
+rollback veiksmai pateikti
+[Resend paleidimo checkliste](./RESEND-ROLLOUT-CHECKLIST.md).
 
 ## 7. Domenas
 
