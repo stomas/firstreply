@@ -5,6 +5,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import type { WebhookEventPayload } from "resend";
+import { clientSafeOutboundText } from "@/lib/outbound/client-copy";
 import { prisma } from "@/lib/db";
 import { lockLeadForUpdate } from "@/lib/inbound/lead-lock";
 
@@ -434,12 +435,13 @@ function failureDetails(
     metadata && typeof metadata === "object" && !Array.isArray(metadata)
       ? (metadata as Record<string, unknown>)
       : {};
-  const detail =
+  const providerDetail =
     typeof record.message === "string"
       ? record.message
       : typeof record.reason === "string"
         ? record.reason
-        : "Resend nepristatė laiško.";
+        : "El. pašto siuntimo paslauga laiško nepristatė.";
+  const detail = clientSafeOutboundText(providerDetail);
   if (eventType === "email.bounced") {
     return {
       code: "EMAIL_BOUNCED",

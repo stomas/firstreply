@@ -27,7 +27,7 @@ export async function assertNoUnfinishedOutboundDispatch(
   });
   if (unfinished) {
     throw new AppValidationError(
-      "Pokalbis turi nebaigtą arba neaiškų siuntimą. Pirmiausia patikrinkite Resend rezultatą; būsena negali būti perrašyta rankiniu veiksmu.",
+      "Pokalbis turi nebaigtą arba neaiškų siuntimą. Pirmiausia patikrinkite siuntimo rezultatą; būsena negali būti perrašyta rankiniu veiksmu.",
     );
   }
 }

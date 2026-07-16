@@ -99,10 +99,11 @@ export async function sendConversationResponse(params: {
       { idempotencyKey: reservation.idempotencyKey },
     );
   } catch (error) {
+    console.error("[outbound-send] provider request failed", error);
     await failLease(
       reservation,
       "TRANSPORT_UNCERTAIN",
-      safeErrorMessage(error),
+      "El. pašto siuntimo paslaugos atsakymas negautas.",
     );
     throw new AppValidationError(
       "Siuntimo rezultatas neaiškus. Nekartokite nauju mygtuko paspaudimu — saugus retry naudos tą patį raktą.",
@@ -110,6 +111,9 @@ export async function sendConversationResponse(params: {
   }
 
   if (response.error || !response.data) {
+    console.error("[outbound-send] provider rejected request", {
+      error: response.error,
+    });
     const uncertain = response.error
       ? isUncertainProviderError(response.error)
       : true;
@@ -118,15 +122,17 @@ export async function sendConversationResponse(params: {
       uncertain
         ? "TRANSPORT_UNCERTAIN"
         : (response.error?.name ?? "PROVIDER_ERROR"),
-      response.error?.message ?? "Resend negrąžino laiško ID.",
+      uncertain
+        ? "El. pašto siuntimo paslaugos rezultatas neaiškus."
+        : "El. pašto siuntimo paslauga laiško nepriėmė.",
     );
     if (uncertain) {
       throw new AppValidationError(
-        "Resend rezultatas neaiškus. Naudokite tik šio timeline įrašo saugų retry su tuo pačiu raktu.",
+        "Siuntimo paslaugos rezultatas neaiškus. Naudokite tik šio timeline įrašo saugų retry su tuo pačiu raktu.",
       );
     }
     throw new AppValidationError(
-      `Resend laiško nepriėmė: ${response.error?.message ?? "nežinoma klaida"}`,
+      "El. pašto siuntimo paslauga laiško nepriėmė. Patikrinkite siuntėjo ir gavėjo duomenis.",
     );
   }
 
@@ -209,7 +215,7 @@ async function reserveDispatch(params: {
           },
         });
         throw new AppValidationError(
-          "Nebegalima saugiai kartoti siuntimo. Patikrinkite Resend ir pažymėkite atsakymą rankiniu būdu.",
+          "Nebegalima saugiai kartoti siuntimo. Patikrinkite siuntimo žurnalą ir pažymėkite atsakymą rankiniu būdu.",
         );
       }
       if (retryDecision === "in_progress") {
@@ -361,7 +367,7 @@ async function reserveDispatch(params: {
     });
     if (!identity)
       throw new AppValidationError(
-        "Nėra aktyvaus, Resend patvirtinto numatytojo siuntėjo.",
+        "Nėra aktyvaus, patvirtinto numatytojo siuntėjo.",
       );
 
     const message = await tx.conversationMessage.create({
@@ -489,10 +495,7 @@ function assertSendingEnabled(): void {
 
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY?.trim();
-  if (!key) throw new AppConfigError("RESEND_API_KEY is not configured.");
+  if (!key)
+    throw new AppConfigError("El. pašto siuntimo paslauga nesukonfigūruota.");
   return new Resend(key);
-}
-
-function safeErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Nežinoma transporto klaida";
 }

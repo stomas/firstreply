@@ -9,7 +9,13 @@ import { assertDatabaseConfigured, prisma } from "@/lib/db";
 import {
   mapResendDomainStatus,
   parseOutboundIntegrationInput,
+  shouldTriggerDomainVerification,
 } from "@/lib/outbound/helpers";
+
+const DOMAIN_CREATE_ERROR =
+  "Siuntimo domeno sukurti nepavyko. Patikrinkite domeną arba kreipkitės į administratorių.";
+const DOMAIN_REFRESH_ERROR =
+  "Siuntimo domeno būsenos atnaujinti nepavyko. Pabandykite dar kartą arba kreipkitės į administratorių.";
 
 export type OutboundIntegrationDashboardItem = {
   id: string;
@@ -53,7 +59,7 @@ export async function getOutboundIntegrationDashboard(
     replyToEmail: row.replyToEmail,
     isDefault: row.isDefault,
     dispatchCount: row._count.dispatches,
-    lastError: row.lastError,
+    lastError: row.lastError ? DOMAIN_REFRESH_ERROR : null,
     dnsRecords: readDnsRecords(row.dnsRecords),
   }));
 }
@@ -74,9 +80,10 @@ export async function createOutboundIntegration(params: {
     capabilities: { sending: "enabled", receiving: "disabled" },
   });
   if (response.error || !response.data) {
-    throw new AppValidationError(
-      `Resend domeno sukurti nepavyko: ${response.error?.message ?? "nežinoma klaida"}`,
-    );
+    console.error("[outbound-domain-create] provider request failed", {
+      error: response.error,
+    });
+    throw new AppValidationError(DOMAIN_CREATE_ERROR);
   }
   const status = mapResendDomainStatus(response.data.status);
   try {
@@ -112,27 +119,34 @@ export async function createOutboundIntegration(params: {
 export async function refreshOutboundIntegration(params: {
   clientId: string;
   integrationId: string;
-}): Promise<void> {
+}): Promise<OutboundIntegrationDashboardItem> {
   const integration = await findIntegration(params);
   const resend = getResend();
-  const verify = await resend.domains.verify(integration.providerDomainId);
-  if (verify.error && verify.error.name !== "validation_error") {
-    await recordRefreshError(integration.id, verify.error.message);
-    throw new AppValidationError(
-      `Resend patikra nepavyko: ${verify.error.message}`,
-    );
-  }
   const response = await resend.domains.get(integration.providerDomainId);
   if (response.error || !response.data) {
-    await recordRefreshError(
-      integration.id,
-      response.error?.message ?? "Nežinoma klaida",
-    );
-    throw new AppValidationError(
-      `Resend būsenos gauti nepavyko: ${response.error?.message ?? "nežinoma klaida"}`,
-    );
+    console.error("[outbound-domain-refresh] status request failed", {
+      integrationId: integration.id,
+      error: response.error,
+    });
+    await recordRefreshError(integration.id, DOMAIN_REFRESH_ERROR);
+    throw new AppValidationError(DOMAIN_REFRESH_ERROR);
   }
-  const providerMappedStatus = mapResendDomainStatus(response.data.status);
+
+  let providerStatus = response.data.status;
+  if (shouldTriggerDomainVerification(providerStatus)) {
+    const verify = await resend.domains.verify(integration.providerDomainId);
+    if (verify.error) {
+      console.error("[outbound-domain-refresh] verification request failed", {
+        integrationId: integration.id,
+        error: verify.error,
+      });
+      await recordRefreshError(integration.id, DOMAIN_REFRESH_ERROR);
+      throw new AppValidationError(DOMAIN_REFRESH_ERROR);
+    }
+    providerStatus = "pending";
+  }
+
+  const providerMappedStatus = mapResendDomainStatus(providerStatus);
   const status =
     integration.status === OutboundIntegrationStatus.DISABLED
       ? OutboundIntegrationStatus.DISABLED
@@ -141,7 +155,7 @@ export async function refreshOutboundIntegration(params: {
     await tx.outboundIntegration.update({
       where: { id: integration.id },
       data: {
-        providerStatus: response.data.status,
+        providerStatus,
         dnsRecords: response.data.records as unknown as Prisma.InputJsonValue,
         status,
         lastError: null,
@@ -163,6 +177,14 @@ export async function refreshOutboundIntegration(params: {
       }
     }
   });
+
+  const refreshed = (
+    await getOutboundIntegrationDashboard(params.clientId)
+  ).find((item) => item.id === integration.id);
+  if (!refreshed) {
+    throw new AppNotFoundError("Siuntimo integracija nerasta.");
+  }
+  return refreshed;
 }
 
 export async function setOutboundIntegrationStatus(params: {
@@ -221,7 +243,8 @@ export async function setDefaultOutboundIntegration(params: {
 
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY?.trim();
-  if (!key) throw new AppConfigError("RESEND_API_KEY is not configured.");
+  if (!key)
+    throw new AppConfigError("El. pašto siuntimo paslauga nesukonfigūruota.");
   return new Resend(key);
 }
 

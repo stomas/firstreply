@@ -17,6 +17,15 @@ import {
   setDefaultOutboundIntegration,
   setOutboundIntegrationStatus,
 } from "@/lib/outbound/integrations";
+import type { OutboundIntegrationDashboardItem } from "@/lib/outbound/integrations";
+
+export type RefreshOutboundIntegrationActionResult =
+  | {
+      ok: true;
+      integration: OutboundIntegrationDashboardItem;
+      message: string;
+    }
+  | { ok: false; message: string };
 
 export async function createWebFormIntegrationAction(formData: FormData) {
   const client = await getCurrentClient();
@@ -83,19 +92,24 @@ export async function createOutboundIntegrationAction(formData: FormData) {
   redirect("/dashboard/integrations?outboundCreated=1");
 }
 
-export async function refreshOutboundIntegrationAction(formData: FormData) {
+export async function refreshOutboundIntegrationAction(
+  formData: FormData,
+): Promise<RefreshOutboundIntegrationActionResult> {
   const client = await getCurrentClient();
   try {
-    await refreshOutboundIntegration({
+    const integration = await refreshOutboundIntegration({
       clientId: client.id,
       integrationId: requireText(formData, "integrationId"),
     });
+    return {
+      ok: true,
+      integration,
+      message: "Domeno būsena atnaujinta.",
+    };
   } catch (error) {
     console.error("[outbound-integration-refresh] failed", error);
-    redirectOutboundError(error);
+    return { ok: false, message: getAppErrorMessage(error) };
   }
-  revalidatePath("/dashboard/integrations");
-  redirect("/dashboard/integrations?outboundUpdated=1");
 }
 
 export async function setOutboundIntegrationStatusAction(formData: FormData) {

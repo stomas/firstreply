@@ -1,11 +1,8 @@
-import {
-  OutboundIntegrationStatus,
-  SourceIntegrationStatus,
-  SourceIntegrationType,
-} from "@prisma/client";
+import { SourceIntegrationStatus, SourceIntegrationType } from "@prisma/client";
 import { ConfirmSubmitButton } from "@/components/dashboard/ConfirmSubmitButton";
 import { CopyValueButton } from "@/components/dashboard/CopyValueButton";
 import { DashboardError } from "@/components/dashboard/DashboardError";
+import { OutboundIntegrationCard } from "@/components/dashboard/OutboundIntegrationCard";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
 import {
@@ -16,15 +13,13 @@ import {
   getOutboundIntegrationDashboard,
   type OutboundIntegrationDashboardItem,
 } from "@/lib/outbound/integrations";
+import { clientSafeOutboundText } from "@/lib/outbound/client-copy";
 import {
   createOutboundIntegrationAction,
   createPaslaugosIntegrationAction,
   createWebFormIntegrationAction,
   rotateIntegrationAction,
-  refreshOutboundIntegrationAction,
-  setDefaultOutboundIntegrationAction,
   setIntegrationStatusAction,
-  setOutboundIntegrationStatusAction,
 } from "./actions";
 
 export const runtime = "nodejs";
@@ -83,7 +78,7 @@ export default async function IntegrationsPage({ searchParams }: PageProps) {
             role="alert"
             className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm font-semibold text-warn-text"
           >
-            {query.outboundError}
+            {clientSafeOutboundText(query.outboundError)}
           </div>
         ) : null}
 
@@ -144,8 +139,8 @@ function OutboundSection({
             Atsakymų siuntimas
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
-            Patvirtinkite savo domeną Resend DNS įrašais. Laiškas siunčiamas tik
-            žmogui paspaudus „Siųsti klientui“.
+            Patvirtinkite siuntimo domeną pagal žemiau pateiktus DNS įrašus.
+            Laiškas siunčiamas tik žmogui paspaudus „Siųsti klientui“.
           </p>
         </div>
         <span
@@ -207,7 +202,7 @@ function OutboundSection({
         </label>
         <div className="md:col-span-2">
           <button className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-hover">
-            Sukurti Resend domeną
+            Sukurti siuntimo domeną
           </button>
         </div>
       </form>
@@ -227,125 +222,6 @@ function OutboundSection({
       </div>
     </section>
   );
-}
-
-function OutboundIntegrationCard({
-  integration,
-}: {
-  integration: OutboundIntegrationDashboardItem;
-}) {
-  const active = integration.status === OutboundIntegrationStatus.ACTIVE;
-  return (
-    <article className="rounded-lg border border-line bg-white p-5 shadow-cardsoft">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-extrabold text-ink">
-              {integration.name}
-            </h3>
-            <span className="rounded-full bg-line-soft px-2.5 py-1 text-xs font-extrabold text-ink-soft">
-              {outboundStatusLabel(integration.status)}
-            </span>
-            {integration.isDefault ? (
-              <span className="rounded-full bg-brand-tint px-2.5 py-1 text-xs font-extrabold text-brand">
-                Numatytasis
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2 text-sm text-ink-soft">
-            {integration.fromName} &lt;{integration.fromEmail}&gt; · Reply-To{" "}
-            {integration.replyToEmail} · {integration.dispatchCount} siuntimai
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <form action={refreshOutboundIntegrationAction}>
-            <input type="hidden" name="integrationId" value={integration.id} />
-            <button className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-brand hover:bg-brand-tint">
-              Tikrinti DNS
-            </button>
-          </form>
-          <form action={setOutboundIntegrationStatusAction}>
-            <input type="hidden" name="integrationId" value={integration.id} />
-            <input
-              type="hidden"
-              name="enabled"
-              value={active ? "false" : "true"}
-            />
-            <button className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft">
-              {active ? "Išjungti" : "Įjungti"}
-            </button>
-          </form>
-          {active && !integration.isDefault ? (
-            <form action={setDefaultOutboundIntegrationAction}>
-              <input
-                type="hidden"
-                name="integrationId"
-                value={integration.id}
-              />
-              <button className="rounded-lg border border-line px-3 py-2 text-xs font-bold text-ink-soft hover:bg-line-soft">
-                Naudoti pagal nutylėjimą
-              </button>
-            </form>
-          ) : null}
-        </div>
-      </div>
-      <p className="mt-3 text-xs text-ink-muted">
-        Resend būsena: {integration.providerStatus} · Domenas:{" "}
-        {integration.domain}
-      </p>
-      {integration.lastError ? (
-        <p className="mt-3 rounded-lg border border-warn-border bg-warn-bg p-3 text-sm text-warn-text">
-          {integration.lastError}
-        </p>
-      ) : null}
-      {integration.dnsRecords.length ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-line text-ink-muted">
-                <th className="p-2">Tipas</th>
-                <th className="p-2">Pavadinimas</th>
-                <th className="p-2">Reikšmė</th>
-                <th className="p-2">Prioritetas</th>
-                <th className="p-2">Būsena</th>
-              </tr>
-            </thead>
-            <tbody>
-              {integration.dnsRecords.map((record, index) => (
-                <tr
-                  key={`${record.record}-${record.name}-${index}`}
-                  className="border-b border-line-soft"
-                >
-                  <td className="p-2 font-bold">{record.type}</td>
-                  <td className="p-2">
-                    <code className="break-all">{record.name}</code>
-                  </td>
-                  <td className="p-2">
-                    <div className="flex min-w-60 items-center gap-2">
-                      <code className="break-all">{record.value}</code>
-                      <CopyValueButton
-                        value={record.value}
-                        label={`${record.record} DNS reikšmę`}
-                      />
-                    </div>
-                  </td>
-                  <td className="p-2">{record.priority ?? "—"}</td>
-                  <td className="p-2">{record.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function outboundStatusLabel(status: OutboundIntegrationStatus): string {
-  if (status === OutboundIntegrationStatus.ACTIVE) return "Aktyvi";
-  if (status === OutboundIntegrationStatus.DISABLED) return "Išjungta";
-  if (status === OutboundIntegrationStatus.FAILED) return "DNS klaida";
-  return "Laukiama DNS";
 }
 
 function CreateIntegrationCard({
