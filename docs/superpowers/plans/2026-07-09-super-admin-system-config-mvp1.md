@@ -1,5 +1,9 @@
 # Super Admin System Config MVP 1 Implementation Plan
 
+> **Status:** istorinis 2026-07-09 įgyvendinimo planas. Dabartinę System Config
+> būseną žr. [`docs/ARCHITEKTURA.md`](../../ARCHITEKTURA.md) ir
+> [`docs/NAUDOTOJO-GIDAS.md`](../../NAUDOTOJO-GIDAS.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the first Super Admin MVP for current-client subjects, advanced requirements, pricing builder config, access gating, navigation, status summary, and safe reference guards.

@@ -1,12 +1,6 @@
 import type { Prisma } from "@prisma/client";
-import { AppConfigError, AppValidationError } from "@/lib/app-errors";
-import { AI_NOT_CONFIGURED } from "@/lib/ai/gap-filler";
+import { AppValidationError } from "@/lib/app-errors";
 import { assertDatabaseConfigured, prisma } from "@/lib/db";
-import {
-  classifyParsedLeadService,
-  parseTestInquiryLead,
-  resolveParsedLeadRequirements,
-} from "@/lib/leads/parse-lead";
 import {
   runTestLeadPipeline,
   type LeadProcessingTrace,
@@ -45,35 +39,27 @@ export async function createTestLeadAndResponse(
   const rules = await getClientRules(clientId);
   ensureTestingAllowed(rules, input);
 
-  // Pradinis lead įrašo momentinis snapshot'as — deterministinis (AI išjungtas
-  // per tuščią env), kad nebūtų dubliuoto AI kvietimo; autoritetingą AI
-  // klasifikaciją padaro runTestLeadPipeline žemiau.
-  const classified = await classifyParsedLeadService(
-    parseTestInquiryLead(input),
-    input.inquiryMessage,
-    rules,
-    { env: {} },
-  );
-  const parsedLead = resolveParsedLeadRequirements(classified.parsed, rules);
+  // Lead sukuriamas prieš AI kvietimą tik tam, kad pipeline ir klaidų auditas
+  // turėtų stabilų ID. Jokio preliminaraus deterministinio parse nedarome;
+  // autoritetingas ir vienintelis runtime parse žemiau visada yra LLM-first.
   const lead = await prisma.lead.create({
     data: {
       clientId,
-      serviceId: parsedLead.serviceId,
+      serviceId: emptyToNull(input.serviceId),
       sourceType: "test",
       isTest: true,
       status: "testing",
       customerName: emptyToNull(input.customerName),
       customerEmail: emptyToNull(input.customerEmail),
       customerPhone: emptyToNull(input.customerPhone),
-      city: parsedLead.city,
+      city: emptyToNull(input.city),
       originalMessage: input.inquiryMessage,
       rawText: input.inquiryMessage,
       source: "test_tool",
-      parseResult: parsedLead as Prisma.InputJsonObject,
-      asksPrice: parsedLead.asksPrice,
-      asksAvailability: parsedLead.asksAvailability,
-      isUrgent: parsedLead.isUrgent,
-      hasAttachments: parsedLead.hasAttachments,
+      asksPrice: input.asksPrice,
+      asksAvailability: input.asksAvailability,
+      isUrgent: input.isUrgent,
+      hasAttachments: false,
     },
   });
 
@@ -82,25 +68,25 @@ export async function createTestLeadAndResponse(
     rules,
     leadId: lead.id,
     isTest: true,
-  }).catch(async (error) => {
-    if (error instanceof AppConfigError) {
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          status: "error",
-          errorCode: AI_NOT_CONFIGURED,
-          manualReviewReason: error.message,
-        },
-      });
-    }
-
-    throw error;
   });
 
   await prisma.lead.update({
     where: { id: lead.id },
     data: {
       serviceId: pipeline.parsedLead.serviceId,
+      customerEmail:
+        lead.customerEmail ??
+        pipeline.parsedLead.contacts.email?.normalized ??
+        null,
+      customerPhone:
+        lead.customerPhone ??
+        pipeline.parsedLead.contacts.phone?.normalized ??
+        null,
+      city: pipeline.parsedLead.city,
+      asksPrice: pipeline.parsedLead.asksPrice,
+      asksAvailability: pipeline.parsedLead.asksAvailability,
+      isUrgent: pipeline.parsedLead.isUrgent,
+      hasAttachments: pipeline.parsedLead.hasAttachments,
       parseResult: pipeline.parsedLead as Prisma.InputJsonObject,
       decisionResult:
         pipeline.decisionResult as unknown as Prisma.InputJsonObject,

@@ -1,5 +1,10 @@
 # Super Admin System Config Design
 
+> **Status:** istorinis 2026-07-09 dizaino dokumentas, ne dabartinės sistemos
+> runbookas. Dabartinę System Config būseną žr.
+> [`docs/ARCHITEKTURA.md`](../../ARCHITEKTURA.md) ir
+> [`docs/NAUDOTOJO-GIDAS.md`](../../NAUDOTOJO-GIDAS.md).
+
 ## Context
 
 The dashboard already lets a regular client configure the safer

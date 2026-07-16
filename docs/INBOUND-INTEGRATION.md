@@ -47,7 +47,18 @@ nepalaikomi.
 6. Kiekviena inbound žinutė pakelia pokalbio generaciją. Draftas išsaugomas
    tik tai pačiai naujausiai generacijai, todėl lėtesnis paralelus pipeline
    negali perrašyti naujesnio rezultato. Ankstesnis aktyvus juodraštis tampa
-   `superseded`. Sistema V1 juodraščio klientui nesiunčia.
+   `superseded`. Automatinio siuntimo nėra. Web formos pokalbiui žmogus gali
+   redaguoti aktyvų draftą ir išsiųsti jį per Resend, jei įjungtas globalus
+   kill switch ir yra patvirtintas kliento siuntėjas; Paslaugos.lt tiesioginis
+   siuntimas nepalaikomas.
+
+### Inbound parserio režimas
+
+`ingestInboundMessage` kviečia bendrą `runLeadPipeline`, kuris visada pradeda nuo
+LLM-first parse. Režimas nebekonfigūruojamas: `LLM_FIRST_PARSE` kode
+nebeskaitomas, todėl sena `false` reikšmė negali grąžinti deterministinio-first
+kelio. Inbound tik sąmoningai palieka `SHADOW_AI_PARSE=false`, nes shadow yra
+antras measurement-only AI kvietimas, nedarantis įtakos sprendimui.
 
 ## Svetainės forma
 

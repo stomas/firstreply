@@ -13,7 +13,6 @@ import {
   type ParsedLeadData,
 } from "@/lib/leads/parse-lead";
 import {
-  isLlmFirstParseEnabled,
   parseTestInquiryLeadLlmFirst,
   type LlmFirstParseResult,
 } from "@/lib/leads/llm-first-parse";
@@ -85,15 +84,20 @@ type RunLeadPipelineInput = {
   aiOptions?: Parameters<typeof fillAiGaps>[1];
 };
 
-export async function runLeadPipeline({
-  input,
-  rules,
-  leadId,
-  isTest,
-  aiOptions = {},
-}: RunLeadPipelineInput): Promise<TestLeadPipelineResult> {
+type LeadParseMode = "llm_first" | "deterministic_first";
+
+export function runLeadPipeline(
+  input: RunLeadPipelineInput,
+): Promise<TestLeadPipelineResult> {
+  return runLeadPipelineWithMode(input, "llm_first");
+}
+
+async function runLeadPipelineWithMode(
+  { input, rules, leadId, isTest, aiOptions = {} }: RunLeadPipelineInput,
+  parseMode: LeadParseMode,
+): Promise<TestLeadPipelineResult> {
   const trace: LeadProcessingTrace = { stages: [] };
-  const llmFirstEnabled = isLlmFirstParseEnabled(aiOptions.env ?? process.env);
+  const llmFirstEnabled = parseMode === "llm_first";
   let llmFirstResult: LlmFirstParseResult | null = null;
   let parsedLead: ParsedLeadData;
 
@@ -407,6 +411,21 @@ export function runTestLeadPipeline(input: {
   aiOptions?: Parameters<typeof fillAiGaps>[1];
 }): Promise<TestLeadPipelineResult> {
   return runLeadPipeline(input);
+}
+
+/**
+ * @internal Test-only regression harness for the retired runtime path.
+ * Production callers must use runLeadPipeline/runTestLeadPipeline, which are
+ * unconditionally LLM-first.
+ */
+export function runDeterministicLeadPipelineForTests(input: {
+  input: TestInquiryInput;
+  rules: ClientRules;
+  leadId: string;
+  isTest: boolean;
+  aiOptions?: Parameters<typeof fillAiGaps>[1];
+}): Promise<TestLeadPipelineResult> {
+  return runLeadPipelineWithMode(input, "deterministic_first");
 }
 
 function attachTrace(error: AppConfigError, trace: LeadProcessingTrace): void {

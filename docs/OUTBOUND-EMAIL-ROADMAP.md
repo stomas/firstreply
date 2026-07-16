@@ -1,9 +1,8 @@
-# FirstReply outbound el. pašto ir atsakymų sekimo planas
+# FirstReply outbound el. pašto būsena ir likęs atsakymų sekimo planas
 
-Šis dokumentas yra implementation-ready roadmap po source-specific inbound V1.
-Jis skirtas būsimam įgyvendinimui, kai FirstReply turės ne tik parengti
-juodraštį, bet ir žmogui patvirtinus išsiųsti atsakymą, rodyti pristatymo būseną
-bei priimti kliento tęsinį į tą patį pokalbį.
+Šis dokumentas skiria jau įgyvendintą žmogaus patvirtintą outbound siuntimą nuo
+dar neįgyvendintų delivery, bounce ir reply-sync etapų. 1–2 etapai yra esamos
+sistemos aprašymas; 3–7 etapai — implementation-ready roadmap.
 
 Susiję dokumentai: [Inbound integracija](./INBOUND-INTEGRATION.md) ·
 [Architektūra](./ARCHITEKTURA.md) ·
@@ -33,6 +32,10 @@ Jau įgyvendinta:
 - `NEEDS_REPLY`, `WAITING_CUSTOMER`, `MANUAL_REVIEW`, `CLOSED`;
 - rankinis audituojamas veiksmas **Atsakyta kitur**;
 - Resend webhooko raw-body parašo tikrinimas ir tikslus gavėjo routing;
+- Resend outbound domeno/DNS valdymas, patvirtintas numatytasis siuntėjas ir
+  `EMAIL_SENDING_ENABLED` kill switch;
+- redaguojamas Web formos draftas, idempotentinis žmogaus inicijuotas siuntimas,
+  tikras `OUTBOUND` timeline įrašas ir `SENT` (Resend priėmė) būsena;
 - jokio visos kliento pašto dėžutės ingest.
 
 Dabartinė riba: FirstReply žmogui patvirtinus gali siųsti atsakymą Web formos
@@ -107,10 +110,10 @@ diagnozuojamą rezultatą.
 
 ### Etapas 1 — outbound siuntėjo tapatybė ✅ Įgyvendinta 2026-07-14
 
-Pridėti atskirą `OutboundIntegration`, neperkraunant inbound
+Įgyvendintas atskiras `OutboundIntegration`, neperkraunant inbound
 `SourceIntegration` semantikos.
 
-Siūlomi laukai:
+Dabartiniai esminiai laukai (`prisma/schema.prisma` yra autoritetingas):
 
 ```text
 OutboundIntegration
@@ -119,18 +122,20 @@ OutboundIntegration
 - provider: RESEND
 - status: PENDING_VERIFICATION | ACTIVE | DISABLED | FAILED
 - name
+- domain
 - fromName
 - fromEmail
-- replyDomain
-- providerDomainId (nullable)
-- providerStatus / lastError
+- replyToEmail
+- providerDomainId
+- providerStatus / dnsRecords / lastError
+- isDefault
 - createdAt / updatedAt / verifiedAt
 ```
 
 Providerio API raktas lieka serverio env ir nėra saugomas kiekvieno kliento DB.
 DB saugoma tik kliento tapatybė bei providerio domeno ID/būsena.
 
-Dashboard `/dashboard/integrations` turi leisti:
+Dashboard `/dashboard/integrations` leidžia:
 
 - pridėti siuntėjo vardą ir adresą;
 - matyti DNS patvirtinimo instrukcijas bei būseną;
@@ -143,7 +148,7 @@ būti naudojamas; aktyvus siuntėjas aiškiai rodomas UI.
 
 ### Etapas 2 — žmogaus patvirtintas siuntimas ✅ Įgyvendinta 2026-07-14
 
-Lead detail pridėti redaguojamą atsakymo formą:
+Lead detail turi redaguojamą atsakymo formą:
 
 - `From` — aktyvi kliento outbound integracija;
 - `To` — serverio nustatytas ir UI rodomas kliento kontaktas;
@@ -152,33 +157,35 @@ Lead detail pridėti redaguojamą atsakymo formą:
 - aiškus patvirtinimas prieš siuntimą;
 - klaidos būsena ir saugus retry.
 
-Vieša serverio sąsaja turėtų būti autentifikuotas dashboard action arba route,
-pvz.:
+Dabartinė sąsaja yra autentifikuotas server action, ne viešas API route:
 
 ```text
-POST /api/dashboard/conversations/{conversationId}/send
+app/dashboard/leads/[id]/actions.ts → sendConversationResponseAction
 ```
 
 Request turi turėti kliento sugeneruotą vienkartinį `sendRequestId`. Serveris
 visada pats nustato `clientId`, conversation, gavėją ir aktyvų siuntėją; šių
 tenant ribų negalima pasitikėti iš browser payload.
 
-Siūlomas persistencijos modelis:
+Dabartinio persistencijos modelio esminiai laukai:
 
 ```text
 OutboundDispatch
 - id
 - clientId
+- leadId
 - conversationId
 - conversationMessageId (unique)
 - outboundIntegrationId
 - responseRevisionId
+- conversationVersion
+- sentByUserId
 - sendRequestId (unique per client)
 - idempotencyKey (globally unique)
-- status: QUEUED | SENDING | SENT | DELIVERED | BOUNCED | FAILED | COMPLAINED
-- fromEmail / toEmail / replyTo / subject
+- status: QUEUED | SENDING | SENT | DELIVERED | BOUNCED | FAILED | COMPLAINED | UNKNOWN
+- fromName / fromEmail / toEmail / replyToEmail / subject / text
 - providerMessageId (unique, nullable until accepted)
-- attemptCount / processingToken / lastError
+- attemptCount / processingToken / processingStartedAt / errorCode / errorMessage
 - sentAt / deliveredAt / failedAt / createdAt / updatedAt
 ```
 
@@ -357,18 +364,26 @@ Svarstyti tik sukaupus rankinio siuntimo statistiką. Reikalinga:
 - pilnas sprendimo, drafto, taisyklių versijos ir providerio rezultato auditas;
 - canary rollout ir momentinis grįžimas prie žmogaus patvirtinimo.
 
-## 5. Viešos sąsajos ir konfigūracija
+## 5. Sąsajos ir konfigūracija
 
-Planuojamos sąsajos:
+Dabartinis žmogaus siuntimas įgyvendintas ne viešu API endpointu, o
+autentifikuotu server action:
 
 ```text
-POST /api/dashboard/conversations/{conversationId}/send
+app/dashboard/leads/[id]/actions.ts → sendConversationResponseAction
+```
+
+3 etapui planuojamas neutralus Resend endpointas:
+
+```text
 POST /api/integrations/resend
 ```
 
-Esami inbound endpointai išlieka suderinami migracijos metu.
+Kol jis neįgyvendintas, inbound lieka
+`POST /api/integrations/inbound/resend`. Žmogaus siuntimui atskiro viešo HTTP
+endpointo dabartiniame kode nėra.
 
-Planuojami serverio kintamieji:
+Dabartiniai serverio kintamieji:
 
 ```text
 EMAIL_SENDING_ENABLED=false
@@ -457,7 +472,8 @@ serverio secret store.
 - DB concurrency testai su disposable PostgreSQL;
 - typecheck, lint, format check, Prisma validate ir production build;
 - Resend sandbox smoke;
-- patvirtinto kliento domeno realus send/delivery/reply smoke Railway aplinkoje;
+- patvirtinto kliento domeno realus send smoke Railway aplinkoje;
+- delivery/bounce/reply smoke — tik įgyvendinus atitinkamai 3 ir 4 etapus;
 - nepriklausomas security/idempotency review;
 - nepriklausomas UX/dokumentacijos review.
 
@@ -465,20 +481,25 @@ serverio secret store.
 
 1. `EMAIL_SENDING_ENABLED=false` produkcijoje po deploy.
 2. Įjungti vienam vidiniam/testiniam klientui.
-3. Patikrinti vieną send, delivery, bounce ir reply srautą.
+3. Dabartiniame etape patikrinti vieną žmogaus inicijuotą send: Resend priėmimą,
+   vieną `OUTBOUND` message ir vieną `OutboundDispatch` be dublikato.
 4. Pilotas su 1–2 klientais, tik žmogaus patvirtintas siuntimas.
-5. Stebėti duplicate prevention, provider failures, bounce rate, delivery
-   laiką, reply routing klaidas ir manual-review priežastis.
+5. Stebėti duplicate prevention, provider failures, siuntimo priėmimą ir
+   manual-review priežastis.
 6. Tik po stabilaus piloto įjungti platesniam klientų ratui.
 
-Minimalios metrikos per klientą/integraciją:
+Dabar pamatuojama:
 
-- send attempts, accepted, delivered, bounced, complained, failed;
+- send attempts, accepted ir failed;
 - laikas nuo inbound iki pirmo outbound;
-- laikas nuo outbound iki kliento reply;
 - idempotency duplicates ir stale retry;
+- pranešimų kiekis.
+
+Tikslinės metrikos po 3–4 etapų:
+
+- delivered, bounced ir complained;
+- laikas nuo outbound iki kliento reply;
 - reply routing mismatch / manual review;
-- pranešimų kiekis, kad vėlesnė kainodara remtųsi naudojimu.
 
 ## 9. Priimti sprendimai 1–3 etapams ir likę klausimai
 

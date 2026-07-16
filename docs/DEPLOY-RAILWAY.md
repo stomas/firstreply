@@ -1,7 +1,7 @@
 # FirstReply — diegimas į Railway
 
 Žingsnis po žingsnio gidas, kaip įdiegti FirstReply (Next.js + PostgreSQL) į
-[Railway](https://railway.app). Skirtas žmogui, kuris diegia produktą — su
+[Railway](https://railway.com). Skirtas žmogui, kuris diegia produktą — su
 minimaliomis DevOps žiniomis.
 
 Susiję dokumentai: [Techninė dokumentacija](./ARCHITEKTURA.md) ·
@@ -15,12 +15,14 @@ Susiję dokumentai: [Techninė dokumentacija](./ARCHITEKTURA.md) ·
 
 - GitHub repo su šiuo kodu (Railway diegia iš GitHub).
 - Railway paskyros.
-- OpenAI API rakto (be jo veiks landing ir dashboard peržiūra, bet atsakymų
-  generavimas grąžins „AI generation is not configured“).
+- OpenAI API rakto (be jo veiks landing ir dashboard peržiūra, tačiau kiekvienas
+  produkto lead'as bus paliktas `MANUAL_REVIEW / AI_NOT_CONFIGURED`, nes
+  LLM-first parseris yra privalomas).
 - Resend paskyros ir inbound receiving domeno, jei jungiama Paslaugos.lt.
 
-Build konfigūracija jau yra [`railway.json`](../railway.json): Nixpacks,
-`npm run build` → `npm run start`, healthcheck `/`.
+Build konfigūracija jau yra [`railway.json`](../railway.json): dabartinis
+Railway `RAILPACK` builderis, Node `20.x`, `NODE_ENV=production npm run build` →
+`NODE_ENV=production npm run start`, healthcheck `/`.
 
 ## 1. Sukurkite projektą ir PostgreSQL
 
@@ -39,10 +41,9 @@ App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais 
 | `DATABASE_URL`                  | Taip          | Reference į Postgres servisą: `${{Postgres.DATABASE_URL}}`                                                                                                                              |
 | `SUPER_ADMIN_SIGNUP_CODE`       | Admin setup   | Bent 24 atsitiktinių simbolių kodas, reikalingas `/super-admin/signup`; po pradinės registracijos jį pakeiskite arba pašalinkite.                                                       |
 | `NEXT_PUBLIC_SITE_URL`          | Taip          | Viešas URL be pasvirojo brūkšnio gale, pvz. `https://firstreply.lt` arba `https://<app>.up.railway.app`. Naudojamas SEO/sitemap — **pakeitus reikia redeploy** (build-time kintamasis). |
-| `OPENAI_API_KEY`                | AI funkcijoms | OpenAI raktas.                                                                                                                                                                          |
-| `OPENAI_MODEL`                  | AI funkcijoms | Modelio ID, pvz. `gpt-4.1-mini`.                                                                                                                                                        |
-| `LLM_FIRST_PARSE`               | Ne            | `true` įjungia eksperimentinį LLM-first parserį tik `/dashboard/test`. Default `false` palieka deterministinį parserį.                                                                  |
-| `SHADOW_AI_PARSE`               | Ne            | `true` įjungia shadow AI matavimą (papildomi AI kvietimai kiekvienam lead'ui — kaštai!). Default `false`.                                                                               |
+| `OPENAI_API_KEY`                | Lead pipeline | OpenAI raktas. Privalomas, nes kiekvienas testinis ir produkto inbound lead'as pradedamas LLM-first parse. Be jo lead'as paliekamas manual review.                                      |
+| `OPENAI_MODEL`                  | Lead pipeline | Tikslus OpenAI Responses API modelio ID. Aplikacija default modelio neturi.                                                                                                             |
+| `SHADOW_AI_PARSE`               | Ne            | `true` tik `/dashboard/test` prideda dar vieną measurement-only AI kvietimą; sprendimų nekeičia. Produkto inbound šį flag'ą priverstinai išjungia. Default/rekomendacija `false`.       |
 | `LEAD_WEBHOOK_URL`              | Ne            | Kur persiunčiamos landing formos užklausos (Make/Zapier/Slack webhook). Tuščias — tik logas.                                                                                            |
 | `INBOUND_SIGNING_MASTER_SECRET` | Inbound       | Bent 32 atsitiktinių baitų serverio secret, iš kurio išvedami atskirų web formų HMAC raktai.                                                                                            |
 | `RESEND_API_KEY`                | El. paštas    | Resend API raktas pilnam gautam laiškui paimti, outbound domenui valdyti ir žmogaus patvirtintam laiškui siųsti.                                                                        |
@@ -50,12 +51,28 @@ App serviso **Variables** skiltyje nustatykite (pilnas sąrašas su komentarais 
 | `RESEND_INBOUND_DOMAIN`         | Paslaugos.lt  | Resend sukonfigūruotas receiving domenas be `@`, pvz. `in.firstreply.lt`.                                                                                                               |
 | `EMAIL_SENDING_ENABLED`         | Outbound      | Globalus realaus siuntimo kill switch. Po deploy laikyti `false`, kol patvirtintas siuntėjo domenas ir suplanuotas smoke testas.                                                        |
 
-`NODE_ENV=production` ir `PORT` Railway nustato pats — jų kurti nereikia.
+`NODE_ENV` ir `PORT` Railway Variables skiltyje kurti nereikia. Repo Railway
+build/start komandos aiškiai nustato `NODE_ENV=production`, o `PORT` perduoda
+Railway. Jei `NODE_ENV` buvo sukurtas ranka (ypač su `prod`, `staging` ar kita
+nestandartine reikšme), pašalinkite jį, kad Railway aplinka neklaidintų kitų
+komandų. Node versija užfiksuota kaip `20.x` ir `package.json`, ir `.nvmrc`.
 
 `LEAD_WEBHOOK_URL` skirtas tik viešai FirstReply landing kontaktų formai. Tai
 nėra produkto inbound integracija. Produkto source'ai kuriami
 `/dashboard/integrations` ir aprašyti
 [inbound runbooke](./INBOUND-INTEGRATION.md).
+
+### Parserio režimai
+
+| Srautas                                       | Faktinis režimas                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `/dashboard/test`                             | Visada LLM-first parse → kodo validacija → resolver → deterministinis decision/composer.    |
+| Produkto inbound (`WEB_FORM`, `PASLAUGOS_LT`) | Tas pats privalomas LLM-first kelias; tik measurement-only shadow kvietimas kode išjungtas. |
+| Landing `POST /api/leads`                     | Produkto pipeline nevykdomas; tik logas ir pasirenkamas `LEAD_WEBHOOK_URL`.                 |
+
+`LLM_FIRST_PARSE` kintamasis panaikintas ir kode nebeskaitomas. Jei jis likęs
+Railway Variables skiltyje, pašalinkite: net `false` nebeįjungia seno
+deterministinio-first runtime kelio.
 
 `INBOUND_SIGNING_MASTER_SECRET` sugeneravimo pavyzdys:
 
@@ -147,15 +164,15 @@ Eilės tvarka — kiekvienas žingsnis tikrina vis gilesnį sluoksnį:
    kuri persiunčia tik Paslaugos.lt laiškus ir išsaugo originalų `From`
    (`redirect` arba atitinkamas automatinio forward režimas). Visos dėžutės
    persiųsti negalima.
-5. **`/dashboard/test`** → pateikite testinę užklausą, pvz.
+5. **`/dashboard/test`** pateikite testinę užklausą, pvz.
    „Sveiki, reikia skardinės tvoros 45 metrai ir 1.7 m aukščio Vilniuje.
    Kiek kainuotų?“ → turi grįžti parengtas atsakymas su kaina — veikia visas
    pipeline, įskaitant OpenAI.
 6. **`/dashboard/integrations`** → sukurkite web formos integraciją; URL ir
    signing secret turi būti matomi. Išsiųskite pasirašytą smoke eventą pagal
    [runbooką](./INBOUND-INTEGRATION.md) ir patikrinkite vieną realų leadą.
-7. Jei parengtas atsakymas grąžina „AI generation is not configured“ — patikrinkite
-   `OPENAI_API_KEY` / `OPENAI_MODEL`.
+7. Jei testas grąžina `AI_NOT_CONFIGURED` ar kitą AI konfigūracijos klaidą —
+   patikrinkite `OPENAI_API_KEY` / `OPENAI_MODEL`.
 8. Jei sukonfigūruotas Resend, išbandykite tikslų Paslaugos.lt forwarding
    filtrą ir dashboarde patikrinkite source, timeline bei paskutinį eventą.
    Eventas neturi būti `SOURCE_FORMAT_UNRECOGNIZED`; jei yra, patikrinkite, ar
@@ -175,20 +192,20 @@ Nustačius galutinį domeną atnaujinkite `NEXT_PUBLIC_SITE_URL` ir **redeploy**
 
 ## Dažnos problemos
 
-| Simptomas                                      | Priežastis / sprendimas                                                                                                                                                                                                       |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard: „The column … does not exist“       | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).                                                                                                                         |
-| Dashboard: kliento klaida / tuščia             | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed.                                                                                                           |
-| Testavimas: „AI generation is not configured“  | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`.                                                                                                                                                                                 |
-| Testavimas: manual review su `AI_PARSE_FAILED` | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.                                                                                                              |
-| SEO/sitemap rodo seną URL                      | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                                                                                                                                      |
-| Padidėję OpenAI kaštai                         | Patikrinkite, ar `SHADOW_AI_PARSE` netyčia ne `true`.                                                                                                                                                                         |
-| Super Admin nematomas                          | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.                                                                                                              |
-| Web forma grąžina `INVALID_SIGNATURE`          | Pasirašytas ne tikslus raw JSON arba neteisinga `${timestamp}.${eventId}.${rawBody}` eilutė; po rotacijos atnaujinkite secret.                                                                                                |
-| Web forma grąžina `STALE_TIMESTAMP`            | Siuntėjo serverio laikrodis skiriasi daugiau nei 5 min. arba retry naudoja seną timestamp; pasirašykite iš naujo, palikdami tą patį event ID.                                                                                 |
-| Resend eventas ignoruojamas                    | Gavėjo adresas nesutampa su aktyvios Paslaugos.lt integracijos adresu arba pašto taisyklė vis dar naudoja seną adresą.                                                                                                        |
-| `SOURCE_FORMAT_UNRECOGNIZED`                   | Trūksta žinomos temos/šablono arba originalaus Paslaugos.lt `From`; naudokite `redirect`/forward režimą, kuris jo neperrašo. Neatsakykite automatiškai, o naujo formato nuasmenintą pavyzdį pridėkite kaip regresinį fixture. |
-| `UNAUTHENTICATED_THREAD_REFERENCES`            | Paslaugos.lt laiškas turi thread headerius, bet Resend nepateikė patikimos siuntėjo tapatybės; V1 palieka atskirą rankinės peržiūros pokalbį.                                                                                 |
+| Simptomas                                                  | Priežastis / sprendimas                                                                                                                                                                                                       |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard: „The column … does not exist“                   | Nepaleistos migracijos → `railway run npm run db:migrate` (arba sukonfigūruokite pre-deploy, žr. §3).                                                                                                                         |
+| Dashboard: kliento klaida / tuščia                         | Paskyra neturi aktyvaus kliento arba Super Admin dar nepasirinko kliento → patikrinkite paskyrą ir paleiskite seed.                                                                                                           |
+| Testavimas: `AI_NOT_CONFIGURED` / AI konfigūracijos klaida | Trūksta `OPENAI_API_KEY` arba `OPENAI_MODEL`; privalomas LLM-first parseris be jų iš karto palieka manual review.                                                                                                             |
+| Testavimas: manual review su `AI_PARSE_FAILED`             | Retas AI atsakymo formato nesutapimas — pasikartojantį atvejį praneškite su lead detail „Decision JSON“ turiniu.                                                                                                              |
+| SEO/sitemap rodo seną URL                                  | `NEXT_PUBLIC_SITE_URL` pakeistas be redeploy → redeploy.                                                                                                                                                                      |
+| Padidėję OpenAI kaštai                                     | Patikrinkite `/dashboard/test` naudojimą ir ar `SHADOW_AI_PARSE` netyčia ne `true`; shadow prideda atskirą AI kvietimą kiekvienam testiniam lead'ui.                                                                          |
+| Super Admin nematomas                                      | Prisijungta ne su `SUPER_ADMIN` paskyra → sukurkite ją per `/super-admin/signup` su teisingu registracijos kodu.                                                                                                              |
+| Web forma grąžina `INVALID_SIGNATURE`                      | Pasirašytas ne tikslus raw JSON arba neteisinga `${timestamp}.${eventId}.${rawBody}` eilutė; po rotacijos atnaujinkite secret.                                                                                                |
+| Web forma grąžina `STALE_TIMESTAMP`                        | Siuntėjo serverio laikrodis skiriasi daugiau nei 5 min. arba retry naudoja seną timestamp; pasirašykite iš naujo, palikdami tą patį event ID.                                                                                 |
+| Resend eventas ignoruojamas                                | Gavėjo adresas nesutampa su aktyvios Paslaugos.lt integracijos adresu arba pašto taisyklė vis dar naudoja seną adresą.                                                                                                        |
+| `SOURCE_FORMAT_UNRECOGNIZED`                               | Trūksta žinomos temos/šablono arba originalaus Paslaugos.lt `From`; naudokite `redirect`/forward režimą, kuris jo neperrašo. Neatsakykite automatiškai, o naujo formato nuasmenintą pavyzdį pridėkite kaip regresinį fixture. |
+| `UNAUTHENTICATED_THREAD_REFERENCES`                        | Paslaugos.lt laiškas turi thread headerius, bet Resend nepateikė patikimos siuntėjo tapatybės; V1 palieka atskirą rankinės peržiūros pokalbį.                                                                                 |
 
 ## 8. Atnaujinimai
 

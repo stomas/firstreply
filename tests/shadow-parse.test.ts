@@ -124,7 +124,7 @@ describe("computeShadowDiff", () => {
 });
 
 describe("shadow parse pipeline integration", () => {
-  it("does not run shadow (no AI call, no stage) when the flag is off", async () => {
+  it("runs only the mandatory LLM-first call when shadow is off", async () => {
     let calls = 0;
     const result = await runTestLeadPipeline({
       input: {
@@ -139,12 +139,12 @@ describe("shadow parse pipeline integration", () => {
         env: { OPENAI_API_KEY: "test-key", OPENAI_MODEL: "test-model" },
         callModel: async () => {
           calls += 1;
-          return "{}";
+          return mainLlmResponse();
         },
       },
     });
 
-    assert.equal(calls, 0);
+    assert.equal(calls, 1);
     assert.equal(
       result.trace.stages.some((stage) => stage.key === "shadow_parse"),
       false,
@@ -164,31 +164,33 @@ describe("shadow parse pipeline integration", () => {
       isTest: true,
       aiOptions: {
         env: shadowEnv,
-        callModel: async () =>
-          JSON.stringify({
-            facts: [
-              {
-                requirementKey: "fence_length",
-                kind: "measurement",
-                subject: "fence",
-                dimension: "length",
-                value: 45,
-                unit: "m",
-                evidence: "45 metrai",
-                confidence: 0.9,
-              },
-              {
-                requirementKey: "fence_height",
-                kind: "measurement",
-                subject: "fence",
-                dimension: "height",
-                value: 1.5,
-                unit: "m",
-                evidence: "1.7 m aukščio",
-                confidence: 0.9,
-              },
-            ],
-          }),
+        callModel: async (request) =>
+          isMainLlmRequest(request)
+            ? mainLlmResponse()
+            : JSON.stringify({
+                facts: [
+                  {
+                    requirementKey: "fence_length",
+                    kind: "measurement",
+                    subject: "fence",
+                    dimension: "length",
+                    value: 45,
+                    unit: "m",
+                    evidence: "45 metrai",
+                    confidence: 0.9,
+                  },
+                  {
+                    requirementKey: "fence_height",
+                    kind: "measurement",
+                    subject: "fence",
+                    dimension: "height",
+                    value: 1.5,
+                    unit: "m",
+                    evidence: "1.7 m aukščio",
+                    confidence: 0.9,
+                  },
+                ],
+              }),
       },
     });
 
@@ -216,31 +218,33 @@ describe("shadow parse pipeline integration", () => {
       isTest: true,
       aiOptions: {
         env: shadowEnv,
-        callModel: async () =>
-          JSON.stringify({
-            facts: [
-              {
-                requirementKey: "fence_length",
-                kind: "measurement",
-                subject: "fence",
-                dimension: "length",
-                value: 45,
-                unit: "m",
-                evidence: "45 metrai",
-                confidence: 0.99,
-              },
-              {
-                requirementKey: "fence_height",
-                kind: "measurement",
-                subject: "fence",
-                dimension: "height",
-                value: { min: 1.5, max: 1.7 },
-                unit: "m",
-                evidence: "1.7 m aukščio",
-                confidence: 0.93,
-              },
-            ],
-          }),
+        callModel: async (request) =>
+          isMainLlmRequest(request)
+            ? mainLlmResponse()
+            : JSON.stringify({
+                facts: [
+                  {
+                    requirementKey: "fence_length",
+                    kind: "measurement",
+                    subject: "fence",
+                    dimension: "length",
+                    value: 45,
+                    unit: "m",
+                    evidence: "45 metrai",
+                    confidence: 0.99,
+                  },
+                  {
+                    requirementKey: "fence_height",
+                    kind: "measurement",
+                    subject: "fence",
+                    dimension: "height",
+                    value: { min: 1.5, max: 1.7 },
+                    unit: "m",
+                    evidence: "1.7 m aukščio",
+                    confidence: 0.93,
+                  },
+                ],
+              }),
       },
     });
 
@@ -269,7 +273,10 @@ describe("shadow parse pipeline integration", () => {
       isTest: true,
       aiOptions: {
         env: shadowEnv,
-        callModel: async () => {
+        callModel: async (request) => {
+          if (isMainLlmRequest(request)) {
+            return mainLlmResponse();
+          }
           throw new Error("shadow AI 500");
         },
       },
@@ -286,6 +293,28 @@ describe("shadow parse pipeline integration", () => {
     assert.equal(result.shadowDiff, undefined);
   });
 });
+
+function isMainLlmRequest(request: { user: string }): boolean {
+  return request.user.includes('"mode":"lead_parse_v3_llm_first"');
+}
+
+function mainLlmResponse(): string {
+  return JSON.stringify({
+    schemaVersion: "lead_parse_v3_llm_first",
+    serviceId: "service_skardines_tvoros",
+    serviceEvidence: "skardinės tvoros",
+    intents: {
+      asksPrice: true,
+      asksAvailability: false,
+      isUrgent: false,
+      primaryIntent: "requests_quote",
+    },
+    location: null,
+    facts: [],
+    reviewSignals: [],
+    missingFields: [],
+  });
+}
 
 function baseInput(): TestInquiryInput {
   return {

@@ -1,24 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runTestLeadPipeline } from "../lib/leads/test-pipeline";
+import {
+  runLeadPipeline,
+  runTestLeadPipeline,
+} from "../lib/leads/test-pipeline";
 import type { TestInquiryInput } from "../lib/leads/test-inquiry-schema";
 import type { ClientRules, DecisionRequirement } from "../lib/rules/types";
 
 const llmEnv = {
   OPENAI_API_KEY: "test-key",
   OPENAI_MODEL: "test-model",
-  LLM_FIRST_PARSE: "true",
 };
 
 describe("LLM-first test lead parsing", () => {
-  it("extracts a complete quote request from LLM JSON and keeps business outputs deterministic", async () => {
+  it("always starts with LLM even when the retired env flag is false", async () => {
     const calls: string[] = [];
 
-    const result = await runTestLeadPipeline({
+    const result = await runLeadPipeline({
       input: {
         ...baseInput(),
         serviceId: "",
         city: "",
+        source: "paslaugos_lt",
         inquiryMessage:
           "segmentinė tvora, 85 m, 1.5 m, Avižieniai, su varteliais, be vartų, nori kainos ir atvykimo datos",
       },
@@ -26,7 +29,7 @@ describe("LLM-first test lead parsing", () => {
       leadId: "llm_happy",
       isTest: true,
       aiOptions: {
-        env: llmEnv,
+        env: { ...llmEnv, LLM_FIRST_PARSE: "false" },
         callModel: async (request) => {
           calls.push(request.user);
           return JSON.stringify({
@@ -70,6 +73,7 @@ describe("LLM-first test lead parsing", () => {
     assert.ok(calls[0].includes("fence_length"));
     assert.equal(result.parsedLead.serviceId, "service_dev_segmentines_tvoros");
     assert.equal(result.parsedLead.parserVersion, "lead_parse_v3_llm_first");
+    assert.equal(result.parsedLead.source, "paslaugos_lt");
     assert.equal(result.parsedLead.location, null);
     assert.equal(
       result.parsedLead.resolvedRequirements.fence_length?.source,
@@ -83,6 +87,25 @@ describe("LLM-first test lead parsing", () => {
         ?.status,
       "skipped",
     );
+  });
+
+  it("preserves inbound metadata when mandatory AI config is missing", async () => {
+    const result = await runLeadPipeline({
+      input: {
+        ...baseInput(),
+        source: "web_form",
+        hasAttachments: true,
+      },
+      rules,
+      leadId: "llm_missing_config_inbound_metadata",
+      isTest: false,
+      aiOptions: { env: {} },
+    });
+
+    assert.equal(result.responseStatus, "manual_review");
+    assert.equal(result.manualReviewReason, "AI_NOT_CONFIGURED");
+    assert.equal(result.parsedLead.source, "web_form");
+    assert.equal(result.parsedLead.hasAttachments, true);
   });
 
   it("rejects a concrete AI service when evidence only names a generic fence category", async () => {

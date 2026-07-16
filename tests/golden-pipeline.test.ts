@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { AppConfigError } from "../lib/app-errors";
 import { AI_NOT_CONFIGURED } from "../lib/ai/gap-filler";
-import { runTestLeadPipeline } from "../lib/leads/test-pipeline";
+import { runDeterministicLeadPipelineForTests } from "../lib/leads/test-pipeline";
 import type { TestInquiryInput } from "../lib/leads/test-inquiry-schema";
 import type { ClientRules } from "../lib/rules/types";
 
@@ -154,9 +154,11 @@ const rules: ClientRules = {
   ],
 };
 
-describe("golden lead pipeline", () => {
+// Legacy deterministic-first komponentų regresijos. Produkto runtime ir
+// runTestLeadPipeline visada naudoja LLM-first kelią.
+describe("legacy deterministic lead pipeline", () => {
   it("produces a price draft and trace for a clear skardine fence inquiry without AI", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         inquiryMessage:
@@ -196,7 +198,7 @@ describe("golden lead pipeline", () => {
   });
 
   it("auto-detects the service when the test input has no selected service", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         serviceId: "",
@@ -259,7 +261,7 @@ describe("golden lead pipeline", () => {
       ],
     };
 
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         serviceId: "",
@@ -303,7 +305,7 @@ describe("golden lead pipeline", () => {
   });
 
   it("uses inflection-aware deterministic matching before the AI fallback", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         serviceId: "",
@@ -355,7 +357,7 @@ describe("golden lead pipeline", () => {
 
   it("stops with a clear config error when unresolved requirements need AI", async () => {
     try {
-      await runTestLeadPipeline({
+      await runDeterministicLeadPipelineForTests({
         input: {
           ...baseInput(),
           inquiryMessage: "Sveiki, reikia tvoros Vilniuje. Kiek kainuotų?",
@@ -391,7 +393,7 @@ describe("golden lead pipeline", () => {
   });
 
   it("declines a clear inquiry outside served municipalities", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         city: "Klaipėda",
@@ -427,7 +429,7 @@ describe("golden lead pipeline", () => {
   });
 
   it("asks missing questions after AI finds no additional facts", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         inquiryMessage:

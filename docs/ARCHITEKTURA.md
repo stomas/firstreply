@@ -15,7 +15,8 @@ FirstReply — lietuviškas mikro-SaaS smulkiam paslaugų verslui (tvoros, varta
 terasos): iš rašytinės kliento užklausos automatiškai parengia pirmą atsakymą
 su orientacine kaina, trūkstamais klausimais ir terminu. Galutinis sprendimas
 visada lieka savininkui — sistema arba paruošia juodraštį peržiūrai, arba
-(kai politika leidžia) pažymi, kad atsakymą galima siųsti automatiškai.
+(kai politika leidžia) pažymi `autoSendAllowed` eligibility. Dabartinėje
+versijoje laišką vis tiek inicijuoja žmogus.
 
 Repo sudaro:
 
@@ -23,8 +24,9 @@ Repo sudaro:
   forma (`app/api/leads`).
 - **Dashboard** (`app/dashboard/*`) — kliento valdymo aplinka: užklausos,
   testavimo įrankis, paslaugų / taisyklių / užimtumo konfigūracija.
-- **Lead pipeline** (`lib/*`) — deterministinis parseris + AI pagalbininkai +
-  sprendimų variklis + atsakymo kompozitorius.
+- **Lead pipeline** (`lib/*`) — visada LLM-first faktų ištraukimas + kodo
+  validacija ir deterministiniai saugikliai, deterministinis sprendimų variklis
+  ir atsakymo kompozitorius.
 
 Dashboard turi el. pašto/slaptažodžio autentifikaciją ir DB sesijas. Įprastas
 vartotojas visada apribotas savo `Client`, o `SUPER_ADMIN` sesijoje gali
@@ -47,59 +49,68 @@ nėra.
 
 ## 3. Katalogų žemėlapis (lib)
 
-| Modulis                                                     | Paskirtis                                                                                                                                       |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lib/extractor/deterministic.ts`                            | Deterministinis faktų ištraukimas iš teksto (matavimai, kiekiai, miestas, intentai). Tik atominiai faktai — jokios aritmetikos.                 |
-| `lib/extractor/types.ts`                                    | `ExtractedFact`, `PrimaryIntent`, `FactComputation` tipai.                                                                                      |
-| `lib/leads/service-classifier.ts`                           | Paslaugos atpažinimas: keyword scoring (deterministinis) + AI fallback (`classifyLeadServiceWithFallback`).                                     |
-| `lib/leads/parse-lead.ts`                                   | Lead parse orkestracija: faktai → klasifikacija → requirements.                                                                                 |
-| `lib/leads/llm-first-parse.ts`                              | Eksperimentinis `/dashboard/test` LLM-first parseris už `LLM_FIRST_PARSE=true`; schemą kuria iš `ClientRules`, faktus verifikuoja kode.         |
-| `lib/requirements/fact-validation.ts`                       | Bendri `expectedFact` ir `validation` helperiai, naudojami resolver'io ir LLM-first post-validation.                                            |
-| `lib/requirements/resolve-requirements.ts`                  | Faktų priskyrimas requirement'ams pagal `expectedFact` (kind/subject/dimension/units) + `validation` ribos.                                     |
-| `lib/ai/openai-client.ts`                                   | Bendras OpenAI wrapper: `callOpenAiResponsesApi`, `isAiConfigured`, `stripJsonFence`, `normalizeRangeFactValue`. Visi AI kvietimai eina per jį. |
-| `lib/ai/gap-filler.ts`                                      | AI spragų pildymas: subject bindings + nauji/derived faktai su computation.                                                                     |
-| `lib/ai/shadow-parse.ts`                                    | Shadow pilnas AI parse (tik matavimui, `SHADOW_AI_PARSE` flag).                                                                                 |
-| `lib/verifier/evidence.ts`                                  | AI evidence patikra — cituojamas fragmentas privalo būti originale.                                                                             |
-| `lib/verifier/computation.ts`                               | Derived faktų aritmetikos perskaičiavimas kode (multiply/add, unit suderinamumas).                                                              |
-| `lib/decision/engine.ts`                                    | Deterministinis sprendimų variklis (žr. §5).                                                                                                    |
-| `lib/response/composer.ts`                                  | Atsakymo juodraštis iš DB šablonų (`response_templates`).                                                                                       |
-| `lib/leads/test-pipeline.ts`                                | Visas pipeline vienoje funkcijoje + `trace` (stage'ai debug'ui).                                                                                |
-| `lib/leads/create-test-lead.ts`                             | Testavimo įrankio lead'o sukūrimas + persistencija.                                                                                             |
-| `lib/inbound/*`                                             | Source integracijos, HMAC/Resend autentifikavimas, eventų idempotency, adapteriai, threading ir pokalbių būsenos.                               |
-| `lib/rules/get-client-rules.ts`                             | Visų kliento taisyklių užkrovimas iš DB į `ClientRules`.                                                                                        |
-| `lib/dashboard/{services,rules,availability,navigation}.ts` | Dashboard duomenų sluoksniai: užklausos, formų parsinimas (gryni, testuojami), atnaujinimai/kūrimas.                                            |
-| `lib/dashboard/super-admin*.ts`                             | Test/dev System Config sluoksnis: feature flag'as, core + operational read modeliai, builderių parseriai, JSON generavimas ir guard'ai.         |
+| Modulis                                                     | Paskirtis                                                                                                                               |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/extractor/deterministic.ts`                            | Deterministinis faktų ištraukimas iš teksto (matavimai, kiekiai, miestas, intentai). Tik atominiai faktai — jokios aritmetikos.         |
+| `lib/extractor/types.ts`                                    | `ExtractedFact`, `PrimaryIntent`, `FactComputation` tipai.                                                                              |
+| `lib/leads/service-classifier.ts`                           | Legacy deterministinis + AI fallback klasifikatorius; aktyvus runtime jo nebekviečia, regresijos testuojamos atskirai.                  |
+| `lib/leads/parse-lead.ts`                                   | Legacy deterministinio-first parse helperiai; aktyvus runtime jų nebekviečia.                                                           |
+| `lib/leads/llm-first-parse.ts`                              | Privalomas produkto ir `/dashboard/test` parseris; schemą kuria iš `ClientRules`, faktus verifikuoja kode.                              |
+| `lib/requirements/fact-validation.ts`                       | Bendri `expectedFact` ir `validation` helperiai, naudojami resolver'io ir LLM-first post-validation.                                    |
+| `lib/requirements/resolve-requirements.ts`                  | Faktų priskyrimas requirement'ams pagal `expectedFact` (kind/subject/dimension/units) + `validation` ribos.                             |
+| `lib/ai/openai-client.ts`                                   | Aktyvaus pipeline AI wrapper: `callOpenAiResponsesApi`, `isAiConfigured`, `stripJsonFence`, `normalizeRangeFactValue`.                  |
+| `lib/ai/gap-filler.ts`                                      | Legacy deterministinio-first kelio spragų pildymas; aktyvus runtime jį praleidžia, regresijos testuojamos atskirai.                     |
+| `lib/ai/shadow-parse.ts`                                    | Shadow pilnas AI parse (tik matavimui, `SHADOW_AI_PARSE` flag).                                                                         |
+| `lib/verifier/evidence.ts`                                  | AI evidence patikra — cituojamas fragmentas privalo būti originale.                                                                     |
+| `lib/verifier/computation.ts`                               | Derived faktų aritmetikos perskaičiavimas kode (multiply/add, unit suderinamumas).                                                      |
+| `lib/decision/engine.ts`                                    | Deterministinis sprendimų variklis (žr. §5).                                                                                            |
+| `lib/response/composer.ts`                                  | Atsakymo juodraštis iš DB šablonų (`response_templates`).                                                                               |
+| `lib/leads/test-pipeline.ts`                                | Visas pipeline vienoje funkcijoje + `trace` (stage'ai debug'ui).                                                                        |
+| `lib/leads/create-test-lead.ts`                             | Testavimo įrankio lead'o sukūrimas + persistencija.                                                                                     |
+| `lib/inbound/*`                                             | Source integracijos, HMAC/Resend autentifikavimas, eventų idempotency, adapteriai, threading ir pokalbių būsenos.                       |
+| `lib/rules/get-client-rules.ts`                             | Visų kliento taisyklių užkrovimas iš DB į `ClientRules`.                                                                                |
+| `lib/dashboard/{services,rules,availability,navigation}.ts` | Dashboard duomenų sluoksniai: užklausos, formų parsinimas (gryni, testuojami), atnaujinimai/kūrimas.                                    |
+| `lib/dashboard/super-admin*.ts`                             | Test/dev System Config sluoksnis: feature flag'as, core + operational read modeliai, builderių parseriai, JSON generavimas ir guard'ai. |
 
 ## 4. Lead pipeline
 
-`runTestLeadPipeline` (`lib/leads/test-pipeline.ts`) vykdo visus žingsnius ir
+`runLeadPipeline` (`lib/leads/test-pipeline.ts`) vykdo bendrus žingsnius ir
 kiekvienam prideda `trace.stages` įrašą (matomas lead detail „Decision JSON“).
-Pagal nutylėjimą naudojamas deterministinis parse kelias:
+`runTestLeadPipeline` yra testavimo srauto wrapper'is, o
+`ingestInboundMessage` tą pačią funkciją naudoja realiems `WEB_FORM` ir
+`PASLAUGOS_LT` lead'ams. Abu kvietėjai visada pradeda nuo LLM-first; env
+pasirinkimo nebėra ir `LLM_FIRST_PARSE` nebeskaitomas.
+
+Aktyvaus runtime stage'ai:
 
 ```
-parse                      deterministiniai faktai, intentai, miestas
-service_classification     keyword scoring (form_field > matched_terms > ambiguous/no_match)
-ai_service_classification  TIK kai deterministika nepataikė (žr. §6.2)
-resolver_pass_1            faktai → requirements
-ai_gap_filler              TIK kai yra neišspręstų requirements (žr. §6.1)
-resolver_pass_2            po AI — pakartotinis priskyrimas
+parse                      LLM-first + evidence/schema validacija + deterministiniai saugikliai
+service_classification     LLM-first rezultato klasifikacija ir kodo patikros
+resolver_pass_1            patvirtinti faktai → requirements
+ai_gap_filler              visada skipped: LLM-first jau yra autoritetingas
 decision                   sprendimų variklis (žr. §5)
 composer                   juodraštis iš šablonų + autosend vartai
-shadow_parse               TIK kai SHADOW_AI_PARSE=true (žr. §6.3)
+shadow_parse               tik `/dashboard/test`, kai SHADOW_AI_PARSE=true (žr. §6.3)
 ```
 
-`LLM_FIRST_PARSE=true` įjungia eksperimentinį kelią tik `/dashboard/test`
-srautui: `parse` stage kviečia LLM-first parserį, kuris schemą susikuria iš
-aktyvių `ClientRules` (paslaugos, temos, requirements, validation,
-location_zones). Priimti AI faktai konvertuojami į įprastus `ExtractedFact`
-įrašus (`source: "ai"`, `evidenceVerified: true`), tada naudojamas tas pats
-`resolveRequirements`, `decideLeadResponse` ir `composeResponseDraft`.
-Šiame kelyje `ai_gap_filler` sąmoningai praleidžiamas: trūkstami ar atmesti
-laukeliai tampa `ASK_MISSING_INFO` / `MANUAL_REVIEW`, o ne antru AI
-gelbėjimo bandymu. Public landing lead forma šio flag'o nenaudoja.
+Parseris schemą susikuria iš aktyvių `ClientRules` (paslaugos, temos,
+requirements, validation, location_zones). Priimti AI faktai konvertuojami į
+įprastus `ExtractedFact` įrašus (`source: "ai"`, `evidenceVerified: true`).
+Deterministiniai intentų, review signalų, kontaktų ir aiškiai išmatuojamų faktų
+saugikliai gali papildyti tai, ką LLM praleido, bet jie nebėra pirmasis
+alternatyvus parseris. Po to visada naudojami tie patys `resolveRequirements`,
+`decideLeadResponse` ir `composeResponseDraft`.
 
-Testiniai lead'ai (`isTest: true`) eina **identišką** pipeline, tik visada
-blokuojami nuo auto-send (`TEST_LEAD` blokeris).
+`ai_gap_filler` aktyviame runtime sąmoningai praleidžiamas: trūkstami ar atmesti
+laukeliai tampa `ASK_MISSING_INFO` / `MANUAL_REVIEW`, o ne antru AI gelbėjimo
+bandymu. Testiniai lead'ai (`isTest: true`) visada blokuojami nuo auto-send
+eligibility (`TEST_LEAD` blokeris). Realus automatinis laiško siuntimas apskritai
+neįgyvendintas: `autoSendAllowed` yra tik sprendimo metaduomuo.
+
+`runDeterministicLeadPipelineForTests` paliktas tik žemesnio lygio legacy
+regresijoms. Produkto kodas jo neimportuoja ir negali pasirinkti šio kelio per
+env. Testinio lead'o pradinis DB įrašas taip pat nebedaro preliminaraus
+deterministinio parse — autoritetingas parse yra vienas LLM-first kvietimas.
 
 ## 5. Sprendimų variklis
 
@@ -184,16 +195,18 @@ evidence (verifikuojamu per `verifyAiEvidence`; nepatvirtintas signalas →
 vienam tipui — vienas signalas. Signalai matomi parse trace stage'e ir
 persistuojasi `parse_result` JSON'e.
 
-## 6. AI integracija — keturi kvietimai, viena taisyklė
+## 6. AI integracijos
 
-Visi AI kvietimai eina per `lib/ai/openai-client.ts` (`temperature: 0`, JSON
-atsakymas, 1 retry po parse klaidos). **Kertinis invariantas: AI niekada
+Visi aktyvaus srauto AI kvietimai eina per `lib/ai/openai-client.ts`
+(`temperature: 0`, JSON atsakymas, 1 retry po parse klaidos). **Kertinis
+invariantas: AI niekada
 tiesiogiai nerašo sprendimo — kiekvienas AI radinys verifikuojamas kodu.**
 
-### 6.0 LLM-first parse (eksperimentinis dashboard test kelias)
+### 6.0 LLM-first parse (privalomas produkto kelias)
 
-`LLM_FIRST_PARSE=true` veikia tik `runTestLeadPipeline` / `/dashboard/test`.
-LLM gauna iš DB užkrautą aktyvių paslaugų, `ServiceSubject`,
+`runLeadPipeline` visada kviečia LLM-first parserį tiek `/dashboard/test`, tiek
+produkto inbound srautams. `LLM_FIRST_PARSE` feature flag'as pašalintas. LLM
+gauna iš DB užkrautą aktyvių paslaugų, `ServiceSubject`,
 `DecisionRequirement.expectedFact`, `DecisionRequirement.validation` ir
 `LocationZone` santrauką. Jis gali grąžinti tik JSON su `serviceId`, intentais,
 lokacijos tekstu ir faktais; nežinomos reikšmės turi būti `null`.
@@ -219,6 +232,11 @@ Post-validation taisyklės:
 - kainos, terminai, availability, auto-send ir atsakymo tekstas iš LLM
   ignoruojami.
 
+Jei nėra `OPENAI_API_KEY` arba `OPENAI_MODEL`, parse rezultatas saugiai tampa
+`MANUAL_REVIEW / AI_NOT_CONFIGURED`; deterministinis-first fallback
+nepaleidžiamas. Jei LLM du kartus negrąžina validžios schemos, rezultatas yra
+`MANUAL_REVIEW / AI_PARSE_FAILED`.
+
 Neteikiamos konkrečios rūšies atpažinimas: kai LLM parinktos paslaugos
 evidence nėra pakankamai specifinis (arba LLM iš viso negrąžina paslaugos),
 `findUnsupportedOfferingEvidence` tikrina **visą užklausos tekstą** (ne tik
@@ -230,9 +248,12 @@ SERVICE_UNSUPPORTED` su draft'u „tokios paslaugos neteikiame“ vietoj
 patikslinančio klausimo. Jei rūšies terminas atitinka bent vieną aktyvią
 paslaugą — lieka `ambiguous` (sprendžia klasifikacija / patikslinimas).
 
-### 6.1 Gap filler (privalomas, kai yra spragų)
+### 6.1 Legacy gap filler (neaktyvus runtime)
 
-Kai po pirmo resolver'io lieka neišspręstų requirements. AI grąžina:
+Šis modulis buvo deterministinio-first kelio antras AI bandymas. Dabartinis
+`runLeadPipeline` jo nekviečia, nes LLM-first yra vienintelis autoritetingas
+parse. Modulis ir regresiniai testai kol kas palikti dėl derived-fact bei
+computation verifier aprėpties. Jis grąžina:
 
 - `bindings` — subject priskyrimas esamiems faktams (evidence tikrinama);
 - `newFacts` — nauji faktai; **derived** faktai (pvz. „2 segmentai po 2m“ →
@@ -242,13 +263,9 @@ Kai po pirmo resolver'io lieka neišspręstų requirements. AI grąžina:
   `valueMin`/`valueMax` (`normalizeRangeFactValue`);
 - `primaryIntent` klasifikacija.
 
-AI nesukonfigūruotas → `AppConfigError` `AI_NOT_CONFIGURED` (lead'as gauna
-manual review su aiškia žinute). Parse fail po retry → `MANUAL_REVIEW /
-AI_PARSE_FAILED`.
+### 6.2 Legacy service classification fallback (neaktyvus runtime)
 
-### 6.2 Service classification fallback (optional)
-
-Kviečiamas TIK kai deterministinis scoring grąžina `no_match` arba silpną
+Legacy kelias kviesdavo jį tik kai deterministinis scoring grąžindavo `no_match` arba silpną
 match'ą. **Tikros lygiosios** (≥2 stiprūs artimi kandidatai, pvz. dvi tvorų
 rūšys, o tekste tik „tvora“) AI **nelaužo** — lieka `SERVICE_AMBIGUOUS`.
 Priėmimo sąlygos: serviceId iš aktyvių sąrašo, `confidence ≥ 0.8`, evidence
@@ -257,11 +274,14 @@ auto-send. AI nesukonfigūruotas → jokios klaidos, lieka ambiguous.
 
 ### 6.3 Shadow parse (tik matavimui)
 
-`SHADOW_AI_PARSE=true` → po pagrindinio pipeline paleidžiamas pilnas AI parse.
+`SHADOW_AI_PARSE=true` → po `/dashboard/test` pagrindinio pipeline paleidžiamas
+pilnas AI parse.
 Rezultatas **niekur nenaudojamas sprendimams** — saugomas
 `leads.shadow_parse_result` / `shadow_diff` (match / value_diff / ai_only /
 ai_missing per requirement key). Ataskaita: `npm run db:shadow-report`.
-Bet kokia shadow klaida ignoruojama — pagrindinis pipeline nenukenčia.
+Bet kokia shadow klaida ignoruojama — pagrindinis pipeline nenukenčia. Inbound
+kvietėjas šį flag'ą sąmoningai perrašo į `false`, todėl Railway flag'as realių
+inbound lead'ų shadow kvietimų nesukuria.
 
 ### 6.4 Offering pasiūlymas (konfigūravimo metu, ne pipeline)
 
@@ -457,7 +477,11 @@ Pilnas kontraktas, setup ir retry lentelė:
    perduodamas rankinei peržiūrai. Kitų šablonų fixture'ai pridedami juos gavus.
 6. **Gmail Inbox/Sent sync nėra** — išorinis atsakymas V1 pažymimas rankiniu
    audituotu „Atsakyta kitur“ veiksmu.
-7. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento
+7. **`lib/ai/generate-lead-response.ts` nėra aktyvaus srauto dalis** — šis
+   tiesioginis AI draft generatorius neturi importų. Runtime tekstą kuria
+   `lib/response/composer.ts` iš DB šablonų; failo buvimas nėra požymis, kad AI
+   rašo klientui siunčiamą draftą.
+8. **Super Admin yra techninis įrankis** — seed'as gali perrašyti DEV kliento
    core ir operational konfigūraciją, todėl po `npm run db:seed` patikrinkite
    `/dashboard/test`.
 
@@ -472,10 +496,12 @@ npx prisma validate
 npm run build       # next build
 ```
 
-Testų žemėlapis: deterministinis extractor'ius + 100 atvejų korpusas
-(`random-inquiries`), evidence/computation verifier'iai, gap filler, service
-classifier (+AI fallback), decision engine, golden pipeline (end-to-end su
-mock AI), derived facts, shadow parse, dashboard formų parseriai.
+Testų žemėlapis: privalomas LLM-first runtime (`llm-first-parse`,
+`realistic-cases`, LLM-first seven-service scenarijai), deterministiniai
+saugikliai ir 100 atvejų korpusas (`random-inquiries`), evidence/computation
+verifier'iai, decision engine bei shadow parse. Legacy gap filler, service
+classifier ir deterministinis-first kelias testuojami atskirai per aiškiai
+pavadintą test-only harness'ą; produkto kodas jo nekviečia.
 Inbound testai dengia HMAC, timestamp langą, event retry klasifikaciją,
 web-form schemą ir source fiksavimą, request dydžio ribas, Paslaugos.lt
 plain/HTML normalizavimą, forwarding wrapper, neatpažintą formatą, message ID

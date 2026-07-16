@@ -13,7 +13,6 @@ import type { ClientRules, DecisionRequirement } from "../lib/rules/types";
 const llmEnv = {
   OPENAI_API_KEY: "test-key",
   OPENAI_MODEL: "test-model",
-  LLM_FIRST_PARSE: "true",
 };
 
 describe("realistic inquiry cases", () => {

@@ -25,7 +25,10 @@ import type {
   PrimaryIntent,
   ReviewSignal,
 } from "@/lib/extractor/types";
-import type { TestInquiryInput } from "@/lib/leads/test-inquiry-schema";
+import type {
+  LeadProcessingInput,
+  TestInquiryInput,
+} from "@/lib/leads/test-inquiry-schema";
 import type { ParsedLeadData } from "@/lib/leads/parse-lead";
 import {
   classifyLeadService,
@@ -91,7 +94,7 @@ export type LlmFirstParseResult =
     };
 
 type ParseTestInquiryLeadLlmFirstInput = {
-  input: TestInquiryInput;
+  input: LeadProcessingInput;
   rules: ClientRules;
 };
 
@@ -170,12 +173,6 @@ const llmFirstResponseSchema = z
 
 export type LlmFirstResponse = z.infer<typeof llmFirstResponseSchema>;
 type LlmFirstFact = z.infer<typeof llmFactSchema>;
-
-export function isLlmFirstParseEnabled(
-  env: AiEnvironment = process.env,
-): boolean {
-  return env.LLM_FIRST_PARSE === "true";
-}
 
 export async function parseTestInquiryLeadLlmFirst(
   { input, rules }: ParseTestInquiryLeadLlmFirstInput,
@@ -342,7 +339,7 @@ function applyLlmFirstResponse({
   rules,
   response,
 }: {
-  input: TestInquiryInput;
+  input: LeadProcessingInput;
   rules: ClientRules;
   response: LlmFirstResponse;
 }): {
@@ -401,8 +398,8 @@ function applyLlmFirstResponse({
         response.intents.isUrgent ||
         deterministicIntents.isUrgent,
       primaryIntent: primaryIntentFromInput(input, response.intents),
-      hasAttachments: false,
-      source: "dashboard_test_form",
+      hasAttachments: input.hasAttachments ?? false,
+      source: input.source ?? "dashboard_test_form",
       parserVersion: LLM_FIRST_PARSE_VERSION,
       contacts: emptyContacts(),
       location,
@@ -1067,7 +1064,7 @@ function rejectFactsWithoutService(
 }
 
 function emptyParsedLead(
-  input: TestInquiryInput,
+  input: LeadProcessingInput,
   rules: ClientRules,
 ): ParsedLeadData {
   const serviceId = normalizeOptional(input.serviceId);
@@ -1098,8 +1095,8 @@ function emptyParsedLead(
       : input.asksAvailability
         ? "asks_availability"
         : null,
-    hasAttachments: false,
-    source: "dashboard_test_form",
+    hasAttachments: input.hasAttachments ?? false,
+    source: input.source ?? "dashboard_test_form",
     parserVersion: LLM_FIRST_PARSE_VERSION,
     contacts: emptyContacts(),
     location: null,

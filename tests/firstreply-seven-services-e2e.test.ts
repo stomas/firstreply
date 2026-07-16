@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runTestLeadPipeline } from "../lib/leads/test-pipeline";
+import {
+  runDeterministicLeadPipelineForTests,
+  runTestLeadPipeline,
+} from "../lib/leads/test-pipeline";
 import type { TestInquiryInput } from "../lib/leads/test-inquiry-schema";
 import type {
   ClientRules,
@@ -484,7 +487,7 @@ async function run(message: string, asksPrice = true) {
     isUrgent: false,
   };
 
-  return runTestLeadPipeline({
+  return runDeterministicLeadPipelineForTests({
     input,
     rules,
     leadId: `e2e_${message}`,
@@ -524,7 +527,6 @@ async function runLlmFirst(
       env: {
         OPENAI_API_KEY: "test",
         OPENAI_MODEL: "test",
-        LLM_FIRST_PARSE: "true",
       },
       callModel: async () =>
         JSON.stringify({

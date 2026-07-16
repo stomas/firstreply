@@ -14,7 +14,8 @@ kontroliuojate, kas išeina klientui.
 
 Sistema atsakymą parengia tik tada, kai turi iš ko: jūsų suvestos paslaugos,
 kainodara, klausimai ir terminai. Kuo tvarkingesnė konfigūracija — tuo daugiau
-užklausų atsakoma automatiškai ir tuo mažiau patenka į rankinę peržiūrą.
+užklausų gauna parengtą juodraštį ir tuo mažiau patenka į rankinę peržiūrą.
+Automatinio siuntimo šiuo metu nėra.
 
 ## Registracija ir prisijungimas
 
@@ -143,6 +144,11 @@ Prieš keisdami konfigūraciją ar norėdami patikrinti, kaip sistema elgiasi:
 Testinės užklausos niekada nesiunčiamos klientams — jos pažymimos kaip
 testinės ir skirtos tik patikrinimui.
 
+Testavimo įrankis ir realios Web formos bei Paslaugos.lt užklausos naudoja tą
+patį privalomą LLM-first parserį. Tai nėra naudotojo pasirenkamas nustatymas
+dashboarde; jei OpenAI nesukonfigūruotas, užklausa saugiai paliekama rankinei
+peržiūrai.
+
 ## Paslaugos
 
 Kiekviena paslauga turi kortelę su parengties būsena:
@@ -180,12 +186,14 @@ Kainodaros taisyklė nurodo, kaip skaičiuojama orientacinė kaina:
 
 - **Kiekis × vieneto kaina** — kaina paskaičiuojama automatiškai
   (pvz. 45 m × 38 €/m). Reikia nurodyti, iš kurio klausimo imamas kiekis.
-- **Tik kainos rėžiai** — klientui rodomi rėžiai „nuo–iki“, o galutinę kainą
-  patvirtinate patys.
+- **Tik kainos rėžiai** — taisyklė saugo rėžius peržiūrai, tačiau dabartinis
+  sprendimų variklis iš `range_estimate` automatiškai kainos drafto nekuria;
+  užklausa paliekama rankinei peržiūrai.
 
 Ką galite keisti: pavadinimą, kainos rėžius, vieneto kainą, pastabą prie
-kainos (disclaimer), ar taisyklė aktyvi ir ar leidžiamas **auto-send**
-(atsakymas gali išeiti be jūsų peržiūros).
+kainos (disclaimer), ar taisyklė aktyvi ir ar ji atitinka **auto-send
+eligibility**. Ši žymė dabar naudojama tik sprendimo saugumui įvertinti ir
+rodoma diagnostikoje — ji pati laiško neišsiunčia.
 
 Bloke „Kaip skaičiuojama“ matote skaičiavimo struktūrą — ji keičiama tik
 kartu su FirstReply komanda, kad atsakymai liktų teisingi.
@@ -196,7 +204,8 @@ Klausimai — tai informacija, kurios sistemai reikia kainai paskaičiuoti
 (pvz. „Tvoros ilgis“). Jei klientas jos nenurodė, sistema paklausia jūsų
 suformuluotu tekstu.
 
-- **Būtinas** klausimas stabdo automatinį atsakymą, kol negautas atsakymas.
+- **Būtinas** klausimas stabdo pilno kainos juodraščio parengimą, kol negautas
+  atsakymas; sistema vietoj to gali parengti patikslinantį klausimą.
 - **Papildomas** — paklausiama, bet kainos skaičiavimo nestabdo.
 - **Priimamos reikšmės** (nuo–iki) apsaugo nuo nesąmonių — pvz. tvoros
   aukštis 25 m būtų atmestas ir paklausta dar kartą.
@@ -232,8 +241,9 @@ vietoj bendrojo termino.
 - **Galioja iki** — pasibaigus datai įrašas pažymimas **Nebegalioja**,
   nebenaudojamas atsakymuose ir laukia atnaujinimo. Taip seni terminai
   niekada nepateikiami kaip aktualūs.
-- **Auto-send** — jei įrašui neleidžiamas, atsakymai su šiuo terminu visada
-  eina per jūsų peržiūrą.
+- **Auto-send eligibility** — jei įrašui neleidžiama, diagnostikoje bus
+  blokeris. Net ir leidžiant, dabartinėje versijoje laišką vis tiek siunčia
+  žmogus.
 
 Nebereikalingą įrašą galite **ištrinti** redagavimo puslapyje (su
 patvirtinimu). Laikinam paslėpimui užtenka praėjusios galiojimo datos.
@@ -270,8 +280,9 @@ Operational Config dalyje galima keisti:
   ir ar vietovė aptarnaujama.
 - **Schedule rules** — bendrą terminą savaitėmis (`lead_time_weeks`), kai
   nėra tikslesnio užimtumo įrašo.
-- **Autosend policy** — saugos vartus automatiniam siuntimui. Jei policy dar
-  nėra, naujas sukuriamas išjungtas (`enabled=false`).
+- **Autosend policy** — saugos vartus `autoSendAllowed` įvertinimui. Jei policy
+  dar nėra, naujas sukuriamas išjungtas (`enabled=false`). Automatinio siuntimo
+  workerio dabartinėje versijoje nėra.
 - **Response templates** — atsakymų šablonus su placeholder užuominomis, pvz.
   `{{priceAmount}}`, `{{currency}}`, `{{questions}}`.
 
@@ -302,8 +313,9 @@ atiduodama jums su priežastimi:
 
 1. **Po kiekvieno konfigūracijos pakeitimo pasitestuokite** — Testavimo
    įrankis parodo rezultatą iš karto.
-2. **Auto-send įjunkite tik toms taisyklėms, kuriomis pasitikite** — visos
-   kitos užklausos vis tiek gaus parengtą juodraštį, tik su jūsų peržiūra.
+2. **Auto-send eligibility įjunkite tik toms taisyklėms, kuriomis pasitikite**
+   — dabar tai diagnostinis pasirengimo signalas; realų laišką vis tiek
+   patvirtina ir siunčia žmogus.
 3. **Atnaujinkite užimtumo galiojimo datas** — pasibaigę įrašai pažymimi
    „Nebegalioja“ ir laukia jūsų.
 4. **Raktažodžius rašykite įvairiomis formomis** — „vartai, vartų, vartus“ —

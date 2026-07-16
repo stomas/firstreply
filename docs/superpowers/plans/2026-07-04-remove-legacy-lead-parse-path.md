@@ -1,5 +1,9 @@
 # Remove Legacy Lead Parse Path Implementation Plan
 
+> **Status:** istorinis 2026-07-04 įgyvendinimo planas. Jis nekeičiamas į
+> dabartinės sistemos specifikaciją; aktyvų pipeline žr.
+> [`docs/ARCHITEKTURA.md`](../../ARCHITEKTURA.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make `lead_parse_v2` facts and `expectedFact` the only active parsing/pricing path for the dev client.

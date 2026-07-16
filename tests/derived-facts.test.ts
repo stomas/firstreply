@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runTestLeadPipeline } from "../lib/leads/test-pipeline";
+import { runDeterministicLeadPipelineForTests } from "../lib/leads/test-pipeline";
 import type { TestInquiryInput } from "../lib/leads/test-inquiry-schema";
 import type { ClientRules } from "../lib/rules/types";
 
@@ -196,7 +196,7 @@ describe("derived facts pipeline", () => {
 
   for (const testCase of cases) {
     it(`derives total length for: ${testCase.label}`, async () => {
-      const result = await runTestLeadPipeline({
+      const result = await runDeterministicLeadPipelineForTests({
         input: { ...baseInput(), inquiryMessage: testCase.text },
         rules,
         leadId: `derived_${testCase.label}`,
@@ -232,7 +232,7 @@ describe("derived facts pipeline", () => {
   }
 
   it("rejects a derived fact whose computation does not match and leaves the requirement unresolved", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         inquiryMessage:
@@ -266,7 +266,7 @@ describe("derived facts pipeline", () => {
   });
 
   it("routes a price-affecting derived AI fact through the AI-source autosend gate", async () => {
-    const result = await runTestLeadPipeline({
+    const result = await runDeterministicLeadPipelineForTests({
       input: {
         ...baseInput(),
         inquiryMessage:

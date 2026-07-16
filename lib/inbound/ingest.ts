@@ -211,7 +211,6 @@ export async function ingestInboundMessage(params: {
       aiOptions: {
         env: {
           ...process.env,
-          LLM_FIRST_PARSE: "false",
           SHADOW_AI_PARSE: "false",
         },
       },
