@@ -75,6 +75,10 @@ export function mapResendDomainStatus(
   return OutboundIntegrationStatus.PENDING_VERIFICATION;
 }
 
+export function shouldTriggerDomainVerification(status: string): boolean {
+  return ["not_started", "failed", "partially_failed"].includes(status);
+}
+
 export function plainTextToSafeHtml(text: string): string {
   const escaped = text
     .replaceAll("&", "&amp;")

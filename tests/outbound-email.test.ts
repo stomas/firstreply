@@ -7,6 +7,7 @@ import {
   SourceIntegrationType,
 } from "@prisma/client";
 import { AppValidationError } from "@/lib/app-errors";
+import { clientSafeOutboundText } from "@/lib/outbound/client-copy";
 import {
   assertOutboundSource,
   classifyDispatchRetry,
@@ -17,6 +18,7 @@ import {
   parseOutboundIntegrationInput,
   parseOutboundSendInput,
   plainTextToSafeHtml,
+  shouldTriggerDomainVerification,
 } from "@/lib/outbound/helpers";
 import { assertNoUnfinishedOutboundDispatch } from "@/lib/outbound/guards";
 
@@ -78,6 +80,30 @@ test("maps only a fully verified Resend domain to active", () => {
   assert.equal(
     mapResendDomainStatus("failed"),
     OutboundIntegrationStatus.FAILED,
+  );
+});
+
+test("starts domain verification only for initial or failed states", () => {
+  assert.equal(shouldTriggerDomainVerification("not_started"), true);
+  assert.equal(shouldTriggerDomainVerification("failed"), true);
+  assert.equal(shouldTriggerDomainVerification("partially_failed"), true);
+  assert.equal(shouldTriggerDomainVerification("pending"), false);
+  assert.equal(shouldTriggerDomainVerification("partially_verified"), false);
+  assert.equal(shouldTriggerDomainVerification("verified"), false);
+});
+
+test("removes the infrastructure provider name from stored client copy", () => {
+  assert.equal(
+    clientSafeOutboundText("Resend nepristatė laiško."),
+    "El. pašto siuntimo paslaugos klaida.",
+  );
+  assert.equal(
+    clientSafeOutboundText("Klaida iš resend sistemos."),
+    "El. pašto siuntimo paslaugos klaida.",
+  );
+  assert.equal(
+    clientSafeOutboundText("Gavėjo adresas neegzistuoja."),
+    "Gavėjo adresas neegzistuoja.",
   );
 });
 
@@ -209,7 +235,11 @@ test("manual conversation transitions reject unfinished outbound dispatches", as
   } as unknown as Prisma.TransactionClient;
   await assert.rejects(
     () => assertNoUnfinishedOutboundDispatch(tx, "conversation-1"),
-    AppValidationError,
+    (error: unknown) => {
+      assert.ok(error instanceof AppValidationError);
+      assert.doesNotMatch(error.message, /resend/iu);
+      return true;
+    },
   );
   assert.deepEqual(capturedWhere, {
     conversationId: "conversation-1",

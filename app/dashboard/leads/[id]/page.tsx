@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { ConfirmSubmitButton } from "@/components/dashboard/ConfirmSubmitButton";
+import { clientSafeOutboundText } from "@/lib/outbound/client-copy";
 import { DashboardError } from "@/components/dashboard/DashboardError";
 import { getAppErrorMessage } from "@/lib/app-errors";
 import { getCurrentClient } from "@/lib/client-context";
@@ -250,7 +251,7 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
                       ? ` · Veiksmą atliko ${item.message.outboundDispatch.sentByEmail}`
                       : ""}
                     {item.message.outboundDispatch.errorMessage
-                      ? ` · ${item.message.outboundDispatch.errorMessage}`
+                      ? ` · ${clientSafeOutboundText(item.message.outboundDispatch.errorMessage)}`
                       : ""}
                   </div>
                   {isDispatchRetryable(item.message.outboundDispatch) &&
@@ -292,7 +293,7 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
                   ) : null}
                   {isDispatchRetryExpired(item.message.outboundDispatch) ? (
                     <p className="mt-3 text-xs font-bold text-warn-text">
-                      Saugaus retry langas pasibaigė — patikrinkite Resend
+                      Saugaus retry langas pasibaigė — patikrinkite siuntimo
                       žurnalą ir nekurkite naujo siuntimo aklai.
                     </p>
                   ) : null}
@@ -402,7 +403,7 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
         className="mt-5 rounded-lg border border-warn-border bg-warn-bg px-4 py-3 text-sm text-warn-text"
       >
         Šis laiškas nepristatytas arba pažymėtas kaip nepageidaujamas. Saugus
-        retry sąmoningai blokuojamas: patikrinkite gavėjo adresą ir Resend
+        retry sąmoningai blokuojamas: patikrinkite gavėjo adresą ir siuntimo
         diagnostiką, tada susisiekite kitu kanalu ir užfiksuokite „Atsakyta
         kitur“.
       </p>
@@ -433,9 +434,9 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
     const dispatch = pendingDispatch.outboundDispatch;
     const guidance =
       dispatch?.status === "UNKNOWN"
-        ? "Rezultatas neaiškus. Patikrinkite Resend žurnalą; naujas siuntimas blokuojamas, kol būsena neišspręsta."
+        ? "Rezultatas neaiškus. Patikrinkite siuntimo žurnalą; naujas siuntimas blokuojamas, kol būsena neišspręsta."
         : dispatch && isDispatchRetryExpired(dispatch)
-          ? "Saugaus retry 23 val. langas pasibaigė. Patikrinkite Resend žurnalą; naujas siuntimas blokuojamas."
+          ? "Saugaus retry 23 val. langas pasibaigė. Patikrinkite siuntimo žurnalą; naujas siuntimas blokuojamas."
           : dispatch?.status === "SENDING" && !isDispatchRetryable(dispatch)
             ? "Siuntimas dar apdorojamas. Atnaujinkite puslapį po kelių minučių."
             : "Naudokite timeline rodomą saugų retry su tuo pačiu request ID.";
@@ -576,7 +577,8 @@ function activityLabel(type: string): string {
   if (type === "DELIVERY_FAILED") return "Laiško pristatyti nepavyko";
   if (type === "DELIVERY_COMPLAINED")
     return "Gavėjas pažymėjo laišką kaip spam";
-  if (type === "DELIVERY_SUPPRESSED") return "Resend sustabdė laiško siuntimą";
+  if (type === "DELIVERY_SUPPRESSED")
+    return "Siuntimo paslauga sustabdė laiško siuntimą";
   return type;
 }
 
