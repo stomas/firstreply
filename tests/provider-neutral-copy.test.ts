@@ -5,6 +5,8 @@ import test from "node:test";
 const CLIENT_FACING_FILES = [
   "app/dashboard/integrations/page.tsx",
   "components/dashboard/OutboundIntegrationCard.tsx",
+  "app/dashboard/email-test/page.tsx",
+  "components/dashboard/TestEmailForm.tsx",
   "app/dashboard/leads/[id]/page.tsx",
   "docs/NAUDOTOJO-GIDAS.md",
 ];

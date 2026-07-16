@@ -46,6 +46,21 @@ describe("dashboard navigation", () => {
 
     assert.equal(clientLabels.includes("Super Admin"), false);
     assert.equal(superAdminLabels.includes("Super Admin"), true);
+    assert.equal(clientLabels.includes("El. pašto testas"), false);
+    assert.equal(superAdminLabels.includes("El. pašto testas"), true);
+  });
+
+  it("exposes the real email smoke test only to Super Admin navigation", () => {
+    const emailTest = getDashboardNavigationItems({ isSuperAdmin: true }).find(
+      (item) => item.id === "email-test",
+    );
+
+    assert.deepEqual(emailTest, {
+      id: "email-test",
+      label: "El. pašto testas",
+      href: "/dashboard/email-test",
+      status: "live",
+    });
   });
 
   it("places Super Admin under configuration when enabled", () => {

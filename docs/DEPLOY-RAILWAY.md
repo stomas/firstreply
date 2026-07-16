@@ -145,10 +145,13 @@ response templates gali būti perrašyti pagal seed duomenis.
    subdomeną, DNS tiekėjui nukopijuokite parodytus Resend įrašus.
 3. Spauskite **Tikrinti DNS**. Siuntėją galima naudoti tik kai providerio
    būsena `verified`, integracija aktyvi ir pasirinkta numatytąja.
-4. Tik su saugiu testiniu Web formos leadu nustatykite
-   `EMAIL_SENDING_ENABLED=true`, redeploy ir išsiųskite vieną žmogaus patvirtintą
-   atsakymą.
-5. Patikrinkite Resend žurnalą, gavėjo dėžutę, vieną `OUTBOUND` timeline įrašą,
+4. Greitam API rakto, domeno ir `From`/`Reply-To` patikrinimui nustatykite
+   `EMAIL_SENDING_ENABLED=true`, redeploy, tada Super Admin meniu atidarykite
+   **El. pašto testas** ir išsiųskite vieną laišką tik į savo arba saugų testinį
+   adresą. Šis greitas testas DB/timeline įrašo nekuria.
+5. Pilnam E2E sukurkite saugų testinį Web formos leadą ir iš jo išsiųskite vieną
+   žmogaus patvirtintą atsakymą. Patikrinkite Resend žurnalą, gavėjo dėžutę,
+   vieną `OUTBOUND` timeline įrašą,
    vieną `OutboundDispatch` ir jo `Pristatytas` būseną.
 6. Kilus abejonei iš karto grąžinkite kill switch į `false`.
 

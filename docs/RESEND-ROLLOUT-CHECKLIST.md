@@ -117,13 +117,17 @@ lokalioje terminalo sesijoje.
 1. Railway **App service → Variables** pakeiskite
    `EMAIL_SENDING_ENABLED=true`.
 2. Paleiskite redeploy ir palaukite sėkmingo healthcheck.
-3. Grįžkite į F skyriuje sukurtą leadą ir atnaujinkite puslapį.
-4. Formoje patikrinkite `From`, `To=delivered@resend.dev` ir `Reply-To`.
-5. Paspauskite **Siųsti klientui** ir patvirtinkite.
-6. Timeline gal trumpam rodys `Priimtas siųsti`, bet greitas webhookas gali būti
+3. Greitam siuntimo konfigūracijos patikrinimui Super Admin meniu pasirinkite
+   **El. pašto testas**, patikrinkite klientą, `From` ir `Reply-To`, įveskite
+   saugų testinį gavėją ir patvirtinkite realų siuntimą. Šis žingsnis patikrina
+   API raktą ir domeną, bet nekuria DB/timeline įrašo.
+4. Pilnam E2E grįžkite į F skyriuje sukurtą leadą ir atnaujinkite puslapį.
+5. Formoje patikrinkite `From`, `To=delivered@resend.dev` ir `Reply-To`.
+6. Paspauskite **Siųsti klientui** ir patvirtinkite.
+7. Timeline gal trumpam rodys `Priimtas siųsti`, bet greitas webhookas gali būti
    apdorotas iki pirmo atnaujinimo. Galutinis rezultatas turi būti
    `Pristatytas` su laiku.
-7. Resend **Emails** patikrinkite tą patį message ID ir `Delivered` būseną.
+8. Resend **Emails** patikrinkite tą patį message ID ir `Delivered` būseną.
 
 ## H. Bounce, complaint ir suppression testai
 

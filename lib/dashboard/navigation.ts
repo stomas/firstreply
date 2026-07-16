@@ -116,6 +116,12 @@ export function getDashboardNavigationSections(
           href: "/dashboard/super-admin",
           status: "live",
         },
+        {
+          id: "email-test",
+          label: "El. pašto testas",
+          href: "/dashboard/email-test",
+          status: "live",
+        },
       ],
     };
   });

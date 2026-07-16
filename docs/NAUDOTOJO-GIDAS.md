@@ -26,16 +26,17 @@ apačioje yra atsijungimo mygtukas. Kiekvienas įprastas vartotojas mato tik sav
 
 ## Meniu apžvalga
 
-| Skiltis                                      | Kam skirta                                               |
-| -------------------------------------------- | -------------------------------------------------------- |
-| **Užklausos**                                | Visos gautos užklausos ir jų būsenos.                    |
-| **Testavimas**                               | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą. |
-| **Paslaugos**                                | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.       |
-| **Taisyklės**                                | Kainodara ir klausimai klientams.                        |
-| **Užimtumas**                                | Kada ir kuriuose regionuose priimate užsakymus.          |
-| **Integracijos**                             | Atskirai prijungiamos svetainės formos ir Paslaugos.lt.  |
-| **Super Admin**                              | Techninė konfigūracija, matoma tik Super Admin paskyrai. |
-| Atsakymai, Follow-up, Ataskaitos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                          |
+| Skiltis                                      | Kam skirta                                                |
+| -------------------------------------------- | --------------------------------------------------------- |
+| **Užklausos**                                | Visos gautos užklausos ir jų būsenos.                     |
+| **Testavimas**                               | Saugi vieta išbandyti, kaip sistema atsakytų į užklausą.  |
+| **Paslaugos**                                | Jūsų paslaugų sąrašas ir jų paruošimas atsakymams.        |
+| **Taisyklės**                                | Kainodara ir klausimai klientams.                         |
+| **Užimtumas**                                | Kada ir kuriuose regionuose priimate užsakymus.           |
+| **Integracijos**                             | Atskirai prijungiamos svetainės formos ir Paslaugos.lt.   |
+| **Super Admin**                              | Techninė konfigūracija, matoma tik Super Admin paskyrai.  |
+| **El. pašto testas**                         | Realus siuntimo testas, matomas tik Super Admin paskyrai. |
+| Atsakymai, Follow-up, Ataskaitos, Nustatymai | Pažymėta „GREIT“ — dar kuriama.                           |
 
 ---
 
@@ -255,6 +256,13 @@ administravimui. Jis matomas tik `SUPER_ADMIN` paskyrai, kuri sukuriama per
 `/super-admin/signup` su serverio `SUPER_ADMIN_SIGNUP_CODE` reikšme. Šoninėje
 juostoje Super Admin pasirenka aktyvų klientą; visas dashboardas ir System
 Config tada rodo būtent to kliento duomenis.
+
+Šoninėje juostoje esantis **El. pašto testas** leidžia pasirinktam klientui
+išsiųsti vieną realų bandomąjį laišką per aktyvų, patvirtintą numatytąjį
+siuntėją. Įveskite tik savo arba aiškiai testavimui skirtą gavėjo adresą,
+patikrinkite rodomus `From` ir `Reply-To`, tada patvirtinkite siuntimą. Puslapis
+parodo, ar laiškas priimtas siųsti, tačiau nekuria užklausos ar timeline įrašo.
+Pilnam webhook ir pristatymo būsenų testui naudokite Web formos lead flow.
 
 Puslapis turi dvi dalis. Viršuje yra **Operational Config** — tenant-level
 nustatymai, kurie galioja visam dabartiniam klientui. Žemiau yra pagal
