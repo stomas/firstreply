@@ -7,7 +7,6 @@ import {
   SourceIntegrationType,
 } from "@prisma/client";
 import { assertCanMarkAnsweredExternally } from "../lib/inbound/conversations";
-import { AppValidationError } from "../lib/app-errors";
 import {
   generatePaslaugosRoutingAddress,
   normalizeIntegrationName,
@@ -101,7 +100,7 @@ describe("source-specific integration helpers", () => {
     assert.throws(
       () =>
         assertCanMarkAnsweredExternally(ConversationStatus.WAITING_CUSTOMER),
-      AppValidationError,
+      /dar reikia atsakymo/,
     );
   });
 

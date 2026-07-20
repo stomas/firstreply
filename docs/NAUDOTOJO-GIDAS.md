@@ -56,7 +56,8 @@ pokalbio timeline su kiekviena realia kliento žinute ir rankiniais veiksmais.
 Pokalbio būsenos:
 
 - **NEEDS_REPLY** — klientas parašė ir reikia atsakyti.
-- **WAITING_CUSTOMER** — atsakėte kitame kanale ir laukiate kliento.
+- **WAITING_CUSTOMER** — atsakymas išsiųstas per FirstReply arba pažymėtas
+  išoriniame kanale ir dabar laukiate kliento.
 - **MANUAL_REVIEW** — būtina jūsų peržiūra.
 - **CLOSED** — pokalbis uždarytas.
 
@@ -82,14 +83,25 @@ detail rodo **Atsakyti klientui** formą. Joje matysite serverio parinktus `From
 **Siųsti klientui**. Laiškas siunčiamas iš jūsų patvirtinto siuntimo domeno ir
 įrašomas kaip tikra outbound žinutė timeline.
 
+Klientui paspaudus **Reply**, atsakymas pristatomas į formoje ir timeline
+rodomą jūsų įmonės `Reply-To` adresą. Šioje piloto versijoje jis automatiškai
+nepapildo FirstReply timeline. Jei pokalbį toliau tęsiate savo pašte, telefonu
+ar kitu kanalu ir FirstReply dar rodo, kad reikia atsakyti, veiksmą užfiksuokite
+**Atsakyta kitur**; tai sukurs audito įrašą, bet ne fiktyvų laišką. Jau
+`WAITING_CUSTOMER` pokalbio pakartotinio išorinio follow-up ši versija
+nefiksuoja automatiškai.
+
+Tik per FirstReply išsiųsto **Web formos** atsakymo timeline rodo pristatymo
+rezultatą: `Priimtas siųsti`, `Pristatytas`, `Pristatymas vėluoja`, `Atmestas
+gavėjo`, `Pažymėtas kaip spam` arba slopinimo/klaidos būseną. Nepristatytas
+laiškas dar nepasikeitusį, kliento atsakymo laukiantį pokalbį perkelia į
+**Reikia peržiūros**; patikrinkite gavėjo adresą ir nesiųskite pakartotinai
+aklai.
+
 Paslaugos.lt užklausoms šis mygtukas sąmoningai nerodomas, kol nepatvirtintas
 platformos atsakymo mechanizmas. Naudokite Paslaugos.lt kanalą ir **Atsakyta
-kitur**. FirstReply dar automatiškai neįkelia gavėjo atsakymo, tačiau timeline
-rodo laiško pristatymo rezultatą: `Priimtas siųsti`, `Pristatytas`, `Pristatymas
-vėluoja`, `Atmestas gavėjo`, `Pažymėtas kaip spam` arba slopinimo/klaidos
-būseną. Nepristatytas laiškas dar nepasikeitusį, kliento atsakymo laukiantį
-pokalbį perkelia į **Reikia peržiūros**; patikrinkite gavėjo adresą ir
-nesiųskite pakartotinai aklai.
+kitur**. Kadangi FirstReply Paslaugos.lt atsakymo nesiunčia, jo pristatymo
+būsenos FirstReply timeline taip pat nėra.
 
 ## Integracijos
 

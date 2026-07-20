@@ -205,12 +205,12 @@ atnaujinti kliento pašto taisyklę.
 
 ## Pokalbiai ir būsenos
 
-| Būsena             | Reikšmė                                                        |
-| ------------------ | -------------------------------------------------------------- |
-| `NEEDS_REPLY`      | Yra nauja kliento žinutė ir paruoštas arba ruošiamas atsakymas |
-| `WAITING_CUSTOMER` | Pažymėta, kad atsakyta kitur, ir laukiama kliento              |
-| `MANUAL_REVIEW`    | Reikia žmogaus sprendimo                                       |
-| `CLOSED`           | Pokalbis uždarytas                                             |
+| Būsena             | Reikšmė                                                               |
+| ------------------ | --------------------------------------------------------------------- |
+| `NEEDS_REPLY`      | Yra nauja kliento žinutė ir paruoštas arba ruošiamas atsakymas        |
+| `WAITING_CUSTOMER` | Atsakymas išsiųstas FirstReply arba pažymėtas kitur; laukiama kliento |
+| `MANUAL_REVIEW`    | Reikia žmogaus sprendimo                                              |
+| `CLOSED`           | Pokalbis uždarytas                                                    |
 
 Lead detail timeline rodo tik realiai priimtas inbound žinutes ir audituotus
 rankinius veiksmus. Jei darbuotojas atsakė telefonu, iš savo pašto ar kitu
@@ -219,7 +219,10 @@ būseną į `WAITING_CUSTOMER`, pažymi aktyvų juodraštį `superseded`, bet
 nesukuria fiktyvaus outbound message. Web formos pokalbiui dabar galima
 žmogaus patvirtinta siunta per Resend; ji sukuria tikrą `OUTBOUND` message.
 Paslaugos.lt direct reply ir išoriniai atsakymai automatiškai
-nesinchronizuoja; uždarytą pokalbį prieš tokį veiksmą reikia atidaryti iš naujo.
+nesinchronizuoja. **Atsakyta kitur** galimas tik `NEEDS_REPLY` arba
+`MANUAL_REVIEW` pokalbiui; `WAITING_CUSTOMER` follow-up auditas be unikalaus
+request ID sąmoningai neleidžiamas, kad retry nesukurtų dviejų activity įrašų
+ir neiškraipytų siuntimo kanalo metrikų.
 
 Priedų turinys V1 neanalizuojamas. Saugoma tik metadata, o visas pokalbis
 pažymimas `MANUAL_REVIEW / INBOUND_ATTACHMENTS_UNPROCESSED`. Didesnis nei

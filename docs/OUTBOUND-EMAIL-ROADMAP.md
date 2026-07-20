@@ -1,13 +1,15 @@
 # FirstReply outbound el. pašto būsena ir likęs atsakymų sekimo planas
 
-Šis dokumentas skiria jau įgyvendintą žmogaus patvirtintą outbound siuntimą nuo
-dar neįgyvendintų delivery, bounce ir reply-sync etapų. 1–2 etapai yra esamos
-sistemos aprašymas; 3–7 etapai — implementation-ready roadmap.
+Šis dokumentas skiria jau įgyvendintą inbound, žmogaus patvirtintą outbound ir
+delivery sekimą nuo piloto readiness bei post-pilot etapų. 1–3 etapai yra
+esamos sistemos aprašymas; 4–7 etapai — sąlyginis post-pilot roadmap.
 
 Susiję dokumentai: [Inbound integracija](./INBOUND-INTEGRATION.md) ·
 [Architektūra](./ARCHITEKTURA.md) ·
 [Railway diegimas](./DEPLOY-RAILWAY.md) ·
-[Naudotojo gidas](./NAUDOTOJO-GIDAS.md)
+[Naudotojo gidas](./NAUDOTOJO-GIDAS.md) ·
+[Piloto operavimo runbookas](./PILOT-OPERATIONS-RUNBOOK.md) ·
+[Legal readiness](./LEGAL-READINESS-CHECKLIST.md)
 
 ## Įgyvendinimo būsena
 
@@ -21,6 +23,25 @@ kliento domenas ir kontroliuojamas Resend/Railway smoke testas. Globalus
 
 Šiame etape `Reply-To` yra kliento sukonfigūruota įmonės pašto dėžutė. Unikalus
 pokalbio reply routing adresas ir automatinis atsakymo įkėlimas yra 4 etapas.
+
+## P0 pasiruošimo pilotui būsena
+
+| Dalis                      | Būsena 2026-07-20                                                           | Acceptance                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A1. Piloto ribos           | 🟡 Produkto ribos dokumentuotos; pasiūlymas ir sutartis laukia patvirtinimo | Sutartyje pažodžiui įrašytas Web formos, Reply-To, Paslaugos.lt ir out-of-scope elgesys                                                          |
+| A2. UX ir readiness PR     | ✅ Įgyvendinta šiame P0 etape                                               | Reply-To paaiškintas prieš siuntimą ir sėkmingo outbound timeline; Paslaugos.lt send lieka blokuotas; yra operavimo runbookas ir statusų roadmap |
+| A3. Legal turinys          | ⛔ Blokuoja patvirtintas turinys                                            | Nebelieka projekto/placeholder tekstų, yra patvirtinta privatumo politika, sąlygos, DPA, subprocessoriai ir AI priežiūros formuluotės            |
+| A4. Railway ir Resend      | ⛔ Neįgyvendinta šiame PR; laukia autorizuotos paskyros ir setup įrodymo    | Kintamieji, backup, pre-deploy, vienas webhookas, receiving ir outbound domenai patikrinti su siuntimu išjungtu                                  |
+| A5. Produkcinis acceptance | 🟡 Laukia A3–A4 ir produkcinio deploy                                       | Praeiti visi `RESEND-ROLLOUT-CHECKLIST.md` scenarijai bei replay, po testų kill switch `false`                                                   |
+| A6. Kliento onboarding     | ⚪ Laukia sėkmingo acceptance                                               | Vienas klientas, vartotojas, taisyklės, integracijos, bendras E2E ir pasirašytas go                                                              |
+
+**A2 plano dalis įgyvendinta.** Galutinis P0 „paruošta pilotui“ statusas negali
+būti pažymėtas, kol A3–A6 neužbaigti su tikrais legal, Railway, Resend ir kliento
+duomenimis. Repo pakeitimas neturi apsimesti produkciniu smoke testu.
+
+Pirmas pilotas trunka 30 kalendorinių dienų ir taikosi į 20–50 realių in-scope
+užklausų. Tikslus stebėjimas, incidentai, metrikos, sėkmės kriterijai ir
+uždarymas aprašyti [piloto operavimo runbooke](./PILOT-OPERATIONS-RUNBOOK.md).
 
 ## 1. Dabartinė bazė
 
@@ -263,7 +284,7 @@ activity ir dar nepasikeitusį `WAITING_CUSTOMER` pokalbį perkelia į
 praeiti; realus Railway/Resend acceptance vykdomas pagal
 [paleidimo checklist](./RESEND-ROLLOUT-CHECKLIST.md).
 
-### Etapas 4 — kliento atsakymo routing
+### Etapas 4 — kliento atsakymo routing (8–11 darbo dienų po piloto)
 
 Kiekvienam pokalbiui sukurti unikalų atsakymo adresą, pvz.:
 
@@ -316,7 +337,7 @@ Patikimai priėmus tęsinį:
 **Done:** teisėtas atsakymas atsiduria teisingame timeline, cross-tenant ir
 atspėtas/spoofintas routing bandymas negali papildyti svetimo pokalbio.
 
-### Etapas 5 — Paslaugos.lt atsakymo mechanizmas
+### Etapas 5 — Paslaugos.lt atsakymo mechanizmas (6–9 darbo dienos po discovery)
 
 Šis etapas pradedamas tik turint realius nuasmenintus laiškus ir atsakymų
 taisykles. Reikia nustatyti:
@@ -334,7 +355,18 @@ nerodo klaidinančio **Siųsti klientui** mygtuko be patikimo gavėjo.
 atsakymo kanalas pasiekia konkretų klientą ir neišsiunčia duomenų neteisingam
 gavėjui.
 
-### Etapas 6 — Gmail / Microsoft mailbox sync
+### Etapas 6 — ribotas auto-send (9–13 darbo dienų)
+
+Svarstyti tik sukaupus rankinio siuntimo statistiką. Reikalinga:
+
+- per-client feature flag ir kill switch;
+- griežta taisyklių bei confidence politika;
+- draudimas siųsti esant attachments, urgency, konfliktams ar manual reason;
+- rate limit, dienos limitas ir anomaly alertai;
+- pilnas sprendimo, drafto, taisyklių versijos ir providerio rezultato auditas;
+- canary rollout ir momentinis grįžimas prie žmogaus patvirtinimo.
+
+### Etapas 7 — Gmail / Microsoft mailbox sync (20–28 darbo dienos)
 
 Vėlesnis atskiras projektas, reikalingas tik jei darbuotojai atsakinėja už
 FirstReply ribų ir tikisi automatinio Inbox/Sent timeline.
@@ -353,17 +385,6 @@ Scope:
 Tai negali būti pakeista visos dėžutės forwardinimu. Pirmiausia reikia atskiro
 threat model, privatumo peržiūros ir providerio app verification.
 
-### Etapas 7 — pasirenkamas auto-send
-
-Svarstyti tik sukaupus rankinio siuntimo statistiką. Reikalinga:
-
-- per-client feature flag ir kill switch;
-- griežta taisyklių bei confidence politika;
-- draudimas siųsti esant attachments, urgency, konfliktams ar manual reason;
-- rate limit, dienos limitas ir anomaly alertai;
-- pilnas sprendimo, drafto, taisyklių versijos ir providerio rezultato auditas;
-- canary rollout ir momentinis grįžimas prie žmogaus patvirtinimo.
-
 ## 5. Sąsajos ir konfigūracija
 
 Dabartinis žmogaus siuntimas įgyvendintas ne viešu API endpointu, o
@@ -373,14 +394,14 @@ autentifikuotu server action:
 app/dashboard/leads/[id]/actions.ts → sendConversationResponseAction
 ```
 
-3 etapui planuojamas neutralus Resend endpointas:
+Inbound ir delivery eventams įgyvendintas vienas neutralus Resend endpointas:
 
 ```text
 POST /api/integrations/resend
 ```
 
-Kol jis neįgyvendintas, inbound lieka
-`POST /api/integrations/inbound/resend`. Žmogaus siuntimui atskiro viešo HTTP
+`POST /api/integrations/inbound/resend` paliktas tik inbound compatibility
+keliui ir delivery eventų neapdoroja. Žmogaus siuntimui atskiro viešo HTTP
 endpointo dabartiniame kode nėra.
 
 Dabartiniai serverio kintamieji:
@@ -491,13 +512,14 @@ serverio secret store.
 Dabar pamatuojama:
 
 - send attempts, accepted ir failed;
+- delivered, delivery delayed, bounced, complained ir suppressed;
+- delivery webhook replay/dublikatai bei monotoniškos būsenos;
 - laikas nuo inbound iki pirmo outbound;
 - idempotency duplicates ir stale retry;
 - pranešimų kiekis.
 
-Tikslinės metrikos po 3–4 etapų:
+Tikslinės metrikos po 4 etapo:
 
-- delivered, bounced ir complained;
 - laikas nuo outbound iki kliento reply;
 - reply routing mismatch / manual review;
 
@@ -540,9 +562,22 @@ siuntimas ir delivery/bounce/complaint/suppression sekimas.
 **Out of scope:** inbound reply routing, Paslaugos.lt direct reply,
 Gmail/Microsoft sync ir auto-send.
 
-Tokiu skaidymu 1–2 etapai saugiai pristatė realų siuntimą, 3 etapas atskirai
-įgyvendino delivery tracking, o reply tracking lieka 4 etapu.
+**✅ P0 readiness A2 įgyvendinta 2026-07-20:** lead siuntimo forma ir sėkmingo
+outbound timeline aiškiai parodo, kad reply keliauja į kliento `Reply-To` ir
+automatiškai negrįžta į FirstReply; **Atsakyta kitur** rodomas tik būsenose,
+kuriose serveris jį idempotentiškai leidžia; pridėti piloto operavimo ir legal
+release-gate dokumentai. Naujo API, Prisma modelio ar migracijos nepridėta.
 
-**Kitas rekomenduojamas ticket:** 4 etapas — unikalaus pokalbio reply adreso ir
-patikimo kliento atsakymo routing techninis spike bei įgyvendinimas.
-Paslaugos.lt direct reply į jį neįtraukiamas be realių platformos fixture'ų.
+Tokiu skaidymu 1–2 etapai saugiai pristatė realų siuntimą, 3 etapas atskirai
+įgyvendino delivery tracking, o P0 readiness uždarė repo viduje įgyvendinamą
+piloto spragą.
+
+**Kiti veiksmai nėra naujas feature ticketas:** gauti patvirtintą legal paketą,
+įvykdyti Railway/Resend setup, produkcinį acceptance ir vieno kliento
+onboarding pagal piloto runbooką. Po to vykdomas 30 dienų pilotas.
+
+**Pirmas post-pilot ticketas:** 4 etapas — unikalaus pokalbio reply adreso,
+Resend sender-auth signalų spike ir patikimo kliento atsakymo routing
+įgyvendinimas. Paslaugos.lt direct reply į jį neįtraukiamas be realių platformos
+fixture'ų. Toliau eina 5 etapas, metrikomis pagrįstas 6 etapo auto-send canary ir
+tik įrodžius poreikį — 7 etapo Gmail/Microsoft sync.

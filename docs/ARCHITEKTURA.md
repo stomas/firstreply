@@ -32,8 +32,9 @@ Dashboard turi el. pašto/slaptažodžio autentifikaciją ir DB sesijas. Įprast
 vartotojas visada apribotas savo `Client`, o `SUPER_ADMIN` sesijoje gali
 pasirinkti aktyvų klientą. Veikia source-specific Web formos ir Paslaugos.lt
 inbound integracijos ir žmogaus patvirtintas outbound siuntimas Web formos
-užklausoms. Mokėjimų, Gmail mailbox sync, CRM, delivery bei reply sync
-nėra.
+užklausoms. Pasirašyti Resend webhookai seka accepted, delivered, bounce,
+complaint ir suppression būsenas. Mokėjimų, Gmail mailbox sync, CRM bei kliento
+reply sync nėra.
 
 ## 2. Tech stack
 
@@ -451,8 +452,12 @@ aktyvus draftas tampa `superseded`.
 
 Pokalbio būsenos: `NEEDS_REPLY`, `WAITING_CUSTOMER`, `MANUAL_REVIEW`,
 `CLOSED`. „Atsakyta kitur“ saugomas `ConversationActivity` su vartotoju, laiku
-ir pastaba; outbound message nefabrikuojamas. Priedai saugomi tik kaip metadata
-ir verčia pokalbį likti `INBOUND_ATTACHMENTS_UNPROCESSED` rankinėje peržiūroje.
+ir pastaba; outbound message nefabrikuojamas. Veiksmas galimas
+`NEEDS_REPLY` bei `MANUAL_REVIEW` būsenose. `WAITING_CUSTOMER` pakartotinis
+veiksmas sąmoningai blokuojamas, kol nėra atskiro idempotency request ID; taip
+retry negali sukurti dviejų activity ar perrašyti tikro outbound kanalo
+metrikos. Priedai saugomi tik kaip metadata ir verčia pokalbį likti
+`INBOUND_ATTACHMENTS_UNPROCESSED` rankinėje peržiūroje.
 
 Pilnas kontraktas, setup ir retry lentelė:
 [INBOUND-INTEGRATION.md](./INBOUND-INTEGRATION.md).
@@ -469,7 +474,9 @@ Pilnas kontraktas, setup ir retry lentelė:
 4. **Automatinio siuntimo nėra** — `autoSendAllowed` tik žymi politikos
    rezultatą. Realus siuntimas galimas tik žmogui redagavus ir paspaudus
    **Siųsti klientui**, tik Web formos source ir tik iš patvirtinto siuntėjo.
-   Delivery būsena šiame etape reiškia tik Resend priėmimą, ne pristatymą.
+   `SENT` reiškia, kad Resend laišką priėmė; atskira `DELIVERED` būsena reiškia
+   pasirašytu delivery webhooku patvirtintą pristatymą. Bounce, complaint ir
+   suppression taip pat rodomi timeline. Neįgyvendintas kliento reply sync.
 5. **Paslaugos.lt fixture'ai** — realus nuasmenintas 2026-07-14 fixture'as
    patvirtina atvejį, kai plain-text dalyje yra tik web nuoroda, o užklausa yra
    HTML. Adapteris tokiu atveju pasirenka HTML, izoliuoja užklausos sekciją ir

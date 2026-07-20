@@ -254,6 +254,12 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
                       ? ` · ${clientSafeOutboundText(item.message.outboundDispatch.errorMessage)}`
                       : ""}
                   </div>
+                  {isSuccessfulDispatch(item.message.outboundDispatch) ? (
+                    <ReplyRoutingNotice
+                      replyToEmail={item.message.outboundDispatch.replyToEmail}
+                      showExternalAnswerGuidance={false}
+                    />
+                  ) : null}
                   {isDispatchRetryable(item.message.outboundDispatch) &&
                   conversation.status !== "CLOSED" &&
                   process.env.EMAIL_SENDING_ENABLED === "true" ? (
@@ -338,7 +344,8 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
 
       <SendResponseForm lead={lead} />
 
-      {conversation.status !== "CLOSED" ? (
+      {conversation.status === "NEEDS_REPLY" ||
+      conversation.status === "MANUAL_REVIEW" ? (
         <form
           action={markAnsweredExternallyAction}
           className="mt-5 rounded-lg border border-line p-4"
@@ -358,12 +365,12 @@ function ConversationPanel({ lead }: { lead: LeadDetail }) {
             Pažymėti atsakytą
           </button>
         </form>
-      ) : (
+      ) : conversation.status === "CLOSED" ? (
         <p className="mt-5 rounded-lg border border-line bg-line-soft px-4 py-3 text-sm text-ink-soft">
           Norėdami fiksuoti naują veiksmą, pirmiausia atidarykite pokalbį iš
           naujo.
         </p>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -468,6 +475,10 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
         &gt; · Kam: {lead.customerEmail} · Reply-To:{" "}
         {lead.outboundSender.replyToEmail}
       </p>
+      <ReplyRoutingNotice
+        replyToEmail={lead.outboundSender.replyToEmail}
+        className="mt-3"
+      />
       <label className="mt-3 block text-sm font-bold text-ink">
         Tema
         <input
@@ -499,6 +510,36 @@ function SendResponseForm({ lead }: { lead: LeadDetail }) {
       </p>
     </form>
   );
+}
+
+function ReplyRoutingNotice({
+  replyToEmail,
+  className = "mt-3",
+  showExternalAnswerGuidance = true,
+}: {
+  replyToEmail: string;
+  className?: string;
+  showExternalAnswerGuidance?: boolean;
+}) {
+  return (
+    <p
+      className={`${className} rounded-lg border border-line bg-white px-3 py-2 text-xs leading-relaxed text-ink-soft`}
+    >
+      Kliento atsakymas bus pristatytas į <strong>{replyToEmail}</strong> ir
+      automatiškai neatsiras FirstReply timeline.
+      {showExternalAnswerGuidance ? (
+        <>
+          {" "}
+          Jei vietoje šio siuntimo atsakysite savo pašte, telefonu ar kitame
+          kanale, užfiksuokite tai veiksmu „Atsakyta kitur“.
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+function isSuccessfulDispatch(dispatch: { status: string }): boolean {
+  return dispatch.status === "SENT" || dispatch.status === "DELIVERED";
 }
 
 function dispatchStatusLabel(

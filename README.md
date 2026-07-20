@@ -22,14 +22,16 @@ while new sending is disabled.
 
 ## Documentation
 
-| Document                                                               | Audience                                                                                             |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                         | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)            |
-| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)           | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)                  |
-| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md)     | Product/developers — implemented outbound sending/delivery and remaining customer-reply roadmap (LT) |
-| [docs/RESEND-ROLLOUT-CHECKLIST.md](./docs/RESEND-ROLLOUT-CHECKLIST.md) | Operators — literal migration, webhook, delivery/bounce smoke and rollback checklist (LT)            |
-| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)                   | Business users — how to use the dashboard (LT)                                                       |
-| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                     | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)                  |
+| Document                                                                 | Audience                                                                                             |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| [docs/ARCHITEKTURA.md](./docs/ARCHITEKTURA.md)                           | Developers — pipeline, decision engine, AI integration, DB models, known limitations (LT)            |
+| [docs/INBOUND-INTEGRATION.md](./docs/INBOUND-INTEGRATION.md)             | Developers/operators — web-form signing, Resend routing, retry and smoke tests (LT)                  |
+| [docs/OUTBOUND-EMAIL-ROADMAP.md](./docs/OUTBOUND-EMAIL-ROADMAP.md)       | Product/developers — implemented outbound sending/delivery and remaining customer-reply roadmap (LT) |
+| [docs/RESEND-ROLLOUT-CHECKLIST.md](./docs/RESEND-ROLLOUT-CHECKLIST.md)   | Operators — literal migration, webhook, delivery/bounce smoke and rollback checklist (LT)            |
+| [docs/PILOT-OPERATIONS-RUNBOOK.md](./docs/PILOT-OPERATIONS-RUNBOOK.md)   | Operators — first paid pilot scope, go/no-go, incidents, backup, DSR and monitoring (LT)             |
+| [docs/LEGAL-READINESS-CHECKLIST.md](./docs/LEGAL-READINESS-CHECKLIST.md) | Product/legal — approved inputs and hard release gate before a paid/public pilot (LT)                |
+| [docs/NAUDOTOJO-GIDAS.md](./docs/NAUDOTOJO-GIDAS.md)                     | Business users — how to use the dashboard (LT)                                                       |
+| [docs/DEPLOY-RAILWAY.md](./docs/DEPLOY-RAILWAY.md)                       | Operators — step-by-step Railway deployment, migrations, seed, troubleshooting (LT)                  |
 
 ---
 
@@ -293,8 +295,8 @@ in [`railway.json`](./railway.json): Node `20.x`, build with
 - All copy lives in `lib/constants.ts`; the lead contract lives in
   `lib/lead-schema.ts`.
 
-Additional source adapters, CRM, Gmail/Microsoft mailbox sync, delivery/reply
-tracking, multiple users, and advanced reports remain roadmap items. Human-
-approved Web form email sending exists; automatic sending does not. Source
-count is not limited in V1; usage is measured per integration for future
-pricing decisions.
+Additional source adapters, CRM, Gmail/Microsoft mailbox sync, customer reply
+routing, multiple users, and advanced reports remain roadmap items. Human-
+approved Web form email sending and delivery tracking exist; automatic sending
+does not. Source count is not limited in V1; usage is measured per integration
+for future pricing decisions.
